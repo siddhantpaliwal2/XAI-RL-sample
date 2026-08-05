@@ -1,0 +1,435 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "ses_0305871e3ffe1GcUGKDm6440bd",
+  "agent": {
+    "name": "opencode",
+    "version": "1.18.13",
+    "model_name": "openrouter/x-ai/grok-4.5"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "source": "user",
+      "message": "<uploaded_files>/app</uploaded_files>\n\nSubject: escalation - recurring CRM data-quality complaints from the field\n\nI'm writing this up on behalf of Customer Success. Over the past few sprints our\naccount managers have logged a run of small but genuine mistakes in how the contact\ntooling saves and shows two fields: a contact's mobile number and their loan type.\nEvery one of these has been reproduced on a live account, so please treat them as\nreal defects rather than user error. They only bite when a contact's details come in\na slightly off-pattern shape, which is why they slipped past everyone for weeks - the\nroutine cases (a plain US mobile, a loan type chosen from the dropdown) come out\nperfectly correct, and our automated checks only ever exercise those routine cases.\n\nHere is what the managers actually reported, in their words:\n\n- \"I onboarded a borrower in London and typed their mobile the way it's printed on\n  their letterhead. Our workspace is configured to default to the UK, but the number\n  saved under a US code (+1...) instead of the UK code (+44...).\" So: when the digits\n  could belong to more than one country, the contact's configured home region is being\n  ignored and the wrong country is winning.\n\n- \"A few contacts gave me their number in the international style that starts with a\n  double-zero access code - a 0044 UK number, for instance. Instead of accepting it,\n  the tool told me the number was invalid and I had to retype it by hand.\" So: the 00\n  international prefix isn't being treated as equivalent to a leading +.\n\n- \"One of my older accounts is tagged with a loan type from before we cleaned up the\n  catalog, and the label on the record printed as 'Hardmoney' - no space - when it\n  should read 'Hard Money', same word-by-word capitalization as every other loan type\n  we display.\" So: an unfamiliar loan-type code isn't being turned into a readable,\n  properly spaced and capitalized label.\n\n- \"A rep entered a loan type as 'Working_Capital', with the odd capitals and the\n  underscore, and that's exactly the string that got stored on the contact - not the\n  tidy internal code the rest of the system matches against.\" So: an oddly-cased entry\n  of a known type is being stored verbatim rather than normalized to its standard code.\n\nThere may be more corners like these; those are simply the ones we could reproduce.\nThe common thread is that all of it is pure string-and-lookup work - deciding a\ncountry for a number, reshaping a dialed number into storage form, and mapping a\nloan-type string to its code and its display label. No database or network calls are\ninvolved, so each case is reproducible from a direct call.\n\nWhat I need from engineering: make the saved and displayed values correct for these\nunusual-but-legitimate inputs, and do it without disturbing how the ordinary inputs\n(the ones our current checks cover) already behave. Please don't touch the existing\ntest files, and confirm the current suite still passes when you're done:\n\n    cd /app/loangen-agent && python -m pytest tests -v\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-05T02:01:34.924000+00:00",
+      "source": "agent",
+      "model_name": "openrouter/x-ai/grok-4.5",
+      "message": "I'll explore the codebase to find how phone numbers and loan types are handled.",
+      "reasoning_content": "The user wants me to fix several bugs related to CRM data quality:\n",
+      "tool_calls": [
+        {
+          "tool_call_id": "call-d14d1ea3-f333-4906-9401-831f50937dff-0",
+          "function_name": "bash",
+          "arguments": {
+            "command": "ls -la /app/loangen-agent && find /app/loangen-agent -type f -name \"*.py\" | head -50"
+          }
+        },
+        {
+          "tool_call_id": "call-d14d1ea3-f333-4906-9401-831f50937dff-1",
+          "function_name": "glob",
+          "arguments": {
+            "pattern": "**/*.{py,ts,js,json}",
+            "path": "/app/loangen-agent"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call-d14d1ea3-f333-4906-9401-831f50937dff-0",
+            "content": "total 60\ndrwxr-xr-x 1 root root    27 Jul 14 20:56 .\ndrwxr-xr-x 1 root root    18 Jul 15 02:21 ..\n-rw-r--r-- 1 root root 29414 Jul 14 20:56 .env.example\n-rw-r--r-- 1 root root   885 Jul 14 20:56 Dockerfile\n-rw-r--r-- 1 root root  4154 Jul 14 20:56 README.md\ndrwxr-xr-x 1 root root    54 Jul 14 20:56 agent\ndrwxr-xr-x 1 root root    27 Jul 12 20:34 deploy\ndrwxr-xr-x 1 root root    95 Jul 14 20:56 docker\n-rw-r--r-- 1 root root   288 Jul 14 20:56 docker-compose.yml\ndrwxr-xr-x 1 root root   171 Jul 14 20:56 docs\n-rw-r--r-- 1 root root  1590 Jul 14 20:56 requirements.txt\ndrwxr-xr-x 1 root root  4096 Jul 14 20:56 tests\ndrwxr-xr-x 1 root root  4096 Jul 14 20:56 training\n/app/loangen-agent/agent/__init__.py\n/app/loangen-agent/agent/analytics/__init__.py\n/app/loangen-agent/agent/analytics/models/__init__.py\n/app/loangen-agent/agent/analytics/models/credit_bureau.py\n/app/loangen-agent/agent/analytics/models/plaid.py\n/app/loangen-agent/agent/analytics/models/quickbooks.py\n/app/loangen-agent/agent/analytics/router.py\n/app/loangen-agent/agent/analytics/seed.py\n/app/loangen-agent/agent/analytics/services/__init__.py\n/app/loangen-agent/agent/analytics/services/bank_plaid_analytics_service.py\n/app/loangen-agent/agent/analytics/services/credit_bureau_analytics.py\n/app/loangen-agent/agent/analytics/services/credit_cache_service.py\n/app/loangen-agent/agent/analytics/services/credit_report_analytics_service.py\n/app/loangen-agent/agent/analytics/services/plaid_analytics.py\n/app/loangen-agent/agent/analytics/services/quickbooks_analytics.py\n/app/loangen-agent/agent/array/__init__.py\n/app/loangen-agent/agent/array/client.py\n/app/loangen-agent/agent/array/credit_report_narrative.py\n/app/loangen-agent/agent/array/credit_report_pdf.py\n/app/loangen-agent/agent/array/internal_router.py\n/app/loangen-agent/agent/array/models.py\n/app/loangen-agent/agent/array/router.py\n/app/loangen-agent/agent/array/schemas.py\n/app/loangen-agent/agent/array/service.py\n/app/loangen-agent/agent/auth/__init__.py\n/app/loangen-agent/agent/auth/common/__init__.py\n/app/loangen-agent/agent/auth/common/audit_models.py\n/app/loangen-agent/agent/auth/common/audit_service.py\n/app/loangen-agent/agent/auth/common/enums.py\n/app/loangen-agent/agent/auth/common/migration_service.py\n/app/loangen-agent/agent/auth/common/schemas.py\n/app/loangen-agent/agent/auth/lender/__init__.py\n/app/loangen-agent/agent/auth/lender/models.py\n/app/loangen-agent/agent/auth/lender/router.py\n/app/loangen-agent/agent/auth/lender/schemas.py\n/app/loangen-agent/agent/auth/lender/service.py\n/app/loangen-agent/agent/auth/user/__init__.py\n/app/loangen-agent/agent/auth/user/models.py\n/app/loangen-agent/agent/auth/user/router.py\n/app/loangen-agent/agent/auth/user/schemas.py\n/app/loangen-agent/agent/auth/user/service.py\n/app/loangen-agent/agent/billing/__init__.py\n/app/loangen-agent/agent/billing/models.py\n/app/loangen-agent/agent/billing/router.py\n/app/loangen-agent/agent/billing/schemas.py\n/app/loangen-agent/agent/billing/service.py\n/app/loangen-agent/agent/chat/__init__.py\n/app/loangen-agent/agent/chat/models.py\n/app/loangen-agent/agent/chat/service.py\n/app/loangen-agent/agent/chat_server.py\n"
+          },
+          {
+            "source_call_id": "call-d14d1ea3-f333-4906-9401-831f50937dff-1",
+            "content": "/app/loangen-agent/training/seeds_c8.py\n/app/loangen-agent/training/seeds_c7.py\n/app/loangen-agent/training/seeds_c6.py\n/app/loangen-agent/training/seeds_c5.py\n/app/loangen-agent/training/seeds_c4.py\n/app/loangen-agent/training/seeds_c3.py\n/app/loangen-agent/training/seeds_c2.py\n/app/loangen-agent/training/seeds_c1.py\n/app/loangen-agent/training/generate_synthetic.py\n/app/loangen-agent/training/generate_seed.py\n/app/loangen-agent/training/gen_all_seeds.py\n/app/loangen-agent/training/fine_tune_qlora.py\n/app/loangen-agent/training/fine_tune_mlx.py\n/app/loangen-agent/training/evaluate.py\n/app/loangen-agent/tests/test_voice_llm_azure_config.py\n/app/loangen-agent/tests/test_smb_invite_schemas.py\n/app/loangen-agent/tests/test_smb_invite_production.py\n/app/loangen-agent/tests/test_smb_invite_conversation.py\n/app/loangen-agent/tests/test_smb_contacts_csv_and_update.py\n/app/loangen-agent/tests/test_required_docs.py\n/app/loangen-agent/tests/test_qualification_report_pdf.py\n/app/loangen-agent/tests/test_qualification_recommendation.py\n/app/loangen-agent/tests/test_pstn_inbound_queue.py\n/app/loangen-agent/tests/test_oak_hill_qualification.py\n/app/loangen-agent/tests/test_oak_hill_extraction.py\n/app/loangen-agent/tests/test_logging_setup.py\n/app/loangen-agent/tests/test_lender_product_match.py\n/app/loangen-agent/tests/test_ingestion_stale_recovery.py\n/app/loangen-agent/tests/test_inbound_calls.py\n/app/loangen-agent/tests/test_document_report.py\n/app/loangen-agent/tests/test_document_qa_hybrid.py\n/app/loangen-agent/tests/test_document_layout_extraction.py\n/app/loangen-agent/tests/test_document_intelligence.py\n/app/loangen-agent/tests/test_document_ingestion_readiness.py\n/app/loangen-agent/tests/test_document_ingestion_production.py\n/app/loangen-agent/tests/test_direct_recording.py\n/app/loangen-agent/tests/test_direct_calls.py\n/app/loangen-agent/tests/test_direct_call_dtmf.py\n/app/loangen-agent/tests/test_credit_pdf_upload.py\n/app/loangen-agent/tests/test_credit_pdf_pipeline.py\n/app/loangen-agent/tests/test_cre_qualification.py\n/app/loangen-agent/tests/test_cre_field_extraction.py\n/app/loangen-agent/tests/test_config_document_intelligence.py\n/app/loangen-agent/tests/test_cartesia_twilio_sync.py\n/app/loangen-agent/tests/test_call_session_cleanup.py\n/app/loangen-agent/tests/test_bridge_broadway_qualification.py\n/app/loangen-agent/tests/test_bridge_broadway_extraction.py\n/app/loangen-agent/agent/voice_agent/warmup.py\n/app/loangen-agent/agent/voice_agent/mount.py\n/app/loangen-agent/agent/voice_agent/agent.py\n/app/loangen-agent/agent/voice_agent/__init__.py\n/app/loangen-agent/agent/tools/quickbooks.py\n/app/loangen-agent/agent/tools/qualification_engine.py\n/app/loangen-agent/agent/tools/plaid_bank.py\n/app/loangen-agent/agent/tools/credit_bureau.py\n/app/loangen-agent/agent/tools/__init__.py\n/app/loangen-agent/agent/storage/local.py\n/app/loangen-agent/agent/storage/factory.py\n/app/loangen-agent/agent/storage/base.py\n/app/loangen-agent/agent/storage/azure_blob.py\n/app/loangen-agent/agent/storage/__init__.py\n/app/loangen-agent/agent/services/waitlist/service.py\n/app/loangen-agent/agent/services/waitlist/schemas.py\n/app/loangen-agent/agent/services/waitlist/router.py\n/app/loangen-agent/agent/services/waitlist/models.py\n/app/loangen-agent/agent/services/waitlist/__init__.py\n/app/loangen-agent/agent/services/smbinvites/service.py\n/app/loangen-agent/agent/services/smbinvites/schemas.py\n/app/loangen-agent/agent/services/smbinvites/router.py\n/app/loangen-agent/agent/services/smbinvites/models.py\n/app/loangen-agent/agent/services/smbinvites/__init__.py\n/app/loangen-agent/agent/main.py\n/app/loangen-agent/agent/services/smbcontacts/service.py\n/app/loangen-agent/agent/services/smbcontacts/schemas.py\n/app/loangen-agent/agent/services/smbcontacts/router.py\n/app/loangen-agent/agent/services/smbcontacts/models.py\n/app/loangen-agent/agent/services/smbcontacts/loan_types.py\n/app/loangen-agent/agent/services/smbcontacts/__init__.py\n/app/loangen-agent/agent/services/smbapplications/service.py\n/app/loangen-agent/agent/services/smbapplications/schemas.py\n/app/loangen-agent/agent/services/smbapplications/router.py\n/app/loangen-agent/agent/services/smbapplications/models.py\n/app/loangen-agent/agent/services/smbapplications/advisor_context.py\n/app/loangen-agent/agent/services/smbapplications/__init__.py\n/app/loangen-agent/agent/services/prequal/service.py\n/app/loangen-agent/agent/services/prequal/schemas.py\n/app/loangen-agent/agent/services/prequal/router.py\n/app/loangen-agent/agent/services/prequal/readiness_config.py\n/app/loangen-agent/agent/services/prequal/models.py\n/app/loangen-agent/agent/services/prequal/__init__.py\n/app/loangen-agent/agent/services/notifications/schemas.py\n/app/loangen-agent/agent/services/notifications/router.py\n/app/loangen-agent/agent/services/notifications/models.py\n/app/loangen-agent/agent/services/loanproducts/service.py\n/app/loangen-agent/agent/services/loanproducts/schemas.py\n/app/loangen-agent/agent/services/loanproducts/router.py\n/app/loangen-agent/agent/services/loanproducts/models.py\n/app/loangen-agent/agent/services/loanproducts/__init__.py\n/app/loangen-agent/agent/services/feedback/service.py\n/app/loangen-agent/agent/services/feedback/schemas.py\n\n(Results are truncated: showing first 100 results. Consider using a more specific path or pattern.)"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 8070,
+        "completion_tokens": 87,
+        "cached_tokens": 128,
+        "cost_usd": 0.0171704,
+        "extra": {
+          "reasoning_tokens": 121
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-05T02:01:39.178000+00:00",
+      "source": "agent",
+      "model_name": "openrouter/x-ai/grok-4.5",
+      "message": "",
+      "reasoning_content": "Let me look at the smbcontacts service and loan_types, and search for phone number handling.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call-3a34ad40-3f8f-4452-ab0c-8b26754c32ff-2",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/services/smbcontacts/loan_types.py"
+          }
+        },
+        {
+          "tool_call_id": "call-3a34ad40-3f8f-4452-ab0c-8b26754c32ff-3",
+          "function_name": "grep",
+          "arguments": {
+            "pattern": "phone|mobile|country|loan.?type|normalize",
+            "path": "/app/loangen-agent/agent/services/smbcontacts",
+            "include": "*.py"
+          }
+        },
+        {
+          "tool_call_id": "call-3a34ad40-3f8f-4452-ab0c-8b26754c32ff-4",
+          "function_name": "bash",
+          "arguments": {
+            "command": "ls -la /app/loangen-agent/tests/ | head -80; ls /app/loangen-agent/agent/services/smbcontacts/"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call-3a34ad40-3f8f-4452-ab0c-8b26754c32ff-2",
+            "content": "<path>/app/loangen-agent/agent/services/smbcontacts/loan_types.py</path>\n<type>file</type>\n<content>\n1: \"\"\"\n2: Canonical US SMB loan types for CRM contacts and invite flows.\n3: \n4: Each entry has a stable ``id`` (stored in MongoDB) and a human ``label``.\n5: \"\"\"\n6: \n7: from __future__ import annotations\n8: \n9: import re\n10: from typing import List, Optional\n11: \n12: LOAN_TYPE_CHOICES: List[dict[str, str]] = [\n13:     {\"id\": \"sba7a\", \"label\": \"SBA 7(a) Loan\"},\n14:     {\"id\": \"sba504\", \"label\": \"SBA 504 Loan\"},\n15:     {\"id\": \"sba_express\", \"label\": \"SBA Express Loan\"},\n16:     {\"id\": \"sba_caplines\", \"label\": \"SBA CAPlines\"},\n17:     {\"id\": \"microloan\", \"label\": \"SBA Microloan\"},\n18:     {\"id\": \"term\", \"label\": \"Term Loan\"},\n19:     {\"id\": \"loc\", \"label\": \"Line of Credit\"},\n20:     {\"id\": \"equipment\", \"label\": \"Equipment Financing\"},\n21:     {\"id\": \"working_capital\", \"label\": \"Working Capital Loan\"},\n22:     {\"id\": \"cre\", \"label\": \"Commercial Real Estate Loan\"},\n23:     {\"id\": \"construction\", \"label\": \"Construction Loan\"},\n24:     {\"id\": \"bridge\", \"label\": \"Bridge Loan\"},\n25:     {\"id\": \"acquisition\", \"label\": \"Business Acquisition Loan\"},\n26:     {\"id\": \"franchise\", \"label\": \"Franchise Loan\"},\n27:     {\"id\": \"invoice_factoring\", \"label\": \"Invoice Factoring\"},\n28:     {\"id\": \"mca\", \"label\": \"Merchant Cash Advance\"},\n29:     {\"id\": \"rbf\", \"label\": \"Revenue-Based Financing\"},\n30:     {\"id\": \"abl\", \"label\": \"Asset-Based Lending\"},\n31:     {\"id\": \"startup\", \"label\": \"Startup Loan\"},\n32:     {\"id\": \"usda\", \"label\": \"USDA Business & Industry Loan\"},\n33: ]\n34: \n35: _LOAN_TYPE_IDS = {c[\"id\"] for c in LOAN_TYPE_CHOICES}\n36: \n37: # id + normalized label + common aliases \u2192 canonical id\n38: _EXTRA_ALIASES: dict[str, str] = {\n39:     \"sba 7a\": \"sba7a\",\n40:     \"sba 7(a)\": \"sba7a\",\n41:     \"sba-7a\": \"sba7a\",\n42:     \"sba_7a\": \"sba7a\",\n43:     \"sba 504\": \"sba504\",\n44:     \"sba-504\": \"sba504\",\n45:     \"sba_504\": \"sba504\",\n46:     \"sba express\": \"sba_express\",\n47:     \"sba caplines\": \"sba_caplines\",\n48:     \"caplines\": \"sba_caplines\",\n49:     \"microloan\": \"microloan\",\n50:     \"sba microloan\": \"microloan\",\n51:     \"term loan\": \"term\",\n52:     \"termloan\": \"term\",\n53:     \"term_loan\": \"term\",\n54:     \"line of credit\": \"loc\",\n55:     \"lineofcredit\": \"loc\",\n56:     \"line_of_credit\": \"loc\",\n57:     \"equipment financing\": \"equipment\",\n58:     \"equipment_financing\": \"equipment\",\n59:     \"working capital\": \"working_capital\",\n60:     \"working capital loan\": \"working_capital\",\n61:     \"working_capital\": \"working_capital\",\n62:     \"commercial real estate\": \"cre\",\n63:     \"commercial real estate loan\": \"cre\",\n64:     \"cre\": \"cre\",\n65:     \"construction loan\": \"construction\",\n66:     \"bridge loan\": \"bridge\",\n67:     \"business acquisition\": \"acquisition\",\n68:     \"business acquisition loan\": \"acquisition\",\n69:     \"franchise loan\": \"franchise\",\n70:     \"invoice factoring\": \"invoice_factoring\",\n71:     \"merchant cash advance\": \"mca\",\n72:     \"mca\": \"mca\",\n73:     \"revenue based financing\": \"rbf\",\n74:     \"revenue-based financing\": \"rbf\",\n75:     \"asset based lending\": \"abl\",\n76:     \"asset-based lending\": \"abl\",\n77:     \"startup loan\": \"startup\",\n78:     \"usda\": \"usda\",\n79:     \"usda business\": \"usda\",\n80:     \"usda b&i\": \"usda\",\n81: }\n82: \n83: \n84: def _normalize_key(value: str) -> str:\n85:     return re.sub(r\"[_\\-]+\", \" \", value.strip().lower()).strip()\n86: \n87: \n88: def loan_type_label(loan_type_id: Optional[str]) -> str:\n89:     if not loan_type_id:\n90:         return \"\"\n91:     for choice in LOAN_TYPE_CHOICES:\n92:         if choice[\"id\"] == loan_type_id:\n93:             return choice[\"label\"]\n94:     return loan_type_id.replace(\"_\", \"\").title()\n95: \n96: \n97: def resolve_loan_type(raw: str) -> Optional[str]:\n98:     \"\"\"Map a CSV/UI loan type string to a canonical id, or None if unrecognized.\"\"\"\n99:     value = (raw or \"\").strip()\n100:     if not value:\n101:         return None\n102:     compact = value.lower().replace(\" \", \"\").replace(\"-\", \"\").replace(\"_\", \"\")\n103:     if compact in _LOAN_TYPE_IDS:\n104:         return compact\n105:     if value.lower() in _LOAN_TYPE_IDS:\n106:         return value\n107:     normalized = _normalize_key(value)\n108:     if normalized in _EXTRA_ALIASES:\n109:         return _EXTRA_ALIASES[normalized]\n110:     for choice in LOAN_TYPE_CHOICES:\n111:         if _normalize_key(choice[\"label\"]) == normalized:\n112:             return choice[\"id\"]\n113:         if _normalize_key(choice[\"id\"]) == normalized:\n114:             return choice[\"id\"]\n115:     return None\n116: \n117: \n118: def is_valid_loan_type_id(loan_type_id: Optional[str]) -> bool:\n119:     return bool(loan_type_id and loan_type_id in _LOAN_TYPE_IDS)\n\n(End of file - total 119 lines)\n</content>"
+          },
+          {
+            "source_call_id": "call-3a34ad40-3f8f-4452-ab0c-8b26754c32ff-3",
+            "content": "Found 100 matches (more matches available)\n/app/loangen-agent/agent/services/smbcontacts/models.py:\n  Line 36:     mobile: str = \"\"  # E.164 when set; may be empty until lender adds via Edit\n\n  Line 51:     loan_type: Optional[str] = None  # canonical id from loan_types.LOAN_TYPE_CHOICES\n\n\n/app/loangen-agent/agent/services/smbcontacts/service.py:\n  Line 21: from agent.integrations.cartesia.phone import (\n\n  Line 22:     normalize_phone_to_e164,\n\n  Line 23:     try_normalize_phone_to_e164,\n\n  Line 35: from agent.services.smbcontacts.loan_types import resolve_loan_type\n\n  Line 59:     \"mobile\": [\"mobile\", \"phone\", \"cell\", \"mobile_phone\"],\n\n  Line 74:     \"loan_type\": [\"loan_type\", \"loan type\", \"loantype\"],\n\n  Line 89: def _default_phone_region() -> str:\n\n  Line 90:     return settings.cartesia_default_phone_region.strip() or \"US\"\n\n  Line 93: def normalize_mobile_for_storage(raw: str) -> str:\n\n  Line 95:     return normalize_phone_to_e164(raw, default_region=_default_phone_region())\n\n  Line 98: def try_normalize_mobile(raw: str) -> Optional[str]:\n\n  Line 99:     return try_normalize_phone_to_e164(raw, default_region=_default_phone_region())\n\n  Line 102: def _mobile_from_input_or_error(mobile_raw: str) -> str:\n\n  Line 103:     \"\"\"Normalize lender-entered mobile for create/update; empty string clears.\"\"\"\n\n  Line 104:     raw = (mobile_raw or \"\").strip()\n\n  Line 107:     normalized = try_normalize_mobile(raw)\n\n  Line 108:     if not normalized:\n\n  Line 114:                     f\"Could not verify phone number '{raw}'. \"\n\n  Line 115:                     \"Include country code if needed (e.g. +91 for India).\"\n\n  Line 119:     return normalized\n\n  Line 122: def _resolve_mobile_for_import(\n\n  Line 123:     mobile_raw: str,\n\n  Line 128:     \"\"\"Normalize a CSV mobile value; fall back to storing best-effort E.164.\"\"\"\n\n  Line 130:     if not mobile_raw:\n\n  Line 134:             field=\"mobile\",\n\n  Line 137:                 \"add a phone number via Edit Contact before calling.\"\n\n  Line 143:     normalized = try_normalize_mobile(mobile_raw)\n\n  Line 144:     if normalized:\n\n  Line 145:         return normalized, warnings\n\n  Line 150:         field=\"mobile\",\n\n  Line 152:             f\"Could not verify phone number '{mobile_raw}'. \"\n\n  Line 153:             \"Contact was imported without a phone number \u2014 \"\n\n  Line 161: def _parse_loan_type_from_csv(\n\n  Line 168:     loan_type_raw = _resolve(raw, \"loan_type\")\n\n  Line 169:     if not loan_type_raw:\n\n  Line 171:     loan_type_stored = resolve_loan_type(loan_type_raw)\n\n  Line 172:     if loan_type_stored:\n\n  Line 173:         return loan_type_stored, warnings\n\n  Line 177:         field=\"loan_type\",\n\n  Line 179:             f\"Unrecognized loan type '{loan_type_raw}'. \"\n\n  Line 180:             \"Contact was imported without a loan type \u2014 \"\n\n  Line 211:     mobile_raw = _resolve(raw, \"mobile\")\n\n  Line 212:     mobile_stored, mobile_warnings = _resolve_mobile_for_import(\n\n  Line 213:         mobile_raw,\n\n  Line 217:     warnings.extend(mobile_warnings)\n\n  Line 218:     if mobile_stored and contact.mobile != mobile_stored:\n\n  Line 219:         contact.mobile = mobile_stored\n\n  Line 231:     loan_type_stored, loan_warnings = _parse_loan_type_from_csv(\n\n  Line 237:     if loan_type_stored and contact.loan_type != loan_type_stored:\n\n  Line 238:         contact.loan_type = loan_type_stored\n\n  Line 276:         mobile=contact.mobile or \"\",\n\n  Line 285:         loan_type=contact.loan_type,\n\n  Line 331:     mobile_raw = (payload.mobile or \"\").strip()\n\n  Line 332:     normalized_mobile = _mobile_from_input_or_error(mobile_raw) if mobile_raw else \"\"\n\n  Line 340:         mobile=normalized_mobile,\n\n  Line 349:         loan_type=payload.loan_type,\n\n  Line 390:                     \"You can still update phone, address, and loan details.\"\n\n  Line 419:     if \"mobile\" in updates:\n\n  Line 420:         contact.mobile = _mobile_from_input_or_error(updates[\"mobile\"] or \"\")\n\n  Line 424:         \"monthly_revenue\", \"time_in_business\", \"loan_type\", \"comment\",\n\n  Line 460:                     {\"mobile\": pattern},\n\n  Line 569: async def _normalize_contact_phone(contact: SMBContact) -> str:\n\n  Line 570:     if not (contact.mobile or \"\").strip():\n\n  Line 576:                     \"This contact does not have a phone number yet. \"\n\n  Line 577:                     \"Add a mobile number in Edit Contact before calling.\"\n\n  Line 582:         return normalize_phone_to_e164(\n\n  Line 583:             contact.mobile,\n\n  Line 584:             default_region=_default_phone_region(),\n\n  Line 613:     to_number = await _normalize_contact_phone(contact)\n\n  Line 718:     to_number = await _normalize_contact_phone(contact)\n\n  Line 766:         \"Stay on this page \u2014 your browser audio will connect while their phone rings.\"\n\n  Line 836:         mobile_raw = _resolve(raw, \"mobile\")\n\n  Line 910:         mobile_stored, mobile_warnings = _resolve_mobile_for_import(\n\n  Line 911:             mobile_raw,\n\n  Line 915:         row_warnings.extend(mobile_warnings)\n\n  Line 917:         loan_type_stored, loan_warnings = _parse_loan_type_from_csv(\n\n  Line 933:                 mobile=mobile_stored,\n\n  Line 942:                 loan_type=loan_type_stored,\n\n\n/app/loangen-agent/agent/services/smbcontacts/schemas.py:\n  Line 20: from agent.services.smbcontacts.loan_types import resolve_loan_type\n\n  Line 33: def _normalize_tags(v: List[str]) -> List[str]:\n\n  Line 45:     Optional fields  : last_name, mobile, address, city, state, zip,\n\n  Line 47:                        loan_type, tags\n\n  Line 53:     mobile: str = Field(default=\"\", max_length=30)\n\n  Line 65:     loan_type: Optional[str] = Field(None, max_length=50)\n\n  Line 82:     @field_validator(\"loan_type\")\n\n  Line 84:     def validate_loan_type(cls, v: Optional[str]) -> Optional[str]:\n\n  Line 87:         resolved = resolve_loan_type(str(v))\n\n  Line 90:                 \"loan_type is not recognized. Choose a loan type from the CRM list.\"\n\n  Line 97:         return _normalize_tags(v)\n\n  Line 106:     mobile: Optional[str] = Field(None, max_length=30)\n\n  Line 118:     loan_type: Optional[str] = Field(None, max_length=50)\n\n  Line 139:     @field_validator(\"loan_type\")\n\n  Line 141:     def validate_loan_type(cls, v: Optional[str]) -> Optional[str]:\n\n  Line 146:         resolved = resolve_loan_type(str(v))\n\n  Line 149:                 \"loan_type is not recognized. Choose a loan type from the CRM list.\"\n\n  Line 158:         return _normalize_tags(v)\n\n  Line 173:     mobile: str\n\n  Line 185:     loan_type: Optional[str] = None\n\n\n(Results truncated. Consider using a more specific path or pattern.)"
+          },
+          {
+            "source_call_id": "call-3a34ad40-3f8f-4452-ab0c-8b26754c32ff-4",
+            "content": "total 208\ndrwxr-xr-x 1 root root  4096 Jul 14 20:56 .\ndrwxr-xr-x 1 root root    27 Jul 14 20:56 ..\n-rw-r--r-- 1 root root  4703 Jul 14 20:56 test_bridge_broadway_extraction.py\n-rw-r--r-- 1 root root  4380 Jul 14 20:56 test_bridge_broadway_qualification.py\n-rw-r--r-- 1 root root  2456 Jul 14 20:56 test_call_session_cleanup.py\n-rw-r--r-- 1 root root  3757 Jul 14 20:56 test_cartesia_twilio_sync.py\n-rw-r--r-- 1 root root  3463 Jul 14 20:56 test_config_document_intelligence.py\n-rw-r--r-- 1 root root  1322 Jul 14 20:56 test_cre_field_extraction.py\n-rw-r--r-- 1 root root  5651 Jul 14 20:56 test_cre_qualification.py\n-rw-r--r-- 1 root root  3376 Jul 14 20:56 test_credit_pdf_pipeline.py\n-rw-r--r-- 1 root root  7917 Jul 14 20:56 test_credit_pdf_upload.py\n-rw-r--r-- 1 root root  5249 Jul 14 20:56 test_direct_call_dtmf.py\n-rw-r--r-- 1 root root  2660 Jul 14 20:56 test_direct_calls.py\n-rw-r--r-- 1 root root 15798 Jul 14 20:56 test_direct_recording.py\n-rw-r--r-- 1 root root  3266 Jul 14 20:56 test_document_ingestion_production.py\n-rw-r--r-- 1 root root  8120 Jul 14 20:56 test_document_ingestion_readiness.py\n-rw-r--r-- 1 root root  1453 Jul 14 20:56 test_document_intelligence.py\n-rw-r--r-- 1 root root  3598 Jul 14 20:56 test_document_layout_extraction.py\n-rw-r--r-- 1 root root  4113 Jul 14 20:56 test_document_qa_hybrid.py\n-rw-r--r-- 1 root root  7202 Jul 14 20:56 test_document_report.py\n-rw-r--r-- 1 root root 14142 Jul 14 20:56 test_inbound_calls.py\n-rw-r--r-- 1 root root  3902 Jul 14 20:56 test_ingestion_stale_recovery.py\n-rw-r--r-- 1 root root  2044 Jul 14 20:56 test_lender_product_match.py\n-rw-r--r-- 1 root root  1642 Jul 14 20:56 test_logging_setup.py\n-rw-r--r-- 1 root root  4206 Jul 14 20:56 test_oak_hill_extraction.py\n-rw-r--r-- 1 root root  3075 Jul 14 20:56 test_oak_hill_qualification.py\n-rw-r--r-- 1 root root   916 Jul 14 20:56 test_pstn_inbound_queue.py\n-rw-r--r-- 1 root root  2048 Jul 14 20:56 test_qualification_recommendation.py\n-rw-r--r-- 1 root root  3192 Jul 14 20:56 test_qualification_report_pdf.py\n-rw-r--r-- 1 root root  2463 Jul 14 20:56 test_required_docs.py\n-rw-r--r-- 1 root root 12381 Jul 14 20:56 test_smb_contacts_csv_and_update.py\n-rw-r--r-- 1 root root  1623 Jul 14 20:56 test_smb_invite_conversation.py\n-rw-r--r-- 1 root root  3069 Jul 14 20:56 test_smb_invite_production.py\n-rw-r--r-- 1 root root  1156 Jul 14 20:56 test_smb_invite_schemas.py\n-rw-r--r-- 1 root root  1595 Jul 14 20:56 test_voice_llm_azure_config.py\n__init__.py\nloan_types.py\nmodels.py\nrouter.py\nschemas.py\nservice.py\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11292,
+        "completion_tokens": 118,
+        "cached_tokens": 8064,
+        "cost_usd": 0.0097032,
+        "extra": {
+          "reasoning_tokens": 20
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-05T02:01:42.034000+00:00",
+      "source": "agent",
+      "model_name": "openrouter/x-ai/grok-4.5",
+      "message": "Inspecting phone normalization and how loan-type bugs surface.",
+      "reasoning_content": "I found the loan_types issues. Let me look at the phone normalization code.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call-044d2dfb-1060-42ad-9603-ed8b42819118-5",
+          "function_name": "bash",
+          "arguments": {
+            "command": "find /app/loangen-agent -path '*phone*' -name '*.py' 2>/dev/null; ls /app/loangen-agent/agent/integrations/cartesia/ 2>/dev/null"
+          }
+        },
+        {
+          "tool_call_id": "call-044d2dfb-1060-42ad-9603-ed8b42819118-6",
+          "function_name": "grep",
+          "arguments": {
+            "pattern": "normalize_phone|default_region|00",
+            "include": "*.py",
+            "path": "/app/loangen-agent/agent"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call-044d2dfb-1060-42ad-9603-ed8b42819118-5",
+            "content": "/app/loangen-agent/agent/integrations/cartesia/phone.py\n__init__.py\nclient.py\nphone.py\nsetup.py\n"
+          },
+          {
+            "source_call_id": "call-044d2dfb-1060-42ad-9603-ed8b42819118-6",
+            "content": "Found 100 matches (more matches available)\n/app/loangen-agent/agent/voice_agent/agent.py:\n  Line 32: DEFAULT_MODEL = \"anthropic/claude-haiku-4-5-20251001\"\n\n  Line 135:         if response.status_code >= 400:\n\n  Line 139:                 response.text[:500],\n\n  Line 286:         if response.status_code >= 400:\n\n  Line 291:                 response.text[:300],\n\n\n/app/loangen-agent/agent/tools/quickbooks.py:\n  Line 17:     \"qb-001\": {\n\n  Line 18:         \"id\": \"qb-001\",\n\n  Line 34:     \"qb-002\": {\n\n  Line 35:         \"id\": \"qb-002\",\n\n  Line 42:         \"address\": \"1200 Market Street, Suite 400\",\n\n  Line 51:     \"qb-003\": {\n\n  Line 52:         \"id\": \"qb-003\",\n\n  Line 68:     \"qb-004\": {\n\n  Line 69:         \"id\": \"qb-004\",\n\n  Line 85:     \"qb-005\": {\n\n  Line 86:         \"id\": \"qb-005\",\n\n  Line 93:         \"address\": \"5600 Industrial Blvd\",\n\n  Line 105:     \"qb-001\": {\n\n  Line 107:         \"revenue\": 1850000,\n\n  Line 108:         \"cogs\": 740000,\n\n  Line 109:         \"gross_profit\": 1110000,\n\n  Line 110:         \"operating_expenses\": 820000,\n\n  Line 111:         \"net_income\": 290000,\n\n  Line 112:         \"total_assets\": 1200000,\n\n  Line 113:         \"total_liabilities\": 480000,\n\n  Line 114:         \"equity\": 720000,\n\n  Line 115:         \"cash_on_hand\": 185000,\n\n  Line 116:         \"accounts_receivable\": 145000,\n\n  Line 117:         \"accounts_payable\": 62000,\n\n  Line 118:         \"monthly_burn_rate\": 130000,\n\n  Line 125:     \"qb-002\": {\n\n  Line 127:         \"revenue\": 3800000,\n\n  Line 128:         \"cogs\": 1520000,\n\n  Line 129:         \"gross_profit\": 2280000,\n\n  Line 130:         \"operating_expenses\": 1650000,\n\n  Line 131:         \"net_income\": 630000,\n\n  Line 132:         \"total_assets\": 2800000,\n\n  Line 133:         \"total_liabilities\": 850000,\n\n  Line 134:         \"equity\": 1950000,\n\n  Line 135:         \"cash_on_hand\": 420000,\n\n  Line 136:         \"accounts_receivable\": 380000,\n\n  Line 137:         \"accounts_payable\": 120000,\n\n  Line 138:         \"monthly_burn_rate\": 264000,\n\n  Line 145:     \"qb-003\": {\n\n  Line 147:         \"revenue\": 680000,\n\n  Line 148:         \"cogs\": 340000,\n\n  Line 149:         \"gross_profit\": 340000,\n\n  Line 150:         \"operating_expenses\": 285000,\n\n  Line 151:         \"net_income\": 55000,\n\n  Line 152:         \"total_assets\": 320000,\n\n  Line 153:         \"total_liabilities\": 180000,\n\n  Line 154:         \"equity\": 140000,\n\n  Line 155:         \"cash_on_hand\": 22000,\n\n  Line 156:         \"accounts_receivable\": 85000,\n\n  Line 157:         \"accounts_payable\": 45000,\n\n  Line 158:         \"monthly_burn_rate\": 52000,\n\n  Line 165:     \"qb-004\": {\n\n  Line 167:         \"revenue\": 1450000,\n\n  Line 168:         \"cogs\": 580000,\n\n  Line 169:         \"gross_profit\": 870000,\n\n  Line 170:         \"operating_expenses\": 680000,\n\n  Line 171:         \"net_income\": 190000,\n\n  Line 172:         \"total_assets\": 850000,\n\n  Line 173:         \"total_liabilities\": 320000,\n\n  Line 174:         \"equity\": 530000,\n\n  Line 175:         \"cash_on_hand\": 95000,\n\n  Line 176:         \"accounts_receivable\": 42000,\n\n  Line 177:         \"accounts_payable\": 38000,\n\n  Line 178:         \"monthly_burn_rate\": 105000,\n\n  Line 185:     \"qb-005\": {\n\n  Line 187:         \"revenue\": 2600000,\n\n  Line 188:         \"cogs\": 1560000,\n\n  Line 189:         \"gross_profit\": 1040000,\n\n  Line 190:         \"operating_expenses\": 780000,\n\n  Line 191:         \"net_income\": 260000,\n\n  Line 192:         \"total_assets\": 2100000,\n\n  Line 193:         \"total_liabilities\": 920000,\n\n  Line 194:         \"equity\": 1180000,\n\n  Line 195:         \"cash_on_hand\": 225000,\n\n  Line 196:         \"accounts_receivable\": 480000,\n\n  Line 197:         \"accounts_payable\": 95000,\n\n  Line 198:         \"monthly_burn_rate\": 195000,\n\n  Line 208:     \"qb-001\": {\"overall\": 82, \"max_loan_amount\": 555000, \"readiness_level\": \"Excellent\"},\n\n  Line 209:     \"qb-002\": {\"overall\": 91, \"max_loan_amount\": 1140000, \"readiness_level\": \"Excellent\"},\n\n  Line 210:     \"qb-003\": {\"overall\": 45, \"max_loan_amount\": 85000, \"readiness_level\": \"Needs Work\"},\n\n  Line 211:     \"qb-004\": {\"overall\": 74, \"max_loan_amount\": 362000, \"readiness_level\": \"Good\"},\n\n  Line 212:     \"qb-005\": {\"overall\": 78, \"max_loan_amount\": 650000, \"readiness_level\": \"Good\"},\n\n\n/app/loangen-agent/agent/tools/qualification_engine.py:\n  Line 144:             score = 100\n\n  Line 146:                 score = max(0, 100 - len(gaps) * 20)\n\n  Line 265:         if revenue > 500000:\n\n  Line 268:             if estimated_processing > benchmark + 2000:\n\n  Line 280:             if insurance_estimate > benchmark_insurance + 3000:\n\n  Line 308:         \"criteria\": {\"min_credit_score\": 680, \"min_annual_revenue\": 250000, \"min_time_in_business_months\": 24, \"min_dscr\": 1.25, \"max_debt_to_equity\": 4.0},\n\n  Line 309:         \"loan_range\": {\"min\": 50000, \"max\": 5000000},\n\n  Line 318:         \"criteria\": {\"min_credit_score\": 625, \"min_annual_revenue\": 100000, \"min_time_in_business_months\": 12, \"min_dscr\": None, \"max_debt_to_equity\": None},\n\n  Line 319:         \"loan_range\": {\"min\": 5000, \"max\": 250000},\n\n  Line 328:         \"criteria\": {\"min_credit_score\": 625, \"min_annual_revenue\": 120000, \"min_time_in_business_months\": 24, \"min_dscr\": None, \"max_debt_to_equity\": None},\n\n  Line 329:         \"loan_range\": {\"min\": 5000, \"max\": 250000},\n\n  Line 338:         \"criteria\": {\"min_credit_score\": 600, \"min_annual_revenue\": 100000, \"min_time_in_business_months\": 6, \"min_dscr\": None, \"max_debt_to_equity\": None},\n\n  Line 339:         \"loan_range\": {\"min\": 1000, \"max\": 150000},\n\n\n(Results truncated. Consider using a more specific path or pattern.)"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 16077,
+        "completion_tokens": 107,
+        "cached_tokens": 11264,
+        "cost_usd": 0.0137492,
+        "extra": {
+          "reasoning_tokens": 17
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-05T02:01:44.622000+00:00",
+      "source": "agent",
+      "model_name": "openrouter/x-ai/grok-4.5",
+      "message": "",
+      "reasoning_content": "Let me read the phone.py file fully.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call-24daaa0e-8e80-4afe-b2a1-071f09b568bc-7",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/integrations/cartesia/phone.py"
+          }
+        },
+        {
+          "tool_call_id": "call-24daaa0e-8e80-4afe-b2a1-071f09b568bc-8",
+          "function_name": "grep",
+          "arguments": {
+            "pattern": "loan_type_label|resolve_loan_type|normalize_phone|Hardmoney|Working_Capital|00",
+            "path": "/app/loangen-agent",
+            "include": "*.py"
+          }
+        },
+        {
+          "tool_call_id": "call-24daaa0e-8e80-4afe-b2a1-071f09b568bc-9",
+          "function_name": "bash",
+          "arguments": {
+            "command": "ls /app/loangen-agent/docs/ 2>/dev/null; ls /app/ 2>/dev/null | head -30"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call-24daaa0e-8e80-4afe-b2a1-071f09b568bc-7",
+            "content": "<path>/app/loangen-agent/agent/integrations/cartesia/phone.py</path>\n<type>file</type>\n<content>\n1: \"\"\"\n2: E.164 phone normalization for Cartesia outbound calls.\n3: \n4: Numbers may be stored with or without a + country code. When omitted, the number\n5: is parsed using CARTESIA_DEFAULT_PHONE_REGION (default: US).\n6: \"\"\"\n7: \n8: from __future__ import annotations\n9: \n10: import re\n11: from typing import Optional\n12: \n13: import phonenumbers\n14: from phonenumbers import NumberParseException, PhoneNumberFormat\n15: \n16: _NON_DIGIT_RE = re.compile(r\"[^\\d+]+\")\n17: _FALLBACK_REGION = \"US\"\n18: # Regions tried when no + country code is provided (default region first).\n19: _CRM_FALLBACK_REGIONS = (\"US\", \"CA\", \"IN\", \"GB\", \"AU\", \"MX\", \"DE\", \"FR\")\n20: \n21: \n22: def _format_parsed_number(parsed: phonenumbers.PhoneNumber, *, require_valid: bool) -> Optional[str]:\n23:     if require_valid:\n24:         if not phonenumbers.is_valid_number(parsed):\n25:             return None\n26:     elif not phonenumbers.is_possible_number(parsed):\n27:         return None\n28:     return phonenumbers.format_number(parsed, PhoneNumberFormat.E164)\n29: \n30: \n31: def _try_parse_candidate(\n32:     candidate: str,\n33:     region: Optional[str],\n34:     *,\n35:     require_valid: bool,\n36: ) -> Optional[str]:\n37:     try:\n38:         parsed = phonenumbers.parse(candidate, region)\n39:     except NumberParseException:\n40:         return None\n41:     return _format_parsed_number(parsed, require_valid=require_valid)\n42: \n43: \n44: def try_normalize_phone_to_e164(\n45:     raw: str,\n46:     *,\n47:     default_region: Optional[str] = None,\n48: ) -> Optional[str]:\n49:     \"\"\"\n50:     Best-effort E.164 normalization for CRM storage.\n51: \n52:     Accepts international numbers with or without a + prefix. Tries the configured\n53:     default region first, then common regions, preferring valid parses over\n54:     possible-only parses. Falls back to a +digits form for 8\u201315 digit inputs.\n55:     \"\"\"\n56:     value = (raw or \"\").strip()\n57:     if not value:\n58:         return None\n59: \n60:     if value.startswith(\"00\"):\n61:         value = \"+\" + value[2:]\n62: \n63:     cleaned = _NON_DIGIT_RE.sub(\"\", value.replace(\" \", \"\"))\n64:     if not cleaned:\n65:         return None\n66: \n67:     if cleaned.startswith(\"+\"):\n68:         explicit = \"+\" + cleaned[1:].lstrip(\"+\")\n69:         for require_valid in (True, False):\n70:             formatted = _try_parse_candidate(explicit, None, require_valid=require_valid)\n71:             if formatted:\n72:                 return formatted\n73: \n74:     digits = cleaned.lstrip(\"+\")\n75:     regions: list[str] = []\n76:     default = (default_region or _FALLBACK_REGION).strip().upper()\n77:     if not default:\n78:         regions.append(default)\n79:     for region in _CRM_FALLBACK_REGIONS:\n80:         if region not in regions:\n81:             regions.append(region)\n82: \n83:     valid_matches: list[str] = []\n84:     possible_matches: list[str] = []\n85:     for region in regions:\n86:         formatted = _try_parse_candidate(digits, region, require_valid=True)\n87:         if formatted:\n88:             valid_matches.append(formatted)\n89:             continue\n90:         formatted = _try_parse_candidate(digits, region, require_valid=False)\n91:         if formatted:\n92:             possible_matches.append(formatted)\n93: \n94:     if valid_matches:\n95:         return valid_matches[0]\n96:     if possible_matches:\n97:         return possible_matches[-1]\n98: \n99:     if len(digits) == 10:\n100:         return f\"+1{digits}\"\n101:     if len(digits) == 11 and digits.startswith(\"1\"):\n102:         return f\"+{digits}\"\n103:     if 8 <= len(digits) <= 15:\n104:         return f\"+{digits}\"\n105:     return None\n106: \n107: \n108: def normalize_phone_to_e164(\n109:     raw: str,\n110:     *,\n111:     default_region: Optional[str] = None,\n112: ) -> str:\n113:     \"\"\"\n114:     Normalize a CRM mobile string to E.164 (e.g. +14155550142).\n115: \n116:     Raises:\n117:         ValueError: when the number cannot be parsed or is invalid.\n118:     \"\"\"\n119:     value = (raw or \"\").strip()\n120:     if not value:\n121:         raise ValueError(\"Mobile number is required.\")\n122: \n123:     # Allow 00 international prefix (common outside US).\n124:     if value.startswith(\"00\"):\n125:         value = \"+\" + value[1:]\n126: \n127:     cleaned = _NON_DIGIT_RE.sub(\"\", value.replace(\" \", \"\"))\n128:     if cleaned.startswith(\"+\"):\n129:         candidate = \"+\" + cleaned[1:].lstrip(\"+\")\n130:         region = None\n131:     else:\n132:         candidate = cleaned\n133:         region = (default_region or _FALLBACK_REGION).strip().upper()\n134: \n135:     try:\n136:         parsed = phonenumbers.parse(candidate, region)\n137:     except NumberParseException as exc:\n138:         raise ValueError(\n139:             f\"Invalid mobile number: {exc}. \"\n140:             f\"Include a country code (e.g. +91\u2026) or set CARTESIA_DEFAULT_PHONE_REGION.\"\n141:         ) from exc\n142: \n143:     if not phonenumbers.is_possible_number(parsed):\n144:         raise ValueError(\n145:             \"Mobile number is not a possible phone number. \"\n146:             \"Check the number or set CARTESIA_DEFAULT_PHONE_REGION for your country.\"\n147:         )\n148:     if not phonenumbers.is_valid_number(parsed):\n149:         raise ValueError(\n150:             \"Mobile number is not a valid phone number. \"\n151:             \"Check the number or set CARTESIA_DEFAULT_PHONE_REGION for your country.\"\n152:         )\n153: \n154:     return phonenumbers.format_number(parsed, PhoneNumberFormat.E164)\n\n(End of file - total 154 lines)\n</content>"
+          },
+          {
+            "source_call_id": "call-24daaa0e-8e80-4afe-b2a1-071f09b568bc-8",
+            "content": "Found 100 matches (more matches available)\n/app/loangen-agent/training/seeds_c8.py:\n  Line 6:       \"min_credit\": 680, \"min_revenue\": \"$500K\", \"min_years\": 3,\n\n  Line 7:       \"sweet_spot\": \"$500K-$5M SBA 7(a)\",\n\n  Line 10:      \"Best for healthcare practices (dental, vet, pharmacy) above $500K revenue. Their industry-specialized underwriters mean faster, fairer evaluations. They understand that a dental practice with $1M AR in treatment plans is lower risk than the numbers alone suggest.\"),\n\n  Line 14:       \"sweet_spot\": \"$150K-$500K SBA 7(a)\",\n\n  Line 17:      \"Go-to for smaller SBA loans under $500K. Their PLP status means they can approve SBA loans without sending to SBA for review \u2014 cutting 2-3 weeks off the process. More lenient on credit (660 vs 680 at most competitors).\"),\n\n  Line 20:       \"min_credit\": 620, \"min_revenue\": \"$100K\", \"min_years\": 1,\n\n  Line 21:       \"sweet_spot\": \"$25K-$500K equipment\",\n\n  Line 34:       \"min_credit\": 660, \"min_revenue\": \"$400K\", \"min_years\": 2,\n\n  Line 35:       \"sweet_spot\": \"$25K-$500K term loans at 7.5-24% APR\",\n\n  Line 41:       \"min_credit\": 625, \"min_revenue\": \"$100K\", \"min_years\": 1,\n\n  Line 62:       \"min_credit\": \"N/A (not primary factor)\", \"min_revenue\": \"$200K MRR or $2.4M ARR\", \"min_years\": 1,\n\n  Line 69:       \"min_credit\": 600, \"min_revenue\": \"$100K\", \"min_years\": 0.5,\n\n  Line 73:      \"Lowest barrier to entry for working capital. 600 credit score, 6 months in business, $100K revenue. Their Net Terms product is unique: offer your customers Net 60 payment terms while Fundbox pays you immediately. Great for B2B businesses with slow-paying clients.\"),\n\n  Line 83:       \"min_credit\": 680, \"min_revenue\": \"$500K\", \"min_years\": 2,\n\n  Line 87:      \"Consistently the #1 SBA lender in the US by volume. Their SBA Express program (under $500K) is one of the fastest SBA products \u2014 7-14 day approvals. If you want a traditional banking relationship with the best SBA expertise, Huntington is the top choice.\"),\n\n  Line 91:       \"sweet_spot\": \"$100K-$10M agricultural and rural business\",\n\n  Line 108:      \"Specifically for women entrepreneurs. No credit score required. The group lending model means you and 4 other women support each other's businesses. Start at $2K, and as you repay, amounts increase to $20K. Includes financial literacy training. Over 140,000 women served with 99%+ repayment rate.\"),\n\n  Line 118:       \"min_credit\": 600, \"min_revenue\": \"$100K\", \"min_years\": 1,\n\n  Line 119:       \"sweet_spot\": \"$25K-$500K fleet equipment\",\n\n  Line 126:       \"sweet_spot\": \"$5K-$500K\",\n\n  Line 133:       \"sweet_spot\": \"$5K-$100K\",\n\n\n/app/loangen-agent/training/seeds_c7.py:\n  Line 5:      {\"current_rate\": \"3.2%\", \"volume\": \"$850K/yr\", \"current_cost\": \"$27,200/yr\"},\n\n  Line 6:      \"Switch to interchange-plus pricing (typically 2.1-2.4% for restaurants). Save $6,800-$9,350/yr. That's money directly to your bottom line that improves DSCR by 0.08-0.11.\",\n\n  Line 13:      {\"employees\": 22, \"current_provider\": \"manual/basic\", \"estimated_cost\": \"$400/mo for basic payroll\"},\n\n  Line 30:      \"Industry average shrinkage is 1.4%. Your 3.2% means $14K/yr in excess loss. Implement a basic inventory management system ($50-200/mo) and reduce shrinkage to 2%, saving $9,400/yr. Improving turns from 4x to 6x frees up $40K in working capital.\",\n\n  Line 33:      {\"monthly_energy\": \"$12K\", \"sqft\": 25000, \"industry_avg\": \"$0.32/sqft\", \"current_rate\": \"$0.48/sqft\"},\n\n  Line 34:      \"You're paying 50% above industry average for energy. LED retrofit ($15K investment, 18-month payback) saves $2,400/yr. Variable frequency drives on CNC machines save $3,600/yr. Solar assessment for 25K sqft roof could eliminate $8K/yr. Total potential: $14K/yr savings.\",\n\n  Line 45:      {\"monthly_rent\": \"$8,500\", \"lease_remaining\": \"2 years\", \"property_value\": \"$650K\"},\n\n  Line 46:      \"At $8,500/mo rent ($102K/yr), buying with SBA 504 at $650K = ~$3,980/mo payment. You'd save $4,520/mo ($54K/yr). Plus building equity, tax deductions on interest/depreciation, and rent certainty. With your DSCR of 1.45 and 11 years in business, you're a strong 504 candidate.\",\n\n  Line 58:      \"You're paying for QuickBooks but only using 20% of features. Job costing alone typically identifies 5-10% profit leakage. For a $1.05M business, that's $52K-$105K in recoverable margin. Time tracking integration eliminates $300/mo in payroll errors. Automated AP prevents late payment fees ($50-100/mo).\",\n\n\n/app/loangen-agent/training/fine_tune_qlora.py:\n  Line 3: Fine-tune Qwen3-14B with QLoRA on CUDA GPU (Azure A100).\n\n  Line 9: Cost: ~$4-5 for 6-8 hours on a single A100 80GB.\n\n\n/app/loangen-agent/training/fine_tune_mlx.py:\n  Line 123:         \"Credit: FICO 700, utilization 30%\\n\"\n\n  Line 124:         \"Financials: Revenue $600,000 | Net income $80,000 | DSCR 1.40\\n\"\n\n  Line 125:         \"Bank: Avg daily balance $35,000 | 0 NSFs | Cash flow score 70/100\\n\"\n\n  Line 126:         \"Desired: SBA 7(a) loan, $200,000\\n\"\n\n\n/app/loangen-agent/training/seeds_c6.py:\n  Line 4:     (\"SBA 7(a) vs SBA 504\", \"Precision CNC Manufacturing\", \"Manufacturing\", 2000000, \"facility expansion + equipment\",\n\n  Line 9:      \"SBA 504 is the better choice. Lower rate saves ~$5,500/yr on $2M. Your purpose (facility + equipment) fits 504's fixed-asset requirement. Only downside: slightly slower processing and no working capital component. If you also need WC, consider 504 for the facility + separate LOC for working capital.\"),\n\n  Line 10:     (\"SBA 7(a) vs Conventional Term Loan\", \"NovaTech SaaS\", \"Technology\", 350000, \"hiring and marketing\",\n\n  Line 16:     (\"Equipment Financing vs SBA 7(a) for equipment\", \"RapidHaul Logistics\", \"Trucking\", 450000, \"5 new semi trucks\",\n\n  Line 22:     (\"Line of Credit vs Revenue-Based Financing\", \"BlueWave Pool Services\", \"Home Services\", 75000, \"working capital\",\n\n  Line 28:     (\"SBA Microloan vs CDFI Microloan\", \"Tiny Treasures Daycare\", \"Childcare\", 20000, \"playground equipment\",\n\n  Line 34:     (\"MCA vs Revenue-Based vs Short-Term Loan\", \"Golden Nails Spa\", \"Personal Services\", 80000, \"renovation\",\n\n  Line 41:     (\"SBA 7(a) vs SBA Express\", \"Ace Plumbing & HVAC\", \"Plumbing/HVAC\", 300000, \"truck fleet and tools\",\n\n  Line 44:          \"sba_express\": {\"rate\": \"8.5-10%\", \"term\": \"7-10yr\", \"max\": \"$500K\", \"speed\": \"14-36 hours SBA turnaround\", \"approval\": \"lender-delegated, faster SBA\"},\n\n  Line 46:      \"SBA Express is the play here. For $300K (under $500K limit), you get SBA backing with dramatically faster processing. Yes, rate is 1-2% higher, costing ~$3K-$6K/yr more, but you deploy trucks 30-60 days sooner. Each truck generates $8K+/mo revenue \u2014 the faster deployment more than covers the rate premium.\"),\n\n  Line 47:     (\"Term Loan: 5yr vs 10yr vs 25yr\", \"Bella Cucina Restaurant\", \"Restaurant\", 200000, \"second location\",\n\n  Line 49:          \"5yr\": {\"payment\": \"$4,055/mo at 8%\", \"total_interest\": \"$43,300\", \"dscr_impact\": \"DSCR drops to 0.77 \u2014 FAILS\"},\n\n  Line 50:          \"10yr\": {\"payment\": \"$2,426/mo at 8%\", \"total_interest\": \"$91,200\", \"dscr_impact\": \"DSCR drops to 0.94 \u2014 FAILS\"},\n\n  Line 51:          \"25yr\": {\"payment\": \"$1,544/mo at 8%\", \"total_interest\": \"$263,200\", \"dscr_impact\": \"DSCR drops to 1.08 \u2014 PASSES\"},\n\n  Line 54:     (\"Conventional vs SBA for Real Estate\", \"Pacific Construction LLC\", \"Construction\", 1200000, \"warehouse purchase\",\n\n  Line 56:          \"conventional\": {\"rate\": \"7-9%\", \"down\": \"20-25% ($240K-$300K)\", \"term\": \"15-20yr\", \"speed\": \"30-45 days\"},\n\n  Line 60:     (\"Invoice Factoring vs LOC for Working Capital\", \"SteelFrame Builders\", \"Construction\", 200000, \"project bridge financing\",\n\n  Line 63:          \"loc\": {\"rate\": \"8-15% APR\", \"limit\": \"$200K revolving\", \"draw\": \"as needed\", \"speed\": \"7-14 days setup\", \"control\": \"you manage collections\"},\n\n  Line 66:     (\"Revenue-Based Financing vs Equity for SaaS\", \"DataStream Analytics\", \"Technology - SaaS\", 250000, \"product development\",\n\n  Line 68:          \"rbf\": {\"cost\": \"1.3-1.8x factor ($75K-$200K cost)\", \"term\": \"12-36mo\", \"ownership\": \"retain 100%\", \"payment\": \"5-8% of monthly revenue\", \"speed\": \"1-2 weeks\"},\n\n  Line 71:      \"Revenue-Based Financing if your MRR supports it. You keep 100% ownership and at $82K MRR growing 15% QoQ, you'll likely raise at a higher valuation in 12 months. RBF costs $75K-$200K but preserves equity worth potentially millions. Lighter Capital specializes in SaaS RBF \u2014 they understand recurring revenue.\"),\n\n  Line 72:     (\"Startup: Which products are available?\", \"Fresh Start Juice Bar\", \"Food & Beverage\", 100000, \"build-out\",\n\n  Line 78:     (\"Refinancing: Should I consolidate?\", \"Ace Plumbing & HVAC\", \"Plumbing/HVAC\", 180000, \"consolidate 4 existing loans\",\n\n  Line 80:          \"current\": \"4 loans: equipment $65K at 12%, LOC $45K at 18%, term $40K at 15%, CC debt $30K at 22% = ~$2,800/mo total\",\n\n  Line 82:          \"savings\": \"$666/mo ($8,000/yr) in payment reduction. Total interest saved: ~$45K over loan life.\",\n\n  Line 85:     (\"LOC amount: How much should I get?\", \"Main Street Goods\", \"Retail\", 100000, \"seasonal inventory + working capital\",\n\n  Line 89:          \"calc\": \"Your revenue: $780K. 10-15% = $78K-$117K. Your $100K request fits perfectly.\",\n\n  Line 91:      \"Your $100K request is well-calibrated at 12.8% of revenue. For seasonal retail, I'd actually recommend $120K to give buffer for holiday inventory. You'll likely only draw $60K-80K most months and pay down during peak sales. LOC cost is only on what you draw \u2014 having extra capacity costs nothing. BlueVine and Kabbage both match your profile at 85%+ match rate.\"),\n\n  Line 92:     (\"Equipment: Lease vs Buy vs Finance\", \"AllClear Plumbing\", \"Plumbing/HVAC\", 200000, \"excavator and specialty tools\",\n\n  Line 94:          \"lease\": {\"monthly\": \"$3,800\", \"term\": \"5yr\", \"total\": \"$228K\", \"ownership\": \"return or buyout at end\", \"tax\": \"100% deductible as operating expense\"},\n\n  Line 95:          \"buy_cash\": {\"upfront\": \"$200K\", \"total\": \"$200K\", \"ownership\": \"immediate\", \"tax\": \"Section 179 up to $1.16M deduction in year 1\"},\n\n  Line 96:          \"finance\": {\"monthly\": \"$3,100\", \"term\": \"7yr\", \"total\": \"$260K\", \"ownership\": \"yours after payoff\", \"tax\": \"interest + depreciation deductible\"},\n\n  Line 98:      \"Equipment financing is your best option. Leasing costs $228K total with no ownership. Cash purchase preserves no capital for operations (dangerous). Financing at $3,100/mo over 7yr costs $260K total but you own a $120K-$140K asset at the end. Plus, Section 179 lets you deduct the full $200K in year 1, creating a $50K+ tax savings that effectively reduces your net cost to ~$210K.\"),\n\n  Line 99:     (\"SBA 7(a) vs USDA Business Loan\", \"Valley Harvest Farm\", \"Agriculture\", 400000, \"cold storage facility\",\n\n  Line 104:      \"If you're in a rural area (population under 50K), USDA Business & Industry loan beats SBA every time. Lower rate (4-6% vs 7-8%), longer term (30yr vs 25yr), and the USDA understands agricultural businesses. Your cold storage facility is exactly what this program targets. Monthly payment difference: ~$800/mo less with USDA. Farmer Mac is your best lender match.\"),\n\n  Line 105:     (\"MCA: When is it actually the right choice?\", \"Coastal Surf Shop\", \"Retail\", 50000, \"emergency inventory for unexpected demand\",\n\n  Line 108:          \"mca_cost\": \"Factor 1.35 = pay back $67,500 over 4 months ($17,500 cost)\",\n\n  Line 113:     (\"Working Capital: LOC vs Credit Cards\", \"Radiant Hair Studio\", \"Salon/Spa\", 25000, \"supplies and product inventory\",\n\n  Line 119:     (\"SBA 7(a) Standard vs SBA 7(a) Small Loan\", \"Borderline Bakery\", \"Food Services\", 80000, \"oven upgrade\",\n\n  Line 122:          \"small_loan\": {\"max\": \"$500K\", \"guarantee\": \"85%\", \"process\": \"simplified, lender-delegated\", \"speed\": \"30-45 days\", \"docs\": \"reduced\"},\n\n  Line 124:      \"SBA 7(a) Small Loan program is designed exactly for this. At $80K, you're well under the $500K cap. Benefits: simpler application, faster processing (30-45 days vs 60-90), higher guarantee (85% vs 75%) which makes lenders more willing. Same great SBA rates and terms. SmartBiz and Celtic Bank specialize in small SBA loans.\"),\n\n  Line 125:     (\"Multiple products: What's the optimal stack?\", \"Sunrise Wellness Center\", \"Healthcare\", 400000, \"expansion + working capital + equipment\",\n\n  Line 127:          \"option_a\": \"Single SBA 7(a) $400K covering everything\",\n\n  Line 128:          \"option_b\": \"SBA 7(a) $250K for expansion + Equipment financing $100K for medical devices + LOC $50K for working capital\",\n\n  Line 129:          \"option_c\": \"SBA 504 $300K for real estate + LOC $100K for everything else\",\n\n  Line 131:      \"Option B is the optimal stack. Splitting across products: (1) SBA 7(a) $250K for expansion at best rates, (2) Equipment financing $100K for medical devices \u2014 faster approval, device as collateral, (3) LOC $50K for working capital flexibility. Why not single SBA? Because equipment financing closes in 14 days (vs 60+) and the LOC gives you ongoing flexibility that a term loan can't. Total cost is similar but deployment is faster and more flexible.\"),\n\n\n/app/loangen-agent/training/evaluate.py:\n  Line 26:             \"Financials: Revenue $1,200,000 | Net income $180,000 | DSCR 1.65 | D/E 0.60\\n\"\n\n  Line 27:             \"Bank: Avg daily balance $55,000 | 0 NSFs | Cash flow score 80/100\\n\"\n\n  Line 28:             \"Desired: SBA 7(a), $300,000 for expansion\\n\"\n\n  Line 38:             \"numbers_to_verify\": {\"fico\": 720, \"dscr\": 1.65, \"revenue\": 1200000},\n\n  Line 48:             \"Financials: Revenue $500,000 | Net income $65,000 | DSCR 1.30 | D/E 1.10\\n\"\n\n  Line 49:             \"Bank: Avg daily balance $25,000 | 1 NSFs | Cash flow score 58/100\\n\"\n\n  Line 50:             \"Desired: SBA 7(a), $150,000 for equipment\\n\"\n\n  Line 72:             \"- Revolving balance: $28,000 | Installment: $12,000\\n\"\n\n  Line 94:             \"- Annual NOI: $96,000\\n\"\n\n  Line 95:             \"- Monthly NOI: $8,000\\n\"\n\n  Line 96:             \"- Monthly rent: $3,000\\n\"\n\n  Line 97:             \"- Other monthly debt payments: $500\\n\"\n\n  Line 98:             \"- Total annual debt service: $78,000\\n\"\n\n  Line 100:             \"Target product: SBA 7(a) ($200,000)\\n\"\n\n  Line 136:             \"Need: $200,000 for product development\\n\"\n\n  Line 152:             \"Credit: FICO 700, utilization 25%, 0 delinquencies\\n\"\n\n  Line 153:             \"Financials: Revenue $800,000 | Net income $120,000 | DSCR 1.50 | D/E 0.70\\n\"\n\n  Line 158:             \"must_contain\": [\"700\", \"800,000\"],\n\n\n(Results truncated. Consider using a more specific path or pattern.)"
+          },
+          {
+            "source_call_id": "call-24daaa0e-8e80-4afe-b2a1-071f09b568bc-9",
+            "content": "AUTH.md\nBANK_ANALYTICS_CHECKLIST.md\nDOCUMENT_INTELLIGENCE_RUNBOOK.md\nplaid-integration.md\nsmb_contacts.md\nAPPLICATION_FIELD_SOURCE_MAPPING.md\nBACKEND_TASKS.md\nDATA_ANALYTICS.md\nData\nOUTREACH.md\nPLATFORM_GUIDE.md\nQB_DELTA.md\nSMB_DASHBOARD_STRATEGY.md\nSMB_UX_STRATEGY.md\nSTRAPI_SETUP.md\nUTM_TRACKING.md\nanalytics-start.md\nloangen-agent\nloangen-app\nloangen-voice-agent\nstart-analytics.sh\nuser-flow.md\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 18186,
+        "completion_tokens": 120,
+        "cached_tokens": 16000,
+        "cost_usd": 0.009946,
+        "extra": {
+          "reasoning_tokens": 9
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-05T02:01:46.886000+00:00",
+      "source": "agent",
+      "model_name": "openrouter/x-ai/grok-4.5",
+      "message": "I've pinpointed the bugs. Verifying behavior, then applying fixes.",
+      "reasoning_content": "I've identified the bugs clearly:\nI've reviewed the reported issues and traced them to the exact spots you flagged. The phone logic is inverted on the default-region check, the 00-prefix handling is off-by-one, and the loan-type labeler is doing a blunt replace/title that doesn't handle the compound-word cases we actually see in the field.\n\nI'll fix 1, 2, and 3 in place, then run the test suite to confirm nothing broke. Here's the diff:\n\n```diff\ndiff --git a/loangen-agent/loangen_agent/phone.py b/loangen-agent/loangen-agent/phone.py\nindex 8e9f0f3..c9e8 100644\n--- a/loangen-agent/loangen_agent/phone.py\n+++ b/loangen-agent/loangen-agent/phone.py\n@@ -74,7 +74,7 @@ def try_normalize_phone_to_e164(value: str, default: str | None = None) -> str |\n         value = value.strip()\n         # default region first if present\n-        if not default:\n+        if default:\n             regions.append(default.strip().upper())\n         # then fallback regions\n         regions.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call-786401f9-eac5-4fce-b175-b8c8bed8f30f-10",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -c \"\nfrom agent.integrations.cartesia.phone import try_normalize_phone_to_e164, normalize_phone_to_e164\nfrom agent.services.smbcontacts.loan_types import loan_type_label, resolve_loan_type\n\n# Phone region preference\nprint('UK default ambiguous:', try_normalize_phone_to_e164('7911123456', default_region='GB'))\nprint('US default:', try_normalize_phone_to_e164('4155550142', default_region='US'))\n\n# 00 prefix\nprint('try 0044:', try_normalize_phone_to_e164('00442079460123', default_region='US'))\ntry:\n    print('norm 0044:', normalize_phone_to_e164('00442079460123', default_region='US'))\nexcept Exception as e:\n    print('norm 0044 error:', e)\n\n# loan types\nprint('label Hardmoney:', repr(loan_type_label('Hardmoney')))\nprint('label hard_money:', repr(loan_type_label('hard_money')))\nprint('resolve Working_Capital:', repr(resolve_loan_type('Working_Capital')))\nprint('resolve working_capital:', repr(resolve_loan_type('working_capital')))\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call-786401f9-eac5-4fce-b175-b8c8bed8f30f-10",
+            "content": "UK default ambiguous: +917911123456\nUS default: +14155550142\ntry 0044: +442079460123\nnorm 0044 error: Invalid mobile number: (0) Could not interpret numbers after plus-sign.. Include a country code (e.g. +91\u2026) or set CARTESIA_DEFAULT_PHONE_REGION.\nlabel Hardmoney: 'Hardmoney'\nlabel hard_money: 'Hardmoney'\nresolve Working_Capital: 'Working_Capital'\nresolve working_capital: 'working_capital'\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 24566,
+        "completion_tokens": 319,
+        "cached_tokens": 18176,
+        "cost_usd": 0.0302808,
+        "extra": {
+          "reasoning_tokens": 1689
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-05T02:02:20.244000+00:00",
+      "source": "agent",
+      "model_name": "openrouter/x-ai/grok-4.5",
+      "message": "Applying the four fixes.",
+      "reasoning_content": "Interesting - UK number with GB default returned +91 (India) because default region isn't added first, and the order tries US, CA, IN... and IN matches first among valid ones before GB.\nThe core issue is that the normalization logic for phone numbers and loan types isn't handling edge cases gracefully, and the default region isn't being prioritized correctly in the matching process.\n\nFor the phone number with UK default and international format (0044), the current code is treating it as invalid because it doesn't recognize the 00 prefix as 44.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call-c8599b1e-3c0e-484e-b6c3-75a04304fe35-11",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/integrations/cartesia/phone.py",
+            "oldString": "    default = (default_region or _FALLBACK_REGION).strip().upper()\n    if not default:\n        regions.append(default)\n    for region in _CRM_FALLBACK_REGIONS:\n        if region not in regions:\n            regions.append(region)\n\n    valid_matches: list[str] = []\n    possible_matches: list[str] = []\n    for region in regions:\n        formatted = _try_parse_candidate(digits, region, require_valid=True)\n        if formatted:\n            valid_matches.append(formatted)\n            continue\n        formatted = _try_parse_candidate(digits, region, require_valid=False)\n        if formatted:\n            possible_matches.append(formatted)\n\n    if valid_matches:\n        return valid_matches[0]\n    if possible_matches:\n        return possible_matches[-1]",
+            "newString": "    default = (default_region or _FALLBACK_REGION).strip().upper()\n    if default:\n        regions.append(default)\n    for region in _CRM_FALLBACK_REGIONS:\n        if region not in regions:\n            regions.append(region)\n\n    valid_matches: list[str] = []\n    possible_matches: list[str] = []\n    for region in regions:\n        formatted = _try_parse_candidate(digits, region, require_valid=True)\n        if formatted:\n            valid_matches.append(formatted)\n            continue\n        formatted = _try_parse_candidate(digits, region, require_valid=False)\n        if formatted:\n            possible_matches.append(formatted)\n\n    if valid_matches:\n        return valid_matches[0]\n    if possible_matches:\n        return possible_matches[0]"
+          }
+        },
+        {
+          "tool_call_id": "call-c8599b1e-3c0e-484e-b6c3-75a04304fe35-12",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/integrations/cartesia/phone.py",
+            "oldString": "    # Allow 00 international prefix (common outside US).\n    if value.startswith(\"00\"):\n        value = \"+\" + value[1:]",
+            "newString": "    # Allow 00 international prefix (common outside US).\n    if value.startswith(\"00\"):\n        value = \"+\" + value[2:]"
+          }
+        },
+        {
+          "tool_call_id": "call-c8599b1e-3c0e-484e-b6c3-75a04304fe35-13",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/services/smbcontacts/loan_types.py",
+            "oldString": "    return loan_type_id.replace(\"_\", \"\").title()\n\n\ndef resolve_loan_type(raw: str) -> Optional[str]:\n    \"\"\"Map a CSV/UI loan type string to a canonical id, or None if unrecognized.\"\"\"\n    value = (raw or \"\").strip()\n    if not value:\n        return None\n    compact = value.lower().replace(\" \", \"\").replace(\"-\", \"\").replace(\"_\", \"\")\n    if compact in _LOAN_TYPE_IDS:\n        return compact\n    if value.lower() in _LOAN_TYPE_IDS:\n        return value\n    normalized = _normalize_key(value)",
+            "newString": "    return loan_type_id.replace(\"_\", \" \").title()\n\n\ndef resolve_loan_type(raw: str) -> Optional[str]:\n    \"\"\"Map a CSV/UI loan type string to a canonical id, or None if unrecognized.\"\"\"\n    value = (raw or \"\").strip()\n    if not value:\n        return None\n    compact = value.lower().replace(\" \", \"\").replace(\"-\", \"\").replace(\"_\", \"\")\n    if compact in _LOAN_TYPE_IDS:\n        return compact\n    lowered = value.lower()\n    if lowered in _LOAN_TYPE_IDS:\n        return lowered\n    normalized = _normalize_key(value)"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call-c8599b1e-3c0e-484e-b6c3-75a04304fe35-11",
+            "content": "Edit applied successfully."
+          },
+          {
+            "source_call_id": "call-c8599b1e-3c0e-484e-b6c3-75a04304fe35-12",
+            "content": "Edit applied successfully."
+          },
+          {
+            "source_call_id": "call-c8599b1e-3c0e-484e-b6c3-75a04304fe35-13",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 26697,
+        "completion_tokens": 819,
+        "cached_tokens": 24448,
+        "cost_usd": 0.0216964,
+        "extra": {
+          "reasoning_tokens": 825
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-05T02:02:44.210000+00:00",
+      "source": "agent",
+      "model_name": "openrouter/x-ai/grok-4.5",
+      "message": "",
+      "reasoning_content": "Let me verify the fixes work and run the test suite.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call-a10bdedc-e442-4b7d-bc8a-301f60e9ada6-14",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -c \"\nfrom agent.integrations.cartesia.phone import try_normalize_phone_to_e164, normalize_phone_to_e164\nfrom agent.services.smbcontacts.loan_types import loan_type_label, resolve_loan_type\n\nprint('UK default:', try_normalize_phone_to_e164('7911123456', default_region='GB'))\nprint('US default:', try_normalize_phone_to_e164('4155550142', default_region='US'))\nprint('try 0044:', try_normalize_phone_to_e164('00442079460123', default_region='US'))\nprint('norm 0044:', normalize_phone_to_e164('00442079460123', default_region='US'))\nprint('label hard_money:', repr(loan_type_label('hard_money')))\nprint('resolve Working_Capital:', repr(resolve_loan_type('Working_Capital')))\nprint('resolve working capital:', repr(resolve_loan_type('working capital')))\nprint('resolve sba7a:', repr(resolve_loan_type('SBA 7(a)')))\n\" && python -m pytest tests -v 2>&1 | tail -80",
+            "timeout": 180000
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call-a10bdedc-e442-4b7d-bc8a-301f60e9ada6-14",
+            "content": "UK default: +447911123456\nUS default: +14155550142\ntry 0044: +442079460123\nnorm 0044: +442079460123\nlabel hard_money: 'Hard Money'\nresolve Working_Capital: 'working_capital'\nresolve working capital: 'working_capital'\nresolve sba7a: 'sba7a'\n    async def test_unknown_caller_plays_message(self) -> None:\n        with patch(\"agent.services.calls.inbound.inbound_calls_enabled\", return_value=True), patch(\n            \"agent.services.calls.service.normalize_phone_to_e164\",\n            return_value=\"+15551234567\",\n        ), patch(\n            \"agent.services.calls.service.resolve_inbound_route\",\n            new_callable=AsyncMock,\n            side_effect=InboundRouteError(\n                \"no_outbound_history\",\n                twilio_message=\"We cannot connect your call.\",\n            ),\n        ):\n            twiml = await call_service.build_inbound_twiml(\n                caller_raw=\"+15551234567\",\n                twilio_call_sid=\"CA123\",\n            )\n        self.assertIn(\"<Say>\", twiml)\n>       self.assertIn(\"We cannot connect your call.\", twiml)\nE       AssertionError: 'We cannot connect your call.' not found in '<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Say>This number is not accepting calls right now. Please try again later.</Say><Hangup/></Response>'\n\ntests/test_inbound_calls.py:195: AssertionError\n_ RecoverStaleDocumentsTests.test_recovers_stale_queued_document_for_application _\n\nself = <test_ingestion_stale_recovery.RecoverStaleDocumentsTests testMethod=test_recovers_stale_queued_document_for_application>\n\n    async def test_recovers_stale_queued_document_for_application(self) -> None:\n        from agent.documents.ingestion.stale_recovery import recover_stale_documents_for_application\n    \n        app = MagicMock()\n        app.user_id = \"user-1\"\n    \n        stale_doc = MagicMock()\n        stale_doc.id = \"doc-stale\"\n        stale_doc.is_deleted = False\n        stale_doc.ingestion_status = IngestionStatus.QUEUED\n        stale_doc.ingestion_updated_at = datetime.now(timezone.utc) - timedelta(minutes=30)\n    \n        async def fake_get(doc_id: str):\n            if doc_id == \"app-1\":\n                return app\n            if doc_id == \"doc-stale\":\n                return stale_doc\n            return None\n    \n        mock_svc = MagicMock()\n        mock_svc.re_enqueue_stale_document = AsyncMock(return_value=True)\n    \n        with patch(\"agent.core.config.settings\") as mock_settings:\n            mock_settings.document_ingestion_enabled = True\n            mock_settings.ingestion_stale_job_minutes = 15\n            with patch(\n                \"agent.services.smbapplications.models.SMBApplication.get\",\n                new=AsyncMock(side_effect=fake_get),\n            ):\n                with patch(\n                    \"agent.documents.ingestion.stale_recovery.UserDocument.get\",\n                    new=AsyncMock(side_effect=fake_get),\n                ):\n                    with patch(\n                        \"agent.documents.ingestion.readiness.get_application_document_ids\",\n                        new=AsyncMock(return_value=[\"doc-stale\"]),\n                    ):\n                        recovered = await recover_stale_documents_for_application(\n                            \"app-1\",\n                            service=mock_svc,\n                        )\n    \n>       self.assertEqual(recovered, 1)\nE       AssertionError: 0 != 1\n\ntests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n================== 7 failed, 166 passed, 24 skipped in 2.14s ===================\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 28355,
+        "completion_tokens": 298,
+        "cached_tokens": 26624,
+        "cost_usd": 0.0133092,
+        "extra": {
+          "reasoning_tokens": 12
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-05T02:02:52.111000+00:00",
+      "source": "agent",
+      "model_name": "openrouter/x-ai/grok-4.5",
+      "message": "Confirming the 7 failures are unrelated to our changes.",
+      "reasoning_content": "Our fixes work. There are 7 failed tests but they seem unrelated to our changes (inbound calls, document ingestion). Let me check if these failures are pre-existing and unrelated to our phone/loan typ...",
+      "tool_calls": [
+        {
+          "tool_call_id": "call-5ab228dd-0d8d-423a-ae42-74350cb3f84a-15",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -m pytest tests/test_smb_contacts_csv_and_update.py tests/test_smb_invite_schemas.py -v 2>&1 | tail -40"
+          }
+        },
+        {
+          "tool_call_id": "call-5ab228dd-0d8d-423a-ae42-74350cb3f84a-16",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && git diff --stat && git stash && python -m pytest tests/test_inbound_calls.py tests/test_ingestion_stale_recovery.py tests/test_document_ingestion_readiness.py tests/test_document_report.py -v --tb=no 2>&1 | tail -20; git stash pop",
+            "timeout": 60000
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call-5ab228dd-0d8d-423a-ae42-74350cb3f84a-15",
+            "content": "/usr/local/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /app/loangen-agent\nplugins: anyio-4.14.2, asyncio-0.24.0\nasyncio: mode=Mode.STRICT, default_loop_scope=None\ncollecting ... collected 19 items\n\ntests/test_smb_contacts_csv_and_update.py::LoanTypeResolverTests::test_resolves_alias PASSED [  5%]\ntests/test_smb_contacts_csv_and_update.py::LoanTypeResolverTests::test_resolves_canonical_id PASSED [ 10%]\ntests/test_smb_contacts_csv_and_update.py::LoanTypeResolverTests::test_resolves_label PASSED [ 15%]\ntests/test_smb_contacts_csv_and_update.py::LoanTypeResolverTests::test_unknown_returns_none PASSED [ 21%]\ntests/test_smb_contacts_csv_and_update.py::PhoneNormalizationTests::test_normalize_us_number PASSED [ 26%]\ntests/test_smb_contacts_csv_and_update.py::PhoneNormalizationTests::test_try_normalize_explicit_international PASSED [ 31%]\ntests/test_smb_contacts_csv_and_update.py::PhoneNormalizationTests::test_try_normalize_indian_number_without_country_code PASSED [ 36%]\ntests/test_smb_contacts_csv_and_update.py::PhoneNormalizationTests::test_try_normalize_invalid_returns_none PASSED [ 42%]\ntests/test_smb_contacts_csv_and_update.py::ImportContactsCsvTests::test_imports_row_with_optional_last_name_and_warnings PASSED [ 47%]\ntests/test_smb_contacts_csv_and_update.py::ImportContactsCsvTests::test_skips_row_missing_email PASSED [ 52%]\ntests/test_smb_contacts_csv_and_update.py::ImportContactsCsvTests::test_updates_existing_contact_mobile_on_duplicate_email PASSED [ 57%]\ntests/test_smb_contacts_csv_and_update.py::UpdateContactIdentityLockTests::test_allows_non_identity_updates_when_locked PASSED [ 63%]\ntests/test_smb_contacts_csv_and_update.py::UpdateContactIdentityLockTests::test_blocks_identity_field_when_locked PASSED [ 68%]\ntests/test_smb_contacts_csv_and_update.py::UpdateContactIdentityLockTests::test_updates_loan_amount_and_comment PASSED [ 73%]\ntests/test_smb_contacts_csv_and_update.py::UpdateContactIdentityLockTests::test_updates_mobile_with_international_number PASSED [ 78%]\ntests/test_smb_contacts_csv_and_update.py::CreateContactTests::test_creates_contact_with_required_fields PASSED [ 84%]\ntests/test_smb_invite_schemas.py::CreateInviteRequestTests::test_accepts_valid_loan_type_id PASSED [ 89%]\ntests/test_smb_invite_schemas.py::CreateInviteRequestTests::test_omitted_loan_type_id_is_none PASSED [ 94%]\ntests/test_smb_invite_schemas.py::CreateInviteRequestTests::test_rejects_unknown_loan_type_id PASSED [100%]\n\n============================== 19 passed in 0.72s ==============================\n"
+          },
+          {
+            "source_call_id": "call-5ab228dd-0d8d-423a-ae42-74350cb3f84a-16",
+            "content": " loangen-agent/agent/integrations/cartesia/phone.py     | 6 +++---\n loangen-agent/agent/services/smbcontacts/loan_types.py | 7 ++++---\n 2 files changed, 7 insertions(+), 6 deletions(-)\nSaved working directory and index state WIP on main: db6fa85 import codebase\ntests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled FAILED [ 75%]\ntests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded FAILED [ 77%]\ntests/test_document_report.py::TestReportSupport::test_report_available_when_ready PASSED [ 80%]\ntests/test_document_report.py::TestTaxReportBuilder::test_builds_gross_profit_card PASSED [ 83%]\ntests/test_document_report.py::TestTaxReportBuilder::test_no_document_excerpt_section PASSED [ 86%]\ntests/test_document_report.py::TestPlLlmReportCoercion::test_coerces_llm_payload PASSED [ 88%]\ntests/test_document_report.py::TestPlLlmReportCoercion::test_skips_document_excerpt_from_llm PASSED [ 91%]\ntests/test_document_report.py::TestCleanDisplayLabel::test_strips_form_and_schedule_references PASSED [ 94%]\ntests/test_document_report.py::TestLlmReportConfig::test_uses_llm_for_tax_when_types_empty PASSED [ 97%]\ntests/test_document_report.py::TestLlmReportConfig::test_uses_llm_only_for_listed_types PASSED [100%]\n\n=========================== short test summary info ============================\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\n========================= 7 failed, 29 passed in 0.73s =========================\nOn branch main\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git restore <file>...\" to discard changes in working directory)\n\tmodified:   agent/integrations/cartesia/phone.py\n\tmodified:   agent/services/smbcontacts/loan_types.py\n\nno changes added to commit (use \"git add\" and/or \"git commit -a\")\nDropped refs/stash@{0} (bbb14ca13e349f738b89ec1d3b11561a102b83e8)\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 29802,
+        "completion_tokens": 160,
+        "cached_tokens": 28288,
+        "cost_usd": 0.0129844,
+        "extra": {
+          "reasoning_tokens": 85
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-08-05T02:02:58.270000+00:00",
+      "source": "agent",
+      "model_name": "openrouter/x-ai/grok-4.5",
+      "message": "Fixed four defects (pre-existing suite failures unchanged):\n\n1. **Region preference** (`phone.py`): default region was never prepended (`if not default` \u2192 `if default`), so US/other fallbacks won on ambiguous numbers.\n2. **`00` prefix** (`normalize_phone_to_e164`): used `value[1:]` \u2192 `+044\u2026`; now `value[2:]` \u2192 `+44\u2026`.\n3. **Loan labels**: `replace(\"_\", \"\")` \u2192 `replace(\"_\", \" \")` so `hard_money` \u2192 `Hard Money`.\n4. **Loan resolve**: `Working_Capital` now maps to canonical `working_capital`, not the raw string.\n\nSMB contact tests: 19 passed. Full suite: 166 passed, 7 failed (same failures without these changes).",
+      "reasoning_content": "The 7 failures are pre-existing, unrelated to our changes. SMB contact tests all pass. Our fixes are complete.\n",
+      "metrics": {
+        "prompt_tokens": 31785,
+        "completion_tokens": 176,
+        "cached_tokens": 29696,
+        "cost_usd": 0.0143408,
+        "extra": {
+          "reasoning_tokens": 33
+        }
+      },
+      "llm_call_count": 1
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 194830,
+    "total_completion_tokens": 2204,
+    "total_cached_tokens": 162688,
+    "total_cost_usd": 0.14318039999999999,
+    "total_steps": 10
+  }
+}
