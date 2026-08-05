@@ -35,11 +35,14 @@ also routes its implemented row-selected strategy through the native path.
 | Native/ML/fallback status reaches API and log records | `usageStatusPropagatesToApiAndLogs` |
 | Existing parsing semantics remain stable | `legacyDateParsingRemainsStable` |
 
-The first five tests are fail-to-pass. The last is pass-to-pass. Reflection in
-the fail-to-pass suite lets the unmodified base compile and report five
-independent failures instead of collapsing into one compiler error. The
-strategy test executes representative real PDFs already present in the base
-repository; the routing tests mock only the remote boundary.
+The new native extraction, policy, native-routing, and diagnostics behaviors
+are fail-to-pass. Remote fallback and legacy parsing are pass-to-pass because
+the migration must preserve both existing paths. Structural discovery in the
+hidden suite lets the unmodified base compile, permits alternative class and
+property names, and reports independent behavioral failures instead of
+collapsing into one compiler error. The strategy tests execute representative
+real PDFs already present in the base repository; the routing tests mock only
+the remote boundary.
 
 ## Fairness and difficulty
 

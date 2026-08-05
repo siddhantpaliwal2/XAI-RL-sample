@@ -151,25 +151,39 @@ def package_trial(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--jobs-dir", type=Path, default=SAMPLE_RUN / "long-raw")
-    parser.add_argument("--run-id", default="long-native-r1")
+    parser.add_argument(
+        "--run-id",
+        action="append",
+        dest="run_ids",
+        help="runner wave to include; repeat to combine staged waves",
+    )
     parser.add_argument("--expected-attempts", type=int, required=True)
     args = parser.parse_args()
 
-    rows_by_model: dict[str, list[dict]] = defaultdict(list)
-    pattern = re.compile(
-        rf"^{re.escape(args.run_id)}-(opus5|fable5)-{re.escape(TASK)}-a(\d+)$"
-    )
-    for job_dir in sorted(args.jobs_dir.resolve().glob(f"{args.run_id}-*")):
-        match = pattern.match(job_dir.name)
-        if not match:
-            continue
-        alias, attempt_text = match.groups()
-        found = find_trial(job_dir, MODELS[alias]["route"])
-        if found is None:
-            continue
-        rows_by_model[alias].append(
-            package_trial(alias, int(attempt_text), *found)
+    run_ids = args.run_ids or ["long-native-r1"]
+    raw_by_model: dict[str, list[tuple[int, int, tuple]]] = defaultdict(list)
+    for run_order, run_id in enumerate(run_ids):
+        pattern = re.compile(
+            rf"^{re.escape(run_id)}-(opus5|fable5)-{re.escape(TASK)}-a(\d+)$"
         )
+        for job_dir in sorted(args.jobs_dir.resolve().glob(f"{run_id}-*")):
+            match = pattern.match(job_dir.name)
+            if not match:
+                continue
+            alias, attempt_text = match.groups()
+            found = find_trial(job_dir, MODELS[alias]["route"])
+            if found is not None:
+                raw_by_model[alias].append(
+                    (run_order, int(attempt_text), found)
+                )
+
+    rows_by_model: dict[str, list[dict]] = defaultdict(list)
+    for alias in MODELS:
+        ordered = sorted(raw_by_model[alias], key=lambda item: (item[0], item[1]))
+        for packaged_attempt, (_, _, found) in enumerate(ordered, start=1):
+            rows_by_model[alias].append(
+                package_trial(alias, packaged_attempt, *found)
+            )
 
     missing = {
         alias: args.expected_attempts - len(rows_by_model[alias])

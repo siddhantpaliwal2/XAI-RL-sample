@@ -47,10 +47,10 @@ def main() -> int:
             "NativeTableMigrationTest::nativeStrategiesProduceStructuredRows",
             "NativeTableMigrationTest::supportedBankFormatsUseCorrectPolicy",
             "NativeTableMigrationTest::nativeSuccessSkipsRemoteExtractor",
-            "NativeTableMigrationTest::unsupportedFormatsRetainRemoteFallback",
             "NativeTableMigrationTest::usageStatusPropagatesToApiAndLogs",
         ],
         "pass_to_pass": [
+            "NativeTableMigrationTest::unsupportedFormatsRetainRemoteFallback",
             "NativeTableMigrationTest::legacyDateParsingRemainsStable",
         ],
         "selected_test_files_to_run": [TEST_DESTINATION],

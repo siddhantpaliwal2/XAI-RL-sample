@@ -19,10 +19,22 @@ import com.finboost.bank.statement.parser.service.document.extraction.post.proce
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,42 +44,219 @@ import static org.mockito.Mockito.*;
 
 class NativeTableMigrationTest {
     private static final File FIXTURES = new File("src/test/resources/pdf-samples-latest");
+    private static final Map<String, List<Object>> CONFIG_CACHE = new HashMap<>();
+    private static final Map<String, DocumentExtractionResult> EXTRACTION_CACHE = new HashMap<>();
+    private static List<Class<?>> applicationClasses;
 
-    private static Object processingConfig(String handlerSimpleName, String fixture) throws Exception {
-        Class<?> handlerClass = Class.forName(
-                "com.finboost.bank.statement.parser.service.bankstatement.bank." + handlerSimpleName);
-        Object handler = handlerClass.getConstructor().newInstance();
+    private static List<Class<?>> applicationClasses() throws Exception {
+        if (applicationClasses != null) {
+            return applicationClasses;
+        }
+        Path root = Paths.get("target/classes");
+        List<Class<?>> found = new ArrayList<>();
+        try (var paths = Files.walk(root)) {
+            paths.filter(path -> path.toString().endsWith(".class"))
+                    .filter(path -> !path.getFileName().toString().contains("$"))
+                    .forEach(path -> {
+                        String relative = root.relativize(path).toString();
+                        String className = relative.substring(0, relative.length() - 6)
+                                .replace(File.separatorChar, '.');
+                        if (!className.startsWith("com.finboost.bank.statement.parser.")) {
+                            return;
+                        }
+                        try {
+                            found.add(Class.forName(className, false,
+                                    NativeTableMigrationTest.class.getClassLoader()));
+                        } catch (Throwable ignored) {
+                            // Optional application classes may have unavailable runtime-only links.
+                        }
+                    });
+        }
+        applicationClasses = found;
+        return found;
+    }
+
+    private static String bankName(String fixture) {
+        String prefix = fixture.substring(0, fixture.indexOf('/'));
+        return switch (prefix) {
+            case "BOB" -> "BANK_OF_BARODA";
+            case "INDIAN" -> "INDIAN_BANK";
+            default -> prefix;
+        };
+    }
+
+    private static List<String> bankAliases(String fixture) {
+        String prefix = fixture.substring(0, fixture.indexOf('/')).toLowerCase(Locale.ROOT);
+        return switch (prefix) {
+            case "bob" -> List.of("bob", "baroda");
+            case "indian" -> List.of("indian");
+            case "pnb" -> List.of("pnb", "punjab");
+            default -> List.of(prefix);
+        };
+    }
+
+    private static int policyClassRank(Class<?> type, String fixture) {
+        String name = type.getSimpleName().toLowerCase(Locale.ROOT);
+        if (bankAliases(fixture).stream().anyMatch(name::contains)) {
+            return 0;
+        }
+        if (name.contains("policy") || name.contains("resolver") || name.contains("handler")) {
+            return 1;
+        }
+        return 2;
+    }
+
+    private static Object construct(Class<?> type) {
+        if (type.isInterface() || Modifier.isAbstract(type.getModifiers())) {
+            return null;
+        }
+        try {
+            Constructor<?> constructor = type.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return constructor.newInstance();
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static boolean policyMethod(Method method) {
+        if (!Modifier.isPublic(method.getModifiers()) || method.getParameterCount() != 1) {
+            return false;
+        }
+        if (!method.getParameterTypes()[0].isAssignableFrom(BankStatementVO.class)
+                || method.getReturnType() == Void.TYPE) {
+            return false;
+        }
+        String name = method.getName().toLowerCase(Locale.ROOT);
+        return name.contains("config") || name.contains("policy")
+                || name.contains("layout") || name.contains("extractor");
+    }
+
+    private static List<Object> configurationCandidates(String fixture) throws Exception {
+        if (CONFIG_CACHE.containsKey(fixture)) {
+            return CONFIG_CACHE.get(fixture);
+        }
         BankStatementVO statement = new BankStatementVO();
+        statement.setBank(bankName(fixture));
         statement.setDecryptedFile(new File(FIXTURES, fixture));
-        return handlerClass.getMethod("getTableExtractorConfig", BankStatementVO.class)
-                .invoke(handler, statement);
+
+        List<Class<?>> ranked = new ArrayList<>(applicationClasses());
+        ranked.sort(Comparator.comparingInt(type -> policyClassRank(type, fixture)));
+        List<Object> configs = new ArrayList<>();
+        for (Class<?> type : ranked) {
+            if (policyClassRank(type, fixture) == 2) {
+                continue;
+            }
+            Object target = null;
+            for (Method method : type.getMethods()) {
+                if (!policyMethod(method)) {
+                    continue;
+                }
+                try {
+                    if (!Modifier.isStatic(method.getModifiers()) && target == null) {
+                        target = construct(type);
+                    }
+                    if (!Modifier.isStatic(method.getModifiers()) && target == null) {
+                        continue;
+                    }
+                    Object value = method.invoke(
+                            Modifier.isStatic(method.getModifiers()) ? null : target, statement);
+                    if (value != null) {
+                        configs.add(value);
+                    }
+                } catch (Throwable ignored) {
+                    // A policy for another bank may legitimately reject this fixture.
+                }
+            }
+        }
+        CONFIG_CACHE.put(fixture, configs);
+        return configs;
     }
 
-    private static Object tableConfig(Object processingConfig) throws Exception {
-        return processingConfig.getClass().getMethod("getTableExtractorConfig")
-                .invoke(processingConfig);
+    private static boolean simpleValue(Object value) {
+        return value == null || value instanceof String || value instanceof Number
+                || value instanceof Boolean || value.getClass().isEnum()
+                || value instanceof File || value instanceof Class<?>;
     }
 
-    private static String strategy(Object processingConfig) throws Exception {
-        Object tableConfig = tableConfig(processingConfig);
-        return String.valueOf(tableConfig.getClass().getMethod("getExtractionStrategy")
-                .invoke(tableConfig));
+    private static List<Object> expandConfiguration(Object root) {
+        List<Object> values = new ArrayList<>();
+        Set<Object> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        expandConfiguration(root, values, seen, 0);
+        return values;
     }
 
-    private static DocumentExtractionResult extract(String handler, String fixture) throws Exception {
-        Object processingConfig = processingConfig(handler, fixture);
-        Object tableConfig = tableConfig(processingConfig);
-        Class<?> extractorClass = Class.forName(
-                "com.finboost.bank.statement.parser.tableextractor.PDFTableExtractor");
-        Method extract = extractorClass.getMethod(
-                "extractTables", File.class, String.class, tableConfig.getClass());
-        return (DocumentExtractionResult) extract.invoke(
-                null, new File(FIXTURES, fixture), null, tableConfig);
+    private static void expandConfiguration(
+            Object value, List<Object> values, Set<Object> seen, int depth) {
+        if (value == null || simpleValue(value) || depth > 2 || !seen.add(value)) {
+            return;
+        }
+        values.add(value);
+        for (Method method : value.getClass().getMethods()) {
+            if (!Modifier.isPublic(method.getModifiers()) || method.getParameterCount() != 0
+                    || method.getDeclaringClass() == Object.class) {
+                continue;
+            }
+            String name = method.getName().toLowerCase(Locale.ROOT);
+            if (!(name.contains("config") || name.contains("policy")
+                    || name.contains("layout") || name.contains("strategy"))) {
+                continue;
+            }
+            try {
+                expandConfiguration(method.invoke(value), values, seen, depth + 1);
+            } catch (Throwable ignored) {
+                // Optional nested policy data is not required to be readable.
+            }
+        }
+    }
+
+    private static List<Method> extractionMethods() throws Exception {
+        List<Method> methods = new ArrayList<>();
+        for (Class<?> type : applicationClasses()) {
+            String className = type.getSimpleName().toLowerCase(Locale.ROOT);
+            if (!(className.contains("extract") || className.contains("table")
+                    || className.contains("pdf") || className.contains("native"))) {
+                continue;
+            }
+            for (Method method : type.getMethods()) {
+                String methodName = method.getName().toLowerCase(Locale.ROOT);
+                if (Modifier.isPublic(method.getModifiers())
+                        && DocumentExtractionResult.class.isAssignableFrom(method.getReturnType())
+                        && (methodName.contains("extract") || methodName.contains("process")
+                        || methodName.contains("read"))) {
+                    methods.add(method);
+                }
+            }
+        }
+        return methods;
+    }
+
+    private static Object[] extractorArguments(Method method, File fixture, Object config) {
+        Object[] arguments = new Object[method.getParameterCount()];
+        boolean usedFile = false;
+        boolean usedConfig = false;
+        for (int index = 0; index < arguments.length; index++) {
+            Class<?> parameter = method.getParameterTypes()[index];
+            if (parameter.isAssignableFrom(File.class) && !usedFile) {
+                arguments[index] = fixture;
+                usedFile = true;
+            } else if (parameter == String.class) {
+                arguments[index] = null;
+            } else if (config != null && parameter.isAssignableFrom(config.getClass())
+                    && !usedConfig) {
+                arguments[index] = config;
+                usedConfig = true;
+            } else {
+                return null;
+            }
+        }
+        return usedFile && (usedConfig || method.getParameterCount() == 1) ? arguments : null;
     }
 
     private static long cellCount(DocumentExtractionResult result) {
-        assertNotNull(result);
-        assertNotNull(result.getPages());
+        if (result == null || result.getPages() == null) {
+            return 0;
+        }
         return result.getPages().values().stream()
                 .filter(page -> page != null && page.getTables() != null)
                 .flatMap(page -> page.getTables().values().stream())
@@ -77,11 +266,44 @@ class NativeTableMigrationTest {
                 .sum();
     }
 
-    private static void setProcessingConfig(DocumentExtractionRequest request, Object config)
+    private static DocumentExtractionResult extractMatching(String fixture, long expectedCells)
             throws Exception {
-        request.getClass()
-                .getMethod("setBankStatementProcessingConfig", config.getClass())
-                .invoke(request, config);
+        String cacheKey = fixture + "#" + expectedCells;
+        if (EXTRACTION_CACHE.containsKey(cacheKey)) {
+            return EXTRACTION_CACHE.get(cacheKey);
+        }
+        File pdf = new File(FIXTURES, fixture);
+        Set<Long> observed = new LinkedHashSet<>();
+        for (Object outer : configurationCandidates(fixture)) {
+            for (Object config : expandConfiguration(outer)) {
+                for (Method method : extractionMethods()) {
+                    Object[] arguments = extractorArguments(method, pdf, config);
+                    if (arguments == null) {
+                        continue;
+                    }
+                    Object target = Modifier.isStatic(method.getModifiers())
+                            ? null : construct(method.getDeclaringClass());
+                    if (!Modifier.isStatic(method.getModifiers()) && target == null) {
+                        continue;
+                    }
+                    try {
+                        DocumentExtractionResult result = (DocumentExtractionResult)
+                                method.invoke(target, arguments);
+                        long count = cellCount(result);
+                        observed.add(count);
+                        if (count == expectedCells) {
+                            EXTRACTION_CACHE.put(cacheKey, result);
+                            return result;
+                        }
+                    } catch (Throwable ignored) {
+                        // Try the next compatible policy/extractor combination.
+                    }
+                }
+            }
+        }
+        fail(fixture + " did not produce " + expectedCells
+                + " structured cells; observed " + observed);
+        return null;
     }
 
     private static AzureDocumentExtractionServiceImpl configuredService(
@@ -97,89 +319,209 @@ class NativeTableMigrationTest {
         return service;
     }
 
+    private static boolean attachConfiguration(DocumentExtractionRequest request, Object config) {
+        for (Method method : request.getClass().getMethods()) {
+            String name = method.getName().toLowerCase(Locale.ROOT);
+            if (method.getParameterCount() == 1 && name.startsWith("set")
+                    && (name.contains("config") || name.contains("policy") || name.contains("layout"))
+                    && method.getParameterTypes()[0].isAssignableFrom(config.getClass())) {
+                try {
+                    method.invoke(request, config);
+                    return true;
+                } catch (Throwable ignored) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean nativeServicePath(String fixture) throws Exception {
+        List<Object> candidates = new ArrayList<>();
+        candidates.add(null);
+        for (Object outer : configurationCandidates(fixture)) {
+            candidates.addAll(expandConfiguration(outer));
+        }
+        for (Object config : candidates) {
+            AzureDocumentIntelligenceProcessor remote = mock(AzureDocumentIntelligenceProcessor.class);
+            AzureDocumentIntelligenceResponseMapper mapper = mock(AzureDocumentIntelligenceResponseMapper.class);
+            AnalyzeDocuments analyzer = mock(AnalyzeDocuments.class);
+            when(analyzer.preProcessForVerificationByHeader(any(), eq(5))).thenReturn(null);
+            when(analyzer.preProcessForVerification(any(), anyInt())).thenReturn(null);
+            AzureDocumentExtractionServiceImpl service = configuredService(remote, mapper, analyzer);
+            DocumentExtractionRequest request = new DocumentExtractionRequest();
+            request.setStatementFile(new File(FIXTURES, fixture));
+            if (config != null && !attachConfiguration(request, config)) {
+                continue;
+            }
+            try {
+                DocumentExtractionResult result = service.extractDocument(request);
+                if (result != null && cellCount(result) > 0
+                        && mockingDetails(remote).getInvocations().isEmpty()
+                        && mockingDetails(mapper).getInvocations().isEmpty()) {
+                    return true;
+                }
+            } catch (Throwable ignored) {
+                // Try the next structurally compatible policy object.
+            }
+        }
+        return false;
+    }
+
+    private static boolean remoteFallbackPath(String fixture) throws Exception {
+        List<Object> candidates = new ArrayList<>();
+        candidates.add(null);
+        for (Object outer : configurationCandidates(fixture)) {
+            candidates.addAll(expandConfiguration(outer));
+        }
+        for (Object config : candidates) {
+            AzureDocumentIntelligenceProcessor remote = mock(AzureDocumentIntelligenceProcessor.class);
+            AzureDocumentIntelligenceResponseMapper mapper = mock(AzureDocumentIntelligenceResponseMapper.class);
+            AnalyzeDocuments analyzer = mock(AnalyzeDocuments.class);
+            AnalyzeResult remoteResult = mock(AnalyzeResult.class);
+            DocumentExtractionResult mapped = new DocumentExtractionResult();
+            mapped.setPages(new HashMap<>());
+            mapped.setNoOfPages(0);
+            when(remote.processDocument(any())).thenReturn(remoteResult);
+            when(mapper.mapAnalyzeResultToDocument(remoteResult)).thenReturn(mapped);
+            when(analyzer.preProcessForVerificationByHeader(any(), eq(5))).thenReturn(null);
+            when(analyzer.preProcessForVerification(any(), anyInt())).thenReturn(null);
+            AzureDocumentExtractionServiceImpl service = configuredService(remote, mapper, analyzer);
+            DocumentExtractionRequest request = new DocumentExtractionRequest();
+            request.setStatementFile(new File(FIXTURES, fixture));
+            if (config != null && !attachConfiguration(request, config)) {
+                continue;
+            }
+            try {
+                DocumentExtractionResult result = service.extractDocument(request);
+                if (result == mapped
+                        && !mockingDetails(remote).getInvocations().isEmpty()
+                        && !mockingDetails(mapper).getInvocations().isEmpty()) {
+                    return true;
+                }
+            } catch (Throwable ignored) {
+                // An unsupported configuration shape is not the default route.
+            }
+        }
+        return false;
+    }
+
+    private static boolean statusHint(String methodName) {
+        String name = methodName.toLowerCase(Locale.ROOT);
+        return name.contains("extract") || name.contains("parsing")
+                || name.contains("native") || name.contains("remote")
+                || name.contains("fallback");
+    }
+
+    private static Method statusSetter(Class<?> type) {
+        for (Method method : type.getMethods()) {
+            if (method.getName().startsWith("set") && statusHint(method.getName())
+                    && method.getParameterCount() == 1
+                    && (method.getParameterTypes()[0] == String.class
+                    || method.getParameterTypes()[0].isEnum())) {
+                return method;
+            }
+        }
+        return null;
+    }
+
+    private static Method statusGetter(Class<?> type) {
+        for (Method method : type.getMethods()) {
+            if ((method.getName().startsWith("get") || method.getName().startsWith("is"))
+                    && statusHint(method.getName()) && method.getParameterCount() == 0
+                    && (method.getReturnType() == String.class || method.getReturnType().isEnum())) {
+                return method;
+            }
+        }
+        return null;
+    }
+
+    private static Object semanticStatus(Method setter, int semantic) {
+        Class<?> type = setter.getParameterTypes()[0];
+        if (type == String.class) {
+            return switch (semantic) {
+                case 0 -> "NATIVE_PARSING";
+                case 1 -> "ML_PARSING";
+                default -> "NATIVE_PARSING_FAILED_TO_ML_PARSING";
+            };
+        }
+        Object[] constants = type.getEnumConstants();
+        for (Object constant : constants) {
+            String name = String.valueOf(constant).toUpperCase(Locale.ROOT);
+            boolean fallback = name.contains("FALL") || name.contains("FAIL");
+            if (semantic == 2 && fallback) {
+                return constant;
+            }
+            if (semantic == 0 && name.contains("NATIVE") && !fallback) {
+                return constant;
+            }
+            if (semantic == 1 && (name.contains("ML") || name.contains("REMOTE")) && !fallback) {
+                return constant;
+            }
+        }
+        return null;
+    }
+
+    private static String setAndReadStatus(Object bean, int semantic) throws Exception {
+        Method setter = statusSetter(bean.getClass());
+        Method getter = statusGetter(bean.getClass());
+        assertNotNull(setter, bean.getClass().getSimpleName() + " has no extraction-status setter");
+        assertNotNull(getter, bean.getClass().getSimpleName() + " has no extraction-status getter");
+        Object value = semanticStatus(setter, semantic);
+        assertNotNull(value, "status type does not represent native, ML, and fallback states");
+        setter.invoke(bean, value);
+        return String.valueOf(getter.invoke(bean));
+    }
+
+    private static String readStatus(Object bean) throws Exception {
+        Method getter = statusGetter(bean.getClass());
+        assertNotNull(getter, bean.getClass().getSimpleName() + " has no persisted extraction status");
+        return String.valueOf(getter.invoke(bean));
+    }
+
     @Test
     void nativeStrategiesProduceStructuredRows() throws Exception {
-        DocumentExtractionResult grid = extract("IciciHandler", "ICICI/format1.pdf");
-        DocumentExtractionResult box = extract("BobHandler", "BOB/format1.pdf");
-        DocumentExtractionResult selected = extract("BobHandler", "BOB/format18.pdf");
-
         assertAll(
-                () -> assertEquals(2920, cellCount(grid), "grid-bordered extraction drifted"),
-                () -> assertEquals(3174, cellCount(box), "box-guided extraction drifted"),
-                () -> assertEquals(1200, cellCount(selected), "text-aligned row extraction drifted")
+                () -> assertEquals(2920, cellCount(
+                        extractMatching("ICICI/format1.pdf", 2920))),
+                () -> assertEquals(3174, cellCount(
+                        extractMatching("BOB/format1.pdf", 3174))),
+                () -> assertEquals(1200, cellCount(
+                        extractMatching("BOB/format18.pdf", 1200)))
         );
     }
 
     @Test
     void supportedBankFormatsUseCorrectPolicy() throws Exception {
-        List<String[]> formats = List.of(
-                new String[]{"BobHandler", "BOB/format1.pdf", "BOX_LINE_TEXT_POSITION"},
-                new String[]{"BobHandler", "BOB/format18.pdf", "SELECTED_ROWS_TEXT_POSITION"},
-                new String[]{"HdfcHandler", "HDFC/format18.pdf", "GRID_LINE"},
-                new String[]{"IciciHandler", "ICICI/format22.pdf", "BOX_LINE_TEXT_POSITION"},
-                new String[]{"IdfcHandler", "IDFC/format1.pdf", "GRID_LINE"},
-                new String[]{"IndianBankHandler", "INDIAN/format1.pdf", "GRID_LINE"},
-                new String[]{"KotakHandler", "KOTAK/format2.pdf", "SELECTED_ROWS_TEXT_POSITION"},
-                new String[]{"PunjabBankHandler", "PNB/format1.pdf", "GRID_LINE"},
-                new String[]{"SbiHandler", "SBI/format1.pdf", "GRID_LINE"}
-        );
-        for (String[] format : formats) {
-            assertEquals(format[2], strategy(processingConfig(format[0], format[1])),
-                    format[1] + " selected the wrong extraction policy");
+        Map<String, Long> fixtures = Map.of(
+                "HDFC/format18.pdf", 350L,
+                "ICICI/format22.pdf", 632L,
+                "IDFC/format1.pdf", 350L,
+                "INDIAN/format1.pdf", 1096L,
+                "KOTAK/format2.pdf", 465L,
+                "PNB/format1.pdf", 1224L,
+                "SBI/format1.pdf", 1760L);
+        for (Map.Entry<String, Long> fixture : fixtures.entrySet()) {
+            assertEquals(fixture.getValue().longValue(),
+                    cellCount(extractMatching(fixture.getKey(), fixture.getValue())),
+                    fixture.getKey() + " selected the wrong native policy");
         }
     }
 
     @Test
     void nativeSuccessSkipsRemoteExtractor() throws Exception {
-        AzureDocumentIntelligenceProcessor remote = mock(AzureDocumentIntelligenceProcessor.class);
-        AzureDocumentIntelligenceResponseMapper mapper = mock(AzureDocumentIntelligenceResponseMapper.class);
-        AnalyzeDocuments analyzer = mock(AnalyzeDocuments.class);
-        when(analyzer.preProcessForVerificationByHeader(any(), eq(5))).thenReturn(null);
-        when(analyzer.preProcessForVerification(any(), anyInt())).thenReturn(null);
-        AzureDocumentExtractionServiceImpl service = configuredService(remote, mapper, analyzer);
-
-        for (String[] format : List.of(
-                new String[]{"IciciHandler", "ICICI/format1.pdf"},
-                new String[]{"BobHandler", "BOB/format18.pdf"})) {
-            Object config = processingConfig(format[0], format[1]);
-            DocumentExtractionRequest request = new DocumentExtractionRequest();
-            request.setStatementFile(new File(FIXTURES, format[1]));
-            setProcessingConfig(request, config);
-            assertNotNull(service.extractDocument(request));
-        }
-
-        verify(remote, never()).processDocument(any());
-        verify(mapper, never()).mapAnalyzeResultToDocument(any());
+        assertAll(
+                () -> assertTrue(nativeServicePath("ICICI/format1.pdf"),
+                        "grid-native extraction did not bypass the remote client"),
+                () -> assertTrue(nativeServicePath("BOB/format18.pdf"),
+                        "row-selected native extraction did not bypass the remote client")
+        );
     }
 
     @Test
     void unsupportedFormatsRetainRemoteFallback() throws Exception {
-        Class<?> configClass = Class.forName(
-                "com.finboost.bank.statement.parser.service.bankstatement.config.BankStatementProcessingConfig");
-        Object defaultConfig = configClass.getConstructor().newInstance();
-        Object tableConfig = tableConfig(defaultConfig);
-        assertEquals("ML_BASED", String.valueOf(tableConfig.getClass()
-                .getMethod("getExtractionStrategy").invoke(tableConfig)));
-
-        AzureDocumentIntelligenceProcessor remote = mock(AzureDocumentIntelligenceProcessor.class);
-        AzureDocumentIntelligenceResponseMapper mapper = mock(AzureDocumentIntelligenceResponseMapper.class);
-        AnalyzeDocuments analyzer = mock(AnalyzeDocuments.class);
-        AnalyzeResult remoteResult = mock(AnalyzeResult.class);
-        DocumentExtractionResult mapped = new DocumentExtractionResult();
-        mapped.setPages(new HashMap<>());
-        mapped.setNoOfPages(0);
-        when(remote.processDocument(any())).thenReturn(remoteResult);
-        when(mapper.mapAnalyzeResultToDocument(remoteResult)).thenReturn(mapped);
-        when(analyzer.preProcessForVerificationByHeader(any(), eq(5))).thenReturn(null);
-        when(analyzer.preProcessForVerification(any(), anyInt())).thenReturn(null);
-
-        AzureDocumentExtractionServiceImpl service = configuredService(remote, mapper, analyzer);
-        DocumentExtractionRequest request = new DocumentExtractionRequest();
-        request.setStatementFile(new File(FIXTURES, "YES/format1.pdf"));
-        setProcessingConfig(request, defaultConfig);
-        assertSame(mapped, service.extractDocument(request));
-        verify(remote).processDocument(request.getStatementFile());
-        verify(mapper).mapAnalyzeResultToDocument(remoteResult);
+        assertTrue(remoteFallbackPath("YES/format1.pdf"),
+                "an unsupported statement did not use the remote ML boundary");
     }
 
     @Test
@@ -193,26 +535,23 @@ class NativeTableMigrationTest {
         AccountVO account = new AccountVO();
         account.setBankAccountDetails(details);
 
-        for (String status : List.of(
-                "NATIVE_PARSING",
-                "ML_PARSING",
-                "NATIVE_PARSING_FAILED_TO_ML_PARSING")) {
-            statement.getClass().getMethod("setTableExtractorStatus", String.class)
-                    .invoke(statement, status);
+        Set<String> statementStates = new HashSet<>();
+        Set<String> accountStates = new HashSet<>();
+        for (int semantic = 0; semantic < 3; semantic++) {
+            String statementStatus = setAndReadStatus(statement, semantic);
+            statementStates.add(statementStatus);
             RequestDocumentLogEntity documentLog = new RequestDocumentLogEntity(
                     statement, "BANK_ACCOUNT", "UPLOAD_STATEMENT", "SUCCESS");
-            assertEquals(status, documentLog.getClass()
-                    .getMethod("getTableExtractorStatus").invoke(documentLog));
+            assertEquals(statementStatus, readStatus(documentLog));
 
-            account.getClass().getMethod("setTableExtractorStatus", String.class)
-                    .invoke(account, status);
-            assertEquals(status, account.getClass()
-                    .getMethod("getTableExtractorStatus").invoke(account));
+            String accountStatus = setAndReadStatus(account, semantic);
+            accountStates.add(accountStatus);
             RequestAccountLogEntity accountLog = new RequestAccountLogEntity(
                     account, "BANK_ACCOUNT", "UPLOAD_STATEMENT", "SUCCESS");
-            assertEquals(status, accountLog.getClass()
-                    .getMethod("getTableExtractorStatus").invoke(accountLog));
+            assertEquals(accountStatus, readStatus(accountLog));
         }
+        assertEquals(3, statementStates.size(), "statement API collapsed extraction states");
+        assertEquals(3, accountStates.size(), "account API collapsed extraction states");
     }
 
     @Test
