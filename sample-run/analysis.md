@@ -1,4 +1,4 @@
-# Analysis: Grok 4.5 win conditions and failure modes
+# Analysis: Grok 4.5, the current Claude frontier, and long-horizon behavior
 
 ## Setup
 
@@ -45,6 +45,33 @@ so repeated sampling favors GPT.
 This is why a single aggregate pass@1 should not be read as a total ordering:
 Grok is more repeatable where it wins; GPT is more broadly capable across the
 bank.
+
+## August 2026 Claude frontier screen
+
+Claude Opus 5 and Claude Fable 5 were screened with OpenCode 1.18.13 in the
+same Daytona task snapshots. These are n=1 cells, so they are current
+pass@1 observations rather than stable pass@k estimates.
+
+| Model | credit | doc | fin-tools | phone | FIU | txenr | txenr3 | txenr4 | Solves / valid |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Claude Opus 5 | 1/1 | 1/1 | 0/1 | 1/1 | 1/1 | 1/1 | 1/1 | 0/1 | **6/8** |
+| Claude Fable 5 | 0/1 | 0/1 | 0/1 | 0/1 | excluded | 1/1 | 0/1 | 0/1 | **1/7** |
+
+Fable's FIU attempt is excluded, not scored zero. Both the original run and a
+single-agent compatibility rerun stopped on the provider's content filter
+before verification. The preserved `ContentFilterError`, OpenCode stream, and
+Harbor result are under `frontier-exclusions/fable5-xrepo-fiu-latent/`.
+
+Across eight valid Opus trials, the trajectories contain **367 model turns**
+and **375 tool calls**. Mean full-trial wall time was **13m 22.5s**, median
+**8m 57.0s**, p90 **30m 12.7s**, and the range **7m 19.0s–30m 12.7s**.
+Across seven valid Fable trials, the trajectories contain **161 model turns**
+and **210 tool calls**. Mean full-trial wall time was **10m 54.4s**, median
+**7m 02.5s**, p90 **35m 24.7s**, and the range **3m 47.0s–35m 24.7s**.
+
+Those durations are Harbor `started_at`→`finished_at` trial wall times,
+including setup, execution, and verification. Because the trials ran in
+parallel, their durations are not summed into an elapsed-time estimate.
 
 ## Turn, tool, and wall-clock profile
 

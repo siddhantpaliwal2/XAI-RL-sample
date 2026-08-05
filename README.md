@@ -120,6 +120,32 @@ the 5 planted defects and consistently miss the same one or two - the reward
 signal concentrates exactly on the defects that require cross-code derivation
 rather than search.
 
+## Long-horizon migration task
+
+`long-native-table-migration` condenses a real 62-commit production branch
+into one feature-development task at its pre-migration base. The branch changed
+70 production files and added roughly 13,000 lines across native PDF geometry,
+normalized table structures, bank-format policy, service routing, fallback,
+and API/persistence diagnostics. The sealed environment retains the repository's
+135 statement PDFs and cached fixture data but removes branch history and tests.
+
+The prompt is six numbered requirements, each paired one-to-one with one hidden
+verifier method. The verifier discovers policy/configuration objects, native
+extractors, and status properties structurally; it executes real fixtures and
+observes the existing document-extraction service boundary, so alternative
+class names and implementations can pass. It does not compare the submitted
+patch with the 62-commit oracle.
+
+| Mechanical control | Required tests | Result |
+|---|---:|---:|
+| Null / untouched base | 0/4 fail-to-pass, 2/2 pass-to-pass | reward 0 |
+| Historical oracle | 4/4 fail-to-pass, 2/2 pass-to-pass | reward 1 |
+
+The long-horizon acceptance gate omits Sonnet. It requires valid Opus 5 and
+Fable 5 trials to land around 70–100 tool calls and at least one model to fail
+50% or more of independent attempts. Model outcomes and trace statistics are
+packaged separately from the eight-task latent-debugging matrix.
+
 ## Frontier-model pass@k matrix
 
 Every cell below is measured: one Daytona sandbox per attempt (identical
@@ -142,6 +168,35 @@ aider + Opus 4.8 (aider sends a `temperature` parameter the Opus 4.8 API
 rejects, so every attempt died on the first call). Neither zero is a model
 result, so neither is reported as one. Amazon's Nova 2 Pro is preview-gated
 (not on OpenRouter or generally on Bedrock) and could not be included.
+
+### Current Claude frontier screen — OpenCode, n=1 per available cell (c/n)
+
+[Claude Opus 5](https://platform.claude.com/docs/en/about-claude/models/whats-new-opus-5)
+and [Claude Fable 5](https://platform.claude.com/docs/en/about-claude/models/introducing-claude-fable-5-and-claude-mythos-5)
+were added in August 2026 using the exact OpenRouter routes shown in
+`sample-run/*_results.json`, OpenCode 1.18.13, and the same Daytona snapshots.
+This is a **one-attempt screening snapshot**, not a stable pass@k estimate;
+pass@3 and pass@10 are undefined at n=1.
+
+| Model | credit-norm | doc-extract | fin-tools | phone-inv | fiu | txenr | txenr3 | txenr4 | measured solves | macro pass@1 |
+|---|---|---|---|---|---|---|---|---|---:|---:|
+| **claude-opus-5** | 1/1 | 1/1 | 0/1 | 1/1 | 1/1 | 1/1 | 1/1 | 0/1 | **6/8** | **0.750** |
+| claude-fable-5 | 0/1 | 0/1 | 0/1 | 0/1 | excluded | 1/1 | 0/1 | 0/1 | 1/7 | 0.143 |
+
+Fable's FIU cell is not a zero. The original job (including its retry) and a
+single-agent compatibility rerun reached the provider but were blocked by a
+`ContentFilterError` before verification. The raw
+exception and model log are preserved under `sample-run/frontier-exclusions/`;
+the cell has n=0 and is excluded from Fable's macro mean.
+
+The per-trial duration is full Harbor wall time from `started_at` to
+`finished_at`, including environment setup, agent setup, execution, and
+verification. No independently running durations are summed.
+
+| Model | Valid trials | Model turns | Tool calls | Mean wall time | Median | p90 | Range |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| claude-opus-5 | 8 | 367 | 375 | 13m 22.5s | 8m 57.0s | 30m 12.7s | 7m 19.0s–30m 12.7s |
+| claude-fable-5 | 7 | 161 | 210 | 10m 54.4s | 7m 02.5s | 35m 24.7s | 3m 47.0s–35m 24.7s |
 
 ### OpenCode harness — 9 models, n≈10 attempts per cell (c/n)
 
@@ -309,6 +364,37 @@ done | PROBE_MODEL=anthropic/claude-sonnet-4-6 xargs -P 10 -L 1 sh -c "\"$PY\" h
 Keep concurrent attempts ≤ 15 machine-wide. A trial that crashes under load
 records `"reward": null` or a non-`Submitted` exit_status - rerun that attempt
 number; never count a crash as a fail.
+
+**4c. Run the long-horizon Daytona gate.** Prepare an env file containing
+`DAYTONA_API_KEY`, `DAYTONA_API_URL`, and `OPENROUTER_API_KEY`, pin the source
+checkout to the task's base commit, then create the sealed snapshot once:
+
+```sh
+HARBOR_PY="$(uv tool dir)/harbor/bin/python"
+"$HARBOR_PY" harness/create_long_task_daytona_snapshot.py \
+  --repo /path/to/bank-statement-parser-at-base \
+  --env-file /tmp/xai-rl-daytona.env
+```
+
+Run Opus and Fable attempts through one global worker pool. OpenCode's task
+tool is denied so every trajectory is a single-agent run:
+
+```sh
+python3 harness/run_frontier_daytona.py \
+  --env-file /tmp/xai-rl-daytona.env \
+  --model opus5=openrouter/anthropic/claude-opus-5 \
+  --model fable5=openrouter/anthropic/claude-fable-5 \
+  --task long-native-table-migration --attempts 3 --concurrency 6 \
+  --run-id long-native-final-r2 --jobs-dir sample-run/long-raw \
+  --agent-version 1.18.13 --disable-task-tool --job-timeout 9000
+
+python3 harness/collect_long_results.py \
+  --run-id long-native-final-r2 --expected-attempts 3
+```
+
+The runner reuses a cell only after validating the model route, OpenCode
+version, Daytona snapshot, task checksum, and real verifier output. A provider
+or infrastructure exception is therefore never converted into reward 0.
 
 ## Optional: verifier sanity check (no agent)
 

@@ -258,11 +258,19 @@ def main() -> int:
             if source.is_file():
                 shutil.copy2(source, destination)
         exception = result.get("exception_info") or {}
+        opencode_text = (trial_dir / "agent" / "opencode.txt").read_text(
+            errors="replace"
+        )
         exclusions.append(
             {
                 "model": alias,
                 "task": task,
                 "reason": "provider_content_filter",
+                "provider_error": (
+                    "ContentFilterError"
+                    if "ContentFilterError" in opencode_text
+                    else None
+                ),
                 "exception_type": exception.get("exception_type"),
                 "artifact_dir": str(packaged.relative_to(SAMPLE_RUN)),
                 "counted_as_model_result": False,

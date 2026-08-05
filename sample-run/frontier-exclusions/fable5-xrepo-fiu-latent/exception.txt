@@ -1,0 +1,79 @@
+Traceback (most recent call last):
+  File "/Users/siddhantpaliwal/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/trial/single_step.py", line 77, in _run_agent
+    await self._run_agent_phase(
+    ...<4 lines>...
+    )
+  File "/Users/siddhantpaliwal/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/trial/trial.py", line 442, in _run_agent_phase
+    await asyncio.wait_for(
+    ...<6 lines>...
+    )
+  File "/Users/siddhantpaliwal/.local/share/uv/python/cpython-3.13.1-macos-aarch64-none/lib/python3.13/asyncio/tasks.py", line 507, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/Users/siddhantpaliwal/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/agents/installed/base.py", line 105, in wrapper
+    return await fn(self, instruction, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/siddhantpaliwal/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/agents/installed/opencode.py", line 545, in run
+    await self.exec_as_agent(
+    ...<8 lines>...
+    )
+  File "/Users/siddhantpaliwal/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/agents/installed/base.py", line 477, in exec_as_agent
+    return await self._exec(
+           ^^^^^^^^^^^^^^^^^
+        environment, command, env=env, cwd=cwd, timeout_sec=timeout_sec
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/siddhantpaliwal/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/agents/installed/base.py", line 444, in _exec
+    raise self._classify_exec_error(command, result)
+harbor.agents.installed.base.NonZeroAgentExitCodeError: Command failed (exit 1): . ~/.nvm/nvm.sh; opencode --model=openrouter/anthropic/claude-fable-5 run --format=json --thinking --dangerously-skip-permissions -- '<uploaded_files>/app</uploaded_files>
+
+# Partner escalation digest - FIU adapter interop issues
+
+Rolled-up tickets from our Account Aggregator partners against the FIU adapter
+(the service that talks to Account Aggregators on behalf of a
+financial-information user). The build is clean and the shipped checks pass, so
+none of this is caught before deploy. Both reporters emphasise the same
+pattern: ordinary traffic is fine, and the failures key off the *content* of
+specific values rather than load, timing, or sequence.
+
+---
+
+**AA partner (ticket #4471):**
+> Your adapter is rejecting a subset of our callbacks as `invalid` on the
+> transaction / consent identifier, and the rejected ids are well-formed UUIDs -
+> canonical form, straight from our generator. Most UUIDs go through. We diffed
+> accepted vs rejected ids and cannot see what distinguishes them; whatever
+> validity check you run is *almost* right, and genuinely malformed ids are
+> still (correctly) refused.
+
+**AA partner (ticket #4488):**
+> Separately: your outgoing notification timestamps are wrong in the afternoon.
+> An event we both logged at 13:47 UTC arrives stamped 01:47 on the same date.
+> Date, minutes, seconds all agree; mornings are fine. Our parser now rejects
+> some of your afternoon messages outright.
+
+---
+
+**Triage note (ops):** these two are the ones partners have pinned down, but
+our own sweep says they are not isolated. A few more of the adapter'"'"'s small,
+deterministic helpers in the same family - identifier and payload handling,
+field validation - drift in exactly the same way: correct on the ordinary
+values the system produces for itself, wrong by a hair on one specific edge
+form that routine traffic never feeds them. Away from those edges everything
+behaves, which is why the shipped checks never surface any of it.
+
+This is all pure string / date / pattern logic - no persistence, no external
+calls. Restore correct behaviour on these content-dependent edge inputs without
+changing anything on the paths that already behave; the project'"'"'s checks pass
+now and must stay passing.
+
+Do not add or modify anything under `src/test/`.
+
+Verify the build with:
+
+    cd /app && mvn -o -q -pl webservice test
+' 2>&1 </dev/null | stdbuf -oL tee /logs/agent/opencode.txt
+stdout: {"type":"step_start","timestamp":1785904632054,"sessionID":"ses_02fca0e67ffeey5etGcuuDBP3x","part":{"id":"prt_fd03610cc0014Mxcl6OwEjOzw1","messageID":"msg_fd035f35c001pHCQgAIVeXrgqZ","sessionID":"ses_02fca0e67ffeey5etGcuuDBP3x","snapshot":"c35d0601bfc55897077bc1383a47e1a703131548","type":"step-start"}}
+{"type":"reasoning","timestamp":1785904632055,"sessionID":"ses_02fca0e67ffeey5etGcuuDBP3x","part":{"id":"prt_fd03610d10011jSv633c8KIKZn","messageID":"msg_fd035f35c001pHCQgAIVeXrgqZ","sessionID":"ses_02fca0e67ffeey5etGcuuDBP3x","type":"reasoning","text":"I'm diving into the codebase to understand its structure and how everything fits together.","time":{"start":1785904632017,"end":1785904632051},"metadata":{"openrouter":{"reasoning_details":[{"type":"reasoning.text","text":"I'm diving into the codebase to understand its structure and how everything fits together.","format":"anthropic-claude-v1","index":0,"signature":"CAIShwIKiAEIEBgCKkAdOYxMmWPO8RMzR3OLFcpVIJvxGThvI4KILHFp3GX3FvTNYMFiO80MN ... [truncated]
+stderr: None
