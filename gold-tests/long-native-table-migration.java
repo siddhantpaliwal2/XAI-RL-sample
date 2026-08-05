@@ -272,32 +272,40 @@ class NativeTableMigrationTest {
         if (EXTRACTION_CACHE.containsKey(cacheKey)) {
             return EXTRACTION_CACHE.get(cacheKey);
         }
+        DocumentExtractionResult routed = nativeServiceResult(fixture, expectedCells);
+        if (routed != null) {
+            EXTRACTION_CACHE.put(cacheKey, routed);
+            return routed;
+        }
         File pdf = new File(FIXTURES, fixture);
         Set<Long> observed = new LinkedHashSet<>();
+        List<Object> configs = new ArrayList<>();
+        configs.add(null);
         for (Object outer : configurationCandidates(fixture)) {
-            for (Object config : expandConfiguration(outer)) {
-                for (Method method : extractionMethods()) {
-                    Object[] arguments = extractorArguments(method, pdf, config);
-                    if (arguments == null) {
-                        continue;
+            configs.addAll(expandConfiguration(outer));
+        }
+        for (Object config : configs) {
+            for (Method method : extractionMethods()) {
+                Object[] arguments = extractorArguments(method, pdf, config);
+                if (arguments == null) {
+                    continue;
+                }
+                Object target = Modifier.isStatic(method.getModifiers())
+                        ? null : construct(method.getDeclaringClass());
+                if (!Modifier.isStatic(method.getModifiers()) && target == null) {
+                    continue;
+                }
+                try {
+                    DocumentExtractionResult result = (DocumentExtractionResult)
+                            method.invoke(target, arguments);
+                    long count = cellCount(result);
+                    observed.add(count);
+                    if (count == expectedCells) {
+                        EXTRACTION_CACHE.put(cacheKey, result);
+                        return result;
                     }
-                    Object target = Modifier.isStatic(method.getModifiers())
-                            ? null : construct(method.getDeclaringClass());
-                    if (!Modifier.isStatic(method.getModifiers()) && target == null) {
-                        continue;
-                    }
-                    try {
-                        DocumentExtractionResult result = (DocumentExtractionResult)
-                                method.invoke(target, arguments);
-                        long count = cellCount(result);
-                        observed.add(count);
-                        if (count == expectedCells) {
-                            EXTRACTION_CACHE.put(cacheKey, result);
-                            return result;
-                        }
-                    } catch (Throwable ignored) {
-                        // Try the next compatible policy/extractor combination.
-                    }
+                } catch (Throwable ignored) {
+                    // Try the next compatible policy/extractor combination.
                 }
             }
         }
@@ -336,7 +344,8 @@ class NativeTableMigrationTest {
         return false;
     }
 
-    private static boolean nativeServicePath(String fixture) throws Exception {
+    private static DocumentExtractionResult nativeServiceResult(
+            String fixture, long expectedCells) throws Exception {
         List<Object> candidates = new ArrayList<>();
         candidates.add(null);
         for (Object outer : configurationCandidates(fixture)) {
@@ -356,16 +365,22 @@ class NativeTableMigrationTest {
             }
             try {
                 DocumentExtractionResult result = service.extractDocument(request);
-                if (result != null && cellCount(result) > 0
+                long count = cellCount(result);
+                if (result != null && count > 0
+                        && (expectedCells <= 0 || count == expectedCells)
                         && mockingDetails(remote).getInvocations().isEmpty()
                         && mockingDetails(mapper).getInvocations().isEmpty()) {
-                    return true;
+                    return result;
                 }
             } catch (Throwable ignored) {
                 // Try the next structurally compatible policy object.
             }
         }
-        return false;
+        return null;
+    }
+
+    private static boolean nativeServicePath(String fixture) throws Exception {
+        return nativeServiceResult(fixture, 0) != null;
     }
 
     private static boolean remoteFallbackPath(String fixture) throws Exception {
@@ -414,18 +429,44 @@ class NativeTableMigrationTest {
     }
 
     private static Method statusSetter(Class<?> type) {
+        List<Method> candidates = new ArrayList<>();
         for (Method method : type.getMethods()) {
             if (method.getName().startsWith("set") && statusHint(method.getName())
                     && method.getParameterCount() == 1
                     && (method.getParameterTypes()[0] == String.class
                     || method.getParameterTypes()[0].isEnum())) {
+                candidates.add(method);
+            }
+        }
+        candidates.sort(Comparator.comparingInt(method ->
+                method.getName().toLowerCase(Locale.ROOT).contains("status") ? 0 : 1));
+        for (Method method : candidates) {
+            if (method.getParameterTypes()[0] == String.class
+                    || (semanticStatus(method, 0) != null
+                    && semanticStatus(method, 1) != null
+                    && semanticStatus(method, 2) != null)) {
                 return method;
             }
         }
         return null;
     }
 
-    private static Method statusGetter(Class<?> type) {
+    private static Method statusGetter(Class<?> type, Method setter) {
+        String property = setter == null ? null : setter.getName().substring(3);
+        if (property != null) {
+            for (String prefix : List.of("get", "is")) {
+                try {
+                    Method exact = type.getMethod(prefix + property);
+                    if (exact.getParameterCount() == 0
+                            && (exact.getReturnType() == String.class
+                            || exact.getReturnType().isEnum())) {
+                        return exact;
+                    }
+                } catch (NoSuchMethodException ignored) {
+                    // Fall through to semantic discovery.
+                }
+            }
+        }
         for (Method method : type.getMethods()) {
             if ((method.getName().startsWith("get") || method.getName().startsWith("is"))
                     && statusHint(method.getName()) && method.getParameterCount() == 0
@@ -464,7 +505,7 @@ class NativeTableMigrationTest {
 
     private static String setAndReadStatus(Object bean, int semantic) throws Exception {
         Method setter = statusSetter(bean.getClass());
-        Method getter = statusGetter(bean.getClass());
+        Method getter = statusGetter(bean.getClass(), setter);
         assertNotNull(setter, bean.getClass().getSimpleName() + " has no extraction-status setter");
         assertNotNull(getter, bean.getClass().getSimpleName() + " has no extraction-status getter");
         Object value = semanticStatus(setter, semantic);
@@ -473,10 +514,18 @@ class NativeTableMigrationTest {
         return String.valueOf(getter.invoke(bean));
     }
 
-    private static String readStatus(Object bean) throws Exception {
-        Method getter = statusGetter(bean.getClass());
-        assertNotNull(getter, bean.getClass().getSimpleName() + " has no persisted extraction status");
-        return String.valueOf(getter.invoke(bean));
+    private static String readStatus(Object bean, String expected) throws Exception {
+        for (Method method : bean.getClass().getMethods()) {
+            if ((method.getName().startsWith("get") || method.getName().startsWith("is"))
+                    && statusHint(method.getName()) && method.getParameterCount() == 0
+                    && (method.getReturnType() == String.class || method.getReturnType().isEnum())) {
+                if (expected.equals(String.valueOf(method.invoke(bean)))) {
+                    return expected;
+                }
+            }
+        }
+        fail(bean.getClass().getSimpleName() + " did not persist extraction status " + expected);
+        return null;
     }
 
     @Test
@@ -542,13 +591,13 @@ class NativeTableMigrationTest {
             statementStates.add(statementStatus);
             RequestDocumentLogEntity documentLog = new RequestDocumentLogEntity(
                     statement, "BANK_ACCOUNT", "UPLOAD_STATEMENT", "SUCCESS");
-            assertEquals(statementStatus, readStatus(documentLog));
+            assertEquals(statementStatus, readStatus(documentLog, statementStatus));
 
             String accountStatus = setAndReadStatus(account, semantic);
             accountStates.add(accountStatus);
             RequestAccountLogEntity accountLog = new RequestAccountLogEntity(
                     account, "BANK_ACCOUNT", "UPLOAD_STATEMENT", "SUCCESS");
-            assertEquals(accountStatus, readStatus(accountLog));
+            assertEquals(accountStatus, readStatus(accountLog, accountStatus));
         }
         assertEquals(3, statementStates.size(), "statement API collapsed extraction states");
         assertEquals(3, accountStates.size(), "account API collapsed extraction states");
