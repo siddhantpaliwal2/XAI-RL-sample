@@ -30,48 +30,68 @@ Grok solved **21/80 attempts** for a macro mean **pass@1 of 0.2625**,
 | txenrich3 | 0/10 | 0.000 | 0.000 | 0.000 | 3.2/5 |
 | txenrich4 | 0/10 | 0.000 | 0.000 | 0.000 | 2.6/5 |
 
-The apparent tension between the three means is the main result. Grok has the
-highest pass@1 row measured with OpenCode, but its solves are concentrated in
-four tasks. GPT-5.6 Sol solves fewer attempts overall while covering six tasks,
-so repeated sampling favors GPT.
+The apparent tension between the three means is the main Grok result. Grok's
+solves are concentrated in four tasks, while GPT-5.6 Sol solves fewer attempts
+overall but covers six tasks. The completed August frontier screen adds a new
+leader: Opus 5 is both more repeatable and more broadly capable than either.
 
 | OpenCode model | Solves | Mean pass@1 | Mean pass@3 | Mean pass@10 | Tasks with a solve |
 |---|---:|---:|---:|---:|---:|
+| **Claude Opus 5** | **55/80** | **0.688** | **0.834** | **0.875** | **7/8** |
+| Claude Fable 5 | 18/63 | 0.290 | 0.582 | 0.667† | 5/7 measured |
 | **Grok 4.5** | **21/80** | **0.263** | 0.383 | 0.500 | 4/8 |
 | GPT-5.6 Sol | 16/80 | 0.200 | **0.435** | **0.750** | **6/8** |
 | Claude Opus 4.8 | 8/79 | 0.100 | 0.244 | 0.375 | 3/8 |
 | Nova Premier | 0/80 | 0.000 | 0.000 | 0.000 | 0/8 |
 
-This is why a single aggregate pass@1 should not be read as a total ordering:
-Grok is more repeatable where it wins; GPT is more broadly capable across the
-bank.
+† Fable's pass@10 macro uses its six n=10 cells. Doc extraction is
+provider-limited at n=3 and FIU is excluded before inference. This is why a
+single aggregate pass@1 should not be read without denominators and task
+coverage: Fable edges Grok on pass@1 but not on like-for-like eight-task
+coverage, while Grok is more repeatable on its strongest localized tasks.
 
-## August 2026 Claude frontier screen
+## August 2026 Claude frontier pass@10
 
-Claude Opus 5 and Claude Fable 5 were screened with OpenCode 1.18.13 in the
-same Daytona task snapshots. These are n=1 cells, so they are current
-pass@1 observations rather than stable pass@k estimates.
+Claude Opus 5 and Claude Fable 5 were evaluated with OpenCode 1.18.13 in the
+same Daytona task snapshots. Each available n=10 cell combines the original
+exact OpenRouter attempt with nine independently graded attempts on the exact
+Bedrock global route. Bedrock fallback was disabled, Fable provider data share
+was enabled with approval, and only trials with real hidden-verifier verdicts
+enter n.
 
-| Model | credit | doc | fin-tools | phone | FIU | txenr | txenr3 | txenr4 | Solves / valid |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Claude Opus 5 | 1/1 | 1/1 | 0/1 | 1/1 | 1/1 | 1/1 | 1/1 | 0/1 | **6/8** |
-| Claude Fable 5 | 0/1 | 0/1 | 0/1 | 0/1 | excluded | 1/1 | 0/1 | 0/1 | **1/7** |
+| Model | credit | doc | fin-tools | phone | FIU | txenr | txenr3 | txenr4 | Solves / valid | pass@1 | pass@3 | pass@10 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Claude Opus 5 | 8/10 | 6/10 | 3/10 | 9/10 | 10/10 | 9/10 | 10/10 | 0/10 | **55/80** | **0.6875** | **0.8344** | **0.8750** |
+| Claude Fable 5 | 4/10 | 1/3* | 0/10 | 3/10 | excluded | 8/10 | 2/10 | 0/10 | **18/63** | **0.2905** | **0.5821** | **0.6667†** |
 
-Fable's FIU attempt is excluded, not scored zero. Both the original run and a
-single-agent compatibility rerun stopped on the provider's content filter
-before verification. The preserved `ContentFilterError`, OpenCode stream, and
-Harbor result are under `frontier-exclusions/fable5-xrepo-fiu-latent/`.
+The strongest result is Opus's breadth: it solves seven of eight task families,
+including 10/10 FIU and txenrich3, while the older OpenCode models solved at
+most six. Its one systematic zero is txenrich4. Fable is much less consistent:
+it is strong on base txenrich (8/10), but 0/10 on both financial-tools and
+txenrich4 and only 2/10 on txenrich3.
 
-Across eight valid Opus trials, the trajectories contain **367 model turns**
-and **375 tool calls**. Mean full-trial wall time was **13m 22.5s**, median
-**8m 57.0s**, p90 **30m 12.7s**, and the range **7m 19.0s–30m 12.7s**.
-Across seven valid Fable trials, the trajectories contain **161 model turns**
-and **210 tool calls**. Mean full-trial wall time was **10m 54.4s**, median
-**7m 02.5s**, p90 **35m 24.7s**, and the range **3m 47.0s–35m 24.7s**.
+Fable FIU is excluded, not scored zero. OpenRouter and Bedrock consistently
+filtered the prompt before inference and verification. Fable doc extraction is
+provider-limited at n=3, c=1: after a bounded exact-harness sweep across the
+OpenRouter, global Bedrock, and U.S. Bedrock routes, more than 100 provider
+attempts were filtered before inference and only three produced verifier-valid
+trials. pass@10 is therefore undefined for doc; Fable's pass@10 macro uses only
+the six cells that reached n=10.
+
+| Model | Valid trials | Model turns | Tool calls | Mean wall time | Median | p90 | Range | Reported cost |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Claude Opus 5 | 80 | 3,061 | 3,316 | 12m 46.1s | 10m 14.5s | 23m 28.3s | 5m 04.3s–30m 28.0s | $294.05 |
+| Claude Fable 5 | 63 | 1,391 | 1,830 | 16m 01.8s | 12m 37.6s | 35m 24.7s | 3m 47.0s–57m 33.8s | $326.88 |
 
 Those durations are Harbor `started_at`→`finished_at` trial wall times,
-including setup, execution, and verification. Because the trials ran in
-parallel, their durations are not summed into an elapsed-time estimate.
+including environment setup, agent setup, execution, and verification. The
+trials ran concurrently, so independently running durations are not summed.
+The 143 scored trials report $620.94 of model usage: $76.55 on OpenRouter and
+$544.39 of Bedrock list-price-equivalent usage against the AWS account/credits.
+Filtered calls with no inference contribute neither cost nor a scored failure.
+The per-attempt routes, provider attempt IDs, scores, turns, tool calls, tokens,
+wall time, and packaged evidence are in `opus5_trials.json`,
+`fable5_trials.json`, and `frontier-trials/`.
 
 ## Long-horizon definition and evaluation bar
 
@@ -191,13 +211,16 @@ that verifier was frozen. Regrade provenance is explicit in every packaged
 trial index, and the prompt-to-test audit is preserved under
 `long-horizon-controls/fairness-audit.md`.
 
-For cost accounting, the new work in this XAI extension used **$354.54** of
-reported model/API spend: $31.44 for the 80 Grok debugging trials, $76.55 for
-the eight-task Opus/Fable screen, $40.92 for superseded long-task calibration,
-and $205.63 for the 12 final long-task attempts. That is well below the $1,000
-OpenRouter ceiling. Direct Bedrock compatibility probes used the account's AWS
-credits and are not included in the OpenRouter total. Daytona infrastructure
-charges and inherited Amazon-sample model runs are also excluded.
+For cost accounting, direct OpenRouter usage attributable to this XAI extension
+remains **$354.54**: $31.44 for the 80 Grok debugging trials, $76.55 for the
+original eight-task Opus/Fable screen, $40.92 for superseded long-task
+calibration, and $205.63 for the 12 final long-task attempts. The pass@10
+completion added **$544.39** of Bedrock list-price-equivalent model usage
+against the AWS account/credits, bringing total reported model-usage equivalent
+for the extension to **$898.93** without increasing its OpenRouter spend. AWS
+Cost Explorer had not yet posted same-day Bedrock billing when this snapshot
+was finalized. Daytona infrastructure charges and inherited Amazon-sample
+model runs are excluded.
 
 ## Turn, tool, and wall-clock profile
 
