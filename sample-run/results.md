@@ -26,7 +26,6 @@ averages over the eight tasks.
 - Valid graded attempts: 80
 - Full solves: 21
 - Model cost: $31.44
-- Agent runtime: 357.2 minutes (summed)
 - Model steps: 1047
 
 All per-attempt results, verifier verdicts, and trajectories are under
