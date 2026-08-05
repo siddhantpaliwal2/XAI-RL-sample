@@ -9,6 +9,7 @@ import com.finboost.bank.statement.parser.representation.bankstatement.AccountTy
 import com.finboost.bank.statement.parser.representation.bankstatement.BankStatementVO;
 import com.finboost.bank.statement.parser.representation.document.extraction.DocumentExtractionRequest;
 import com.finboost.bank.statement.parser.representation.document.extraction.DocumentExtractionResult;
+import com.finboost.bank.statement.parser.service.document.extraction.DocumentExtractionService;
 import com.finboost.bank.statement.parser.service.document.extraction.IBankSpecificParsingService;
 import com.finboost.bank.statement.parser.service.document.extraction.azure.AzureDocumentExtractionServiceImpl;
 import com.finboost.bank.statement.parser.service.document.extraction.azure.AzureDocumentIntelligenceProcessor;
@@ -20,8 +21,11 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -314,17 +318,190 @@ class NativeTableMigrationTest {
         return null;
     }
 
+    private static void injectByType(Object target, Object dependency) throws Exception {
+        for (Method method : target.getClass().getMethods()) {
+            if (method.getName().startsWith("set") && method.getParameterCount() == 1
+                    && method.getParameterTypes()[0].isInstance(dependency)) {
+                method.invoke(target, dependency);
+                return;
+            }
+        }
+        for (Class<?> type = target.getClass(); type != null; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                if (!Modifier.isStatic(field.getModifiers())
+                        && field.getType().isInstance(dependency)) {
+                    field.setAccessible(true);
+                    field.set(target, dependency);
+                    return;
+                }
+            }
+        }
+        fail(target.getClass().getSimpleName() + " has no dependency slot for "
+                + dependency.getClass().getSimpleName());
+    }
+
     private static AzureDocumentExtractionServiceImpl configuredService(
             AzureDocumentIntelligenceProcessor remote,
             AzureDocumentIntelligenceResponseMapper mapper,
-            AnalyzeDocuments analyzer) {
+            AnalyzeDocuments analyzer) throws Exception {
         AzureDocumentExtractionServiceImpl service = new AzureDocumentExtractionServiceImpl();
-        service.setAzureDocumentIntelligenceProcessor(remote);
-        service.setAzureDocumentIntelligenceResponseMapper(mapper);
-        service.setAnalyzeDocuments(analyzer);
-        service.setEPdfCharacterExtractionService(mock(EPdfCharacterExtractionService.class));
-        service.setBankSpecificParsingService(mock(IBankSpecificParsingService.class));
+        injectByType(service, remote);
+        injectByType(service, mapper);
+        injectByType(service, analyzer);
+        injectByType(service, mock(EPdfCharacterExtractionService.class));
+        injectByType(service, mock(IBankSpecificParsingService.class));
         return service;
+    }
+
+    private static boolean serviceCandidate(Class<?> type) {
+        if (!DocumentExtractionService.class.isAssignableFrom(type)
+                || type == AzureDocumentExtractionServiceImpl.class
+                || type.isInterface() || Modifier.isAbstract(type.getModifiers())) {
+            return false;
+        }
+        String name = type.getSimpleName().toLowerCase(Locale.ROOT);
+        return name.contains("native") || name.contains("hybrid")
+                || name.contains("routing") || name.contains("offline");
+    }
+
+    private static Object knownDependency(Class<?> required, List<Object> known) {
+        if (required == Object.class) {
+            return null;
+        }
+        for (Object candidate : known) {
+            if (candidate != null && required.isInstance(candidate)) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private static Class<?> genericElement(Type genericType) {
+        if (!(genericType instanceof ParameterizedType parameterized)) {
+            return null;
+        }
+        Type[] arguments = parameterized.getActualTypeArguments();
+        return arguments.length == 1 && arguments[0] instanceof Class<?> type ? type : null;
+    }
+
+    private static Object dependencyFor(
+            Class<?> required, Type genericType, List<Object> known,
+            Set<Class<?>> constructing, int depth) throws Exception {
+        Object dependency = knownDependency(required, known);
+        if (dependency != null) {
+            return dependency;
+        }
+        if (List.class.isAssignableFrom(required)) {
+            Class<?> element = genericElement(genericType);
+            if (element == null) {
+                return null;
+            }
+            List<Object> implementations = new ArrayList<>();
+            for (Class<?> type : applicationClasses()) {
+                if (element.isAssignableFrom(type) && !type.isInterface()
+                        && !Modifier.isAbstract(type.getModifiers())) {
+                    Object value = construct(type);
+                    if (value != null) {
+                        wireObject(value, known, constructing, depth + 1);
+                        implementations.add(value);
+                    }
+                }
+            }
+            return implementations;
+        }
+        if (depth > 7 || constructing.contains(required)) {
+            return null;
+        }
+        List<Class<?>> candidates = new ArrayList<>();
+        for (Class<?> type : applicationClasses()) {
+            if (required.isAssignableFrom(type) && !type.isInterface()
+                    && !Modifier.isAbstract(type.getModifiers())) {
+                candidates.add(type);
+            }
+        }
+        if (!required.isInterface() && !Modifier.isAbstract(required.getModifiers())) {
+            candidates.add(0, required);
+        }
+        for (Class<?> type : candidates) {
+            Object value = construct(type);
+            if (value == null) {
+                continue;
+            }
+            constructing.add(type);
+            wireObject(value, known, constructing, depth + 1);
+            constructing.remove(type);
+            return value;
+        }
+        return null;
+    }
+
+    private static void wireObject(
+            Object target, List<Object> known, Set<Class<?>> constructing, int depth)
+            throws Exception {
+        if (depth > 7) {
+            return;
+        }
+        Set<Class<?>> assigned = new HashSet<>();
+        for (Method method : target.getClass().getMethods()) {
+            if (!method.getName().startsWith("set") || method.getParameterCount() != 1) {
+                continue;
+            }
+            Class<?> required = method.getParameterTypes()[0];
+            Object dependency = dependencyFor(
+                    required, method.getGenericParameterTypes()[0], known, constructing, depth);
+            if (dependency == null) {
+                continue;
+            }
+            try {
+                method.invoke(target, dependency);
+                assigned.add(required);
+            } catch (Throwable ignored) {
+                // Try a field or another compatible implementation.
+            }
+        }
+        for (Class<?> type = target.getClass(); type != null; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers()) || Modifier.isFinal(field.getModifiers())
+                        || assigned.stream().anyMatch(field.getType()::isAssignableFrom)) {
+                    continue;
+                }
+                field.setAccessible(true);
+                if (field.get(target) != null) {
+                    continue;
+                }
+                Object dependency = dependencyFor(
+                        field.getType(), field.getGenericType(), known, constructing, depth);
+                if (dependency != null) {
+                    field.set(target, dependency);
+                }
+            }
+        }
+    }
+
+    private static List<DocumentExtractionService> configuredServices(
+            AzureDocumentIntelligenceProcessor remote,
+            AzureDocumentIntelligenceResponseMapper mapper,
+            AnalyzeDocuments analyzer) throws Exception {
+        AzureDocumentExtractionServiceImpl azure = configuredService(remote, mapper, analyzer);
+        List<DocumentExtractionService> services = new ArrayList<>();
+        List<Object> known = List.of(
+                remote, mapper, analyzer,
+                mock(EPdfCharacterExtractionService.class),
+                mock(IBankSpecificParsingService.class), azure);
+        for (Class<?> type : applicationClasses()) {
+            if (!serviceCandidate(type)) {
+                continue;
+            }
+            Object candidate = construct(type);
+            if (candidate != null) {
+                Set<Class<?>> constructing = new HashSet<>();
+                constructing.add(type);
+                wireObject(candidate, known, constructing, 0);
+                services.add((DocumentExtractionService) candidate);
+            }
+        }
+        services.add(azure);
+        return services;
     }
 
     private static boolean attachConfiguration(DocumentExtractionRequest request, Object config) {
@@ -357,23 +534,25 @@ class NativeTableMigrationTest {
             AnalyzeDocuments analyzer = mock(AnalyzeDocuments.class);
             when(analyzer.preProcessForVerificationByHeader(any(), eq(5))).thenReturn(null);
             when(analyzer.preProcessForVerification(any(), anyInt())).thenReturn(null);
-            AzureDocumentExtractionServiceImpl service = configuredService(remote, mapper, analyzer);
-            DocumentExtractionRequest request = new DocumentExtractionRequest();
-            request.setStatementFile(new File(FIXTURES, fixture));
-            if (config != null && !attachConfiguration(request, config)) {
-                continue;
-            }
-            try {
-                DocumentExtractionResult result = service.extractDocument(request);
-                long count = cellCount(result);
-                if (result != null && count > 0
-                        && (expectedCells <= 0 || count == expectedCells)
-                        && mockingDetails(remote).getInvocations().isEmpty()
-                        && mockingDetails(mapper).getInvocations().isEmpty()) {
-                    return result;
+            for (DocumentExtractionService service : configuredServices(remote, mapper, analyzer)) {
+                DocumentExtractionRequest request = new DocumentExtractionRequest();
+                request.setStatementFile(new File(FIXTURES, fixture));
+                request.setBankName(bankName(fixture));
+                if (config != null && !attachConfiguration(request, config)) {
+                    continue;
                 }
-            } catch (Throwable ignored) {
-                // Try the next structurally compatible policy object.
+                try {
+                    DocumentExtractionResult result = service.extractDocument(request);
+                    long count = cellCount(result);
+                    if (result != null && count > 0
+                            && (expectedCells <= 0 || count == expectedCells)
+                            && mockingDetails(remote).getInvocations().isEmpty()
+                            && mockingDetails(mapper).getInvocations().isEmpty()) {
+                        return result;
+                    }
+                } catch (Throwable ignored) {
+                    // Try the next structurally compatible service/policy combination.
+                }
             }
         }
         return null;
@@ -384,6 +563,7 @@ class NativeTableMigrationTest {
     }
 
     private static boolean remoteFallbackPath(String fixture) throws Exception {
+        String unknownBank = "UNSUPPORTED_TEST_BANK";
         List<Object> candidates = new ArrayList<>();
         candidates.add(null);
         for (Object outer : configurationCandidates(fixture)) {
@@ -401,21 +581,23 @@ class NativeTableMigrationTest {
             when(mapper.mapAnalyzeResultToDocument(remoteResult)).thenReturn(mapped);
             when(analyzer.preProcessForVerificationByHeader(any(), eq(5))).thenReturn(null);
             when(analyzer.preProcessForVerification(any(), anyInt())).thenReturn(null);
-            AzureDocumentExtractionServiceImpl service = configuredService(remote, mapper, analyzer);
-            DocumentExtractionRequest request = new DocumentExtractionRequest();
-            request.setStatementFile(new File(FIXTURES, fixture));
-            if (config != null && !attachConfiguration(request, config)) {
-                continue;
-            }
-            try {
-                DocumentExtractionResult result = service.extractDocument(request);
-                if (result == mapped
-                        && !mockingDetails(remote).getInvocations().isEmpty()
-                        && !mockingDetails(mapper).getInvocations().isEmpty()) {
-                    return true;
+            for (DocumentExtractionService service : configuredServices(remote, mapper, analyzer)) {
+                DocumentExtractionRequest request = new DocumentExtractionRequest();
+                request.setStatementFile(new File(FIXTURES, fixture));
+                request.setBankName(unknownBank);
+                if (config != null && !attachConfiguration(request, config)) {
+                    continue;
                 }
-            } catch (Throwable ignored) {
-                // An unsupported configuration shape is not the default route.
+                try {
+                    DocumentExtractionResult result = service.extractDocument(request);
+                    if (result == mapped
+                            && !mockingDetails(remote).getInvocations().isEmpty()
+                            && !mockingDetails(mapper).getInvocations().isEmpty()) {
+                        return true;
+                    }
+                } catch (Throwable ignored) {
+                    // An unsupported service/configuration shape is not the default route.
+                }
             }
         }
         return false;
@@ -570,7 +752,7 @@ class NativeTableMigrationTest {
     @Test
     void unsupportedFormatsRetainRemoteFallback() throws Exception {
         assertTrue(remoteFallbackPath("YES/format1.pdf"),
-                "an unsupported statement did not use the remote ML boundary");
+                "an unknown bank family did not use the remote ML boundary");
     }
 
     @Test

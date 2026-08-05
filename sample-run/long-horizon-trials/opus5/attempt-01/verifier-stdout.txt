@@ -1,6 +1,6 @@
 OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-[ERROR] Tests run: 6, Failures: 4, Errors: 0, Skipped: 0, Time elapsed: 3.254 s <<< FAILURE! -- in com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest
-[ERROR] com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.usageStatusPropagatesToApiAndLogs -- Time elapsed: 0.074 s <<< FAILURE!
+[ERROR] Tests run: 6, Failures: 5, Errors: 0, Skipped: 0, Time elapsed: 5.119 s <<< FAILURE! -- in com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest
+[ERROR] com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.usageStatusPropagatesToApiAndLogs -- Time elapsed: 0.136 s <<< FAILURE!
 org.opentest4j.AssertionFailedError: BankStatementVO has no extraction-status setter ==> expected: not <null>
 	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
 	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
@@ -13,21 +13,38 @@ org.opentest4j.AssertionFailedError: BankStatementVO has no extraction-status se
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
 
-[ERROR] com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.supportedBankFormatsUseCorrectPolicy -- Time elapsed: 0.087 s <<< FAILURE!
-org.opentest4j.AssertionFailedError: IDFC/format1.pdf did not produce 350 structured cells; observed []
+[ERROR] com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.unsupportedFormatsRetainRemoteFallback -- Time elapsed: 3.696 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
 	at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)
 	at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)
-	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.extractMatching(NativeTableMigrationTest.java:316)
+	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.injectByType(NativeTableMigrationTest.java:339)
+	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredService(NativeTableMigrationTest.java:350)
+	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredServices(NativeTableMigrationTest.java:485)
+	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.remoteFallbackPath(NativeTableMigrationTest.java:584)
+	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.unsupportedFormatsRetainRemoteFallback(NativeTableMigrationTest.java:754)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+[ERROR] com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.supportedBankFormatsUseCorrectPolicy -- Time elapsed: 0.050 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+	at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)
+	at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)
+	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.injectByType(NativeTableMigrationTest.java:339)
+	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredService(NativeTableMigrationTest.java:350)
+	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredServices(NativeTableMigrationTest.java:485)
+	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeServiceResult(NativeTableMigrationTest.java:537)
+	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.extractMatching(NativeTableMigrationTest.java:279)
 	at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.supportedBankFormatsUseCorrectPolicy(NativeTableMigrationTest.java:737)
 	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
 
-[ERROR] com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeSuccessSkipsRemoteExtractor -- Time elapsed: 0.052 s <<< FAILURE!
+[ERROR] com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeSuccessSkipsRemoteExtractor -- Time elapsed: 0.074 s <<< FAILURE!
 org.opentest4j.MultipleFailuresError: 
 Multiple Failures (2 failures)
-	org.opentest4j.AssertionFailedError: grid-native extraction did not bypass the remote client ==> expected: <true> but was: <false>
-	org.opentest4j.AssertionFailedError: row-selected native extraction did not bypass the remote client ==> expected: <true> but was: <false>
+	org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+	org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
 	at org.junit.jupiter.api.AssertAll.assertAll(AssertAll.java:80)
 	at org.junit.jupiter.api.AssertAll.assertAll(AssertAll.java:44)
 	at org.junit.jupiter.api.AssertAll.assertAll(AssertAll.java:38)
@@ -36,12 +53,14 @@ Multiple Failures (2 failures)
 	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
-	Suppressed: org.opentest4j.AssertionFailedError: grid-native extraction did not bypass the remote client ==> expected: <true> but was: <false>
-		at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
-		at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
-		at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
-		at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
-		at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+	Suppressed: org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+		at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)
+		at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.injectByType(NativeTableMigrationTest.java:339)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredService(NativeTableMigrationTest.java:350)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredServices(NativeTableMigrationTest.java:485)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeServiceResult(NativeTableMigrationTest.java:537)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeServicePath(NativeTableMigrationTest.java:562)
 		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.lambda$nativeSuccessSkipsRemoteExtractor$13(NativeTableMigrationTest.java:745)
 		at org.junit.jupiter.api.AssertAll.lambda$assertAll$0(AssertAll.java:68)
 		at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
@@ -53,12 +72,14 @@ Multiple Failures (2 failures)
 		at java.base/java.util.stream.ReferencePipeline.collect(ReferencePipeline.java:682)
 		at org.junit.jupiter.api.AssertAll.assertAll(AssertAll.java:77)
 		... 7 more
-	Suppressed: org.opentest4j.AssertionFailedError: row-selected native extraction did not bypass the remote client ==> expected: <true> but was: <false>
-		at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
-		at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
-		at org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
-		at org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
-		at org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:214)
+	Suppressed: org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+		at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)
+		at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.injectByType(NativeTableMigrationTest.java:339)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredService(NativeTableMigrationTest.java:350)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredServices(NativeTableMigrationTest.java:485)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeServiceResult(NativeTableMigrationTest.java:537)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeServicePath(NativeTableMigrationTest.java:562)
 		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.lambda$nativeSuccessSkipsRemoteExtractor$14(NativeTableMigrationTest.java:747)
 		at org.junit.jupiter.api.AssertAll.lambda$assertAll$0(AssertAll.java:68)
 		at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
@@ -71,12 +92,12 @@ Multiple Failures (2 failures)
 		at org.junit.jupiter.api.AssertAll.assertAll(AssertAll.java:77)
 		... 7 more
 
-[ERROR] com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeStrategiesProduceStructuredRows -- Time elapsed: 0.043 s <<< FAILURE!
+[ERROR] com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeStrategiesProduceStructuredRows -- Time elapsed: 0.051 s <<< FAILURE!
 org.opentest4j.MultipleFailuresError: 
 Multiple Failures (3 failures)
-	org.opentest4j.AssertionFailedError: ICICI/format1.pdf did not produce 2920 structured cells; observed []
-	org.opentest4j.AssertionFailedError: BOB/format1.pdf did not produce 3174 structured cells; observed []
-	org.opentest4j.AssertionFailedError: BOB/format18.pdf did not produce 1200 structured cells; observed []
+	org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+	org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+	org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
 	at org.junit.jupiter.api.AssertAll.assertAll(AssertAll.java:80)
 	at org.junit.jupiter.api.AssertAll.assertAll(AssertAll.java:44)
 	at org.junit.jupiter.api.AssertAll.assertAll(AssertAll.java:38)
@@ -85,10 +106,14 @@ Multiple Failures (3 failures)
 	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
-	Suppressed: org.opentest4j.AssertionFailedError: ICICI/format1.pdf did not produce 2920 structured cells; observed []
+	Suppressed: org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
 		at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)
 		at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)
-		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.extractMatching(NativeTableMigrationTest.java:316)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.injectByType(NativeTableMigrationTest.java:339)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredService(NativeTableMigrationTest.java:350)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredServices(NativeTableMigrationTest.java:485)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeServiceResult(NativeTableMigrationTest.java:537)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.extractMatching(NativeTableMigrationTest.java:279)
 		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.lambda$nativeStrategiesProduceStructuredRows$10(NativeTableMigrationTest.java:717)
 		at org.junit.jupiter.api.AssertAll.lambda$assertAll$0(AssertAll.java:68)
 		at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
@@ -100,10 +125,14 @@ Multiple Failures (3 failures)
 		at java.base/java.util.stream.ReferencePipeline.collect(ReferencePipeline.java:682)
 		at org.junit.jupiter.api.AssertAll.assertAll(AssertAll.java:77)
 		... 7 more
-	Suppressed: org.opentest4j.AssertionFailedError: BOB/format1.pdf did not produce 3174 structured cells; observed []
+	Suppressed: org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
 		at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)
 		at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)
-		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.extractMatching(NativeTableMigrationTest.java:316)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.injectByType(NativeTableMigrationTest.java:339)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredService(NativeTableMigrationTest.java:350)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredServices(NativeTableMigrationTest.java:485)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeServiceResult(NativeTableMigrationTest.java:537)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.extractMatching(NativeTableMigrationTest.java:279)
 		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.lambda$nativeStrategiesProduceStructuredRows$11(NativeTableMigrationTest.java:719)
 		at org.junit.jupiter.api.AssertAll.lambda$assertAll$0(AssertAll.java:68)
 		at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
@@ -115,10 +144,14 @@ Multiple Failures (3 failures)
 		at java.base/java.util.stream.ReferencePipeline.collect(ReferencePipeline.java:682)
 		at org.junit.jupiter.api.AssertAll.assertAll(AssertAll.java:77)
 		... 7 more
-	Suppressed: org.opentest4j.AssertionFailedError: BOB/format18.pdf did not produce 1200 structured cells; observed []
+	Suppressed: org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
 		at org.junit.jupiter.api.AssertionUtils.fail(AssertionUtils.java:38)
 		at org.junit.jupiter.api.Assertions.fail(Assertions.java:138)
-		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.extractMatching(NativeTableMigrationTest.java:316)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.injectByType(NativeTableMigrationTest.java:339)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredService(NativeTableMigrationTest.java:350)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.configuredServices(NativeTableMigrationTest.java:485)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.nativeServiceResult(NativeTableMigrationTest.java:537)
+		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.extractMatching(NativeTableMigrationTest.java:279)
 		at com.finboost.bank.statement.parser.longhorizon.NativeTableMigrationTest.lambda$nativeStrategiesProduceStructuredRows$12(NativeTableMigrationTest.java:721)
 		at org.junit.jupiter.api.AssertAll.lambda$assertAll$0(AssertAll.java:68)
 		at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
@@ -133,15 +166,16 @@ Multiple Failures (3 failures)
 
 [ERROR] Failures: 
 [ERROR]   NativeTableMigrationTest.nativeStrategiesProduceStructuredRows:715 Multiple Failures (3 failures)
-	org.opentest4j.AssertionFailedError: ICICI/format1.pdf did not produce 2920 structured cells; observed []
-	org.opentest4j.AssertionFailedError: BOB/format1.pdf did not produce 3174 structured cells; observed []
-	org.opentest4j.AssertionFailedError: BOB/format18.pdf did not produce 1200 structured cells; observed []
+	org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+	org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+	org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
 [ERROR]   NativeTableMigrationTest.nativeSuccessSkipsRemoteExtractor:744 Multiple Failures (2 failures)
-	org.opentest4j.AssertionFailedError: grid-native extraction did not bypass the remote client ==> expected: <true> but was: <false>
-	org.opentest4j.AssertionFailedError: row-selected native extraction did not bypass the remote client ==> expected: <true> but was: <false>
-[ERROR]   NativeTableMigrationTest.supportedBankFormatsUseCorrectPolicy:737->extractMatching:316 IDFC/format1.pdf did not produce 350 structured cells; observed []
+	org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+	org.opentest4j.AssertionFailedError: AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+[ERROR]   NativeTableMigrationTest.supportedBankFormatsUseCorrectPolicy:737->extractMatching:279->nativeServiceResult:537->configuredServices:485->configuredService:350->injectByType:339 AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+[ERROR]   NativeTableMigrationTest.unsupportedFormatsRetainRemoteFallback:754->remoteFallbackPath:584->configuredServices:485->configuredService:350->injectByType:339 AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
 [ERROR]   NativeTableMigrationTest.usageStatusPropagatesToApiAndLogs:772->setAndReadStatus:691 BankStatementVO has no extraction-status setter ==> expected: not <null>
-[ERROR] Tests run: 6, Failures: 4, Errors: 0, Skipped: 0
+[ERROR] Tests run: 6, Failures: 5, Errors: 0, Skipped: 0
 [ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.2:test (default-test) on project bank.statement.parser: There are test failures.
 [ERROR] 
 [ERROR] See /app/target/surefire-reports for the individual test results.

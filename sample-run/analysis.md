@@ -73,6 +73,132 @@ Those durations are Harbor `started_at`→`finished_at` trial wall times,
 including setup, execution, and verification. Because the trials ran in
 parallel, their durations are not summed into an elapsed-time estimate.
 
+## Long-horizon definition and evaluation bar
+
+There is no standard 70-turn or raw-token threshold for a long-horizon task.
+The term is used along at least two independent axes:
+
+- [DeepSWE](https://arxiv.org/abs/2607.07946) treats long horizon as a structural
+  property: short, natural prompts whose solutions require substantial codebase
+  exploration and large, multi-file implementations. It reports tokens, trial
+  time, and cost as efficiency measurements, not as the definition.
+- [SWE-Bench Pro](https://arxiv.org/abs/2509.16941) uses an estimated professional
+  engineering horizon of hours to days together with multi-file, substantial
+  code modifications.
+- [SWE-EVO](https://arxiv.org/abs/2512.18470) tests release-level evolution rather
+  than a single issue; its reference patch edits 20.9 files and 610.5 lines on
+  average, with an average 874-test evaluation surface.
+- [METR](https://metr.org/time-horizons/) defines a model time horizon using the
+  human-expert completion time at which the model has a target success
+  probability. It explicitly does not mean agent elapsed time or action count.
+
+That variation is important. Recent non-coding suites labeled long horizon range
+from [over 20 tool calls per task in WildClawBench](https://arxiv.org/abs/2605.10912)
+to [318 on average in OSWorld 2.0](https://arxiv.org/abs/2606.29537), while
+[TRIP-Bench](https://arxiv.org/abs/2602.01675) reports trajectories reaching
+150+ tool calls and 200k+ context tokens. Turn, tool, and token counts are
+harness- and domain-dependent diagnostics, not portable cutoffs.
+
+For `long-native-table-migration`, the primary bar is therefore repository-scale
+structure: a short six-requirement prompt condenses 62 production commits across
+70 files and several dependent subsystems, with an implementation-agnostic
+functional verifier. The 70–100 tool-call band is retained as a local
+descriptive reference, paired with the requested frontier difficulty gate:
+Opus 5 or Fable 5 must fail at least 50% of independent valid attempts. It is
+not a maximum or a hard gate; longer traces are welcome. Per-trial model turns,
+input/cache/output tokens, cost, and full Harbor wall time are reported
+alongside the outcome rather than substituted for it.
+No controlled human completion-time baseline was collected, so the task is not
+assigned a METR-style hour value. The 62-commit branch establishes real scope,
+but commit count and calendar span are not treated as human labor time.
+The final jobs use a 9,000-second safety timeout with no step or cost cap, the
+same published upper bound used by DeepSWE. This sample's stricter artifact rule
+counts only trials whose hidden verifier returned real per-test verdicts;
+provider, verifier, network, or operator-timeout runs without verdicts are
+excluded from the model denominator.
+
+The four-model long-horizon matrix keeps OpenCode 1.18.13 and the Daytona
+snapshot fixed. The valid scored trials use the exact OpenRouter routes for
+Opus 5, Fable 5, Grok 4.5, and GPT-5.6 Sol. [AWS's endpoint
+catalog](https://docs.aws.amazon.com/bedrock/latest/userguide/models-endpoint-availability.html)
+identifies Sol as a [Mantle-only Responses
+model](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-56-sol.html)
+with ID `openai.gpt-5.6-sol`; a direct streaming and non-streaming probe in
+`us-east-1` succeeded with a short-lived
+bearer token derived from the existing AWS CLI credentials. OpenCode 1.18.13,
+however, closed the Bedrock transport before its first model turn. Those
+zero-turn attempts are excluded as infrastructure failures, and the valid Sol
+denominator uses `openrouter/openai/gpt-5.6-sol`. No persistent IAM user or
+long-lived API key was created. AWS's same catalog currently lists Grok 4.3,
+not Grok 4.5, so Bedrock could not supply the requested exact Grok model.
+
+## Long-horizon measured result
+
+One finalized task was evaluated: `long-native-table-migration`. The final
+matrix contains 12 valid attempts, three each for Opus 5, Fable 5, Grok 4.5,
+and GPT-5.6 Sol. All four models solved **0/3**, so Opus and Fable each
+independently exceed the requested 50% failure threshold. Tool calls ranged
+from **80 to 179**, with a conventional 12-trial median of **127**. Nine traces
+exceeded the original 70–100 reference band; the checked-in
+`long_horizon_results.json` correctly treats that band as descriptive, reports
+the difficulty gate as true, and sets overall `qualifies: true`.
+
+pass@k uses `1 − C(n−c, k) / C(n, k)`. Every row has `n=3`, `c=0`:
+
+| Model | Solves | pass@1 | pass@2 | pass@3 | Model turns | Tool calls, median (range) | Trial wall time, mean / median (range) | Cost |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Claude Opus 5 | 0/3 | 0.000 | 0.000 | 0.000 | 437 | 168 (148–169) | 56m 52.7s / 50m 07.4s (41m 46.6s–78m 44.2s) | $68.42 |
+| Claude Fable 5 | 0/3 | 0.000 | 0.000 | 0.000 | 367 | 148 (120–179) | 71m 22.0s / 75m 06.9s (61m 13.5s–77m 45.4s) | $126.01 |
+| Grok 4.5 | 0/3 | 0.000 | 0.000 | 0.000 | 110 | 116 (108–134) | 11m 41.9s / 11m 09.2s (10m 11.9s–13m 44.7s) | $4.00 |
+| GPT-5.6 Sol | 0/3 | 0.000 | 0.000 | 0.000 | 113 | 90 (80–90) | 8m 24.9s / 8m 41.1s (7m 35.9s–8m 57.8s) | $7.20 |
+
+| Model / attempt | Reward | f2p | p2p | Model turns | Tool calls | Full trial wall time | Input (cached) / output tokens | Cost | Grading |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| Opus 5 / 1 | 0 | 0/4 | 1/2 | 150 | 169 | 50m 07.4s | 34.89M (34.89M) / 143.9k | $23.82 | regraded final verifier |
+| Opus 5 / 2 | 0 | 1/4 | 1/2 | 154 | 168 | 78m 44.2s | 38.24M (38.24M) / 150.7k | $25.95 | regraded final verifier |
+| Opus 5 / 3 | 0 | 0/4 | 1/2 | 133 | 148 | 41m 46.6s | 26.20M (26.20M) / 125.0k | $18.65 | regraded final verifier |
+| Fable 5 / 1 | 0 | 0/4 | 2/2 | 89 | 120 | 75m 06.9s | 15.06M (15.06M) / 82.4k | $36.00 | regraded final verifier |
+| Fable 5 / 2 | 0 | 0/4 | 1/2 | 165 | 179 | 77m 45.4s | 38.15M (38.15M) / 148.3k | $51.43 | regraded final verifier |
+| Fable 5 / 3 | 0 | 0/4 | 2/2 | 113 | 148 | 61m 13.5s | 25.33M (25.33M) / 138.8k | $38.58 | regraded final verifier |
+| Grok 4.5 / 1 | 0 | 1/4 | 2/2 | 39 | 134 | 11m 09.2s | 2.80M (2.67M) / 32.7k | $1.27 | original Harbor verifier |
+| Grok 4.5 / 2 | 0 | 1/4 | 1/2 | 36 | 116 | 13m 44.7s† | 2.72M (2.52M) / 31.4k | $1.36 | recovered + regraded final verifier |
+| Grok 4.5 / 3 | 0 | 1/4 | 2/2 | 35 | 108 | 10m 11.9s | 2.71M (2.50M) / 28.2k | $1.36 | original Harbor verifier |
+| GPT-5.6 Sol / 1 | 0 | 1/4 | 1/2 | 37 | 80 | 7m 35.9s | 2.24M (2.24M) / 13.4k | $2.13 | original Harbor verifier |
+| GPT-5.6 Sol / 2 | 0 | 1/4 | 1/2 | 40 | 90 | 8m 41.1s | 2.73M (2.73M) / 14.1k | $2.50 | original Harbor verifier |
+| GPT-5.6 Sol / 3 | 0 | 1/4 | 1/2 | 36 | 90 | 8m 57.8s | 2.73M (2.73M) / 15.1k | $2.57 | original Harbor verifier |
+
+The matrix used **1,027 model turns**, **1,550 tool calls**, **193.80M input
+tokens** (193.26M cached), **923.8k output tokens**, and **$205.63** of model
+calls. Independently running trial durations are not summed.
+
+† Eleven durations are full Harbor `started_at`→`finished_at` wall time,
+including environment setup, agent setup, agent execution, and verification.
+In one Grok trial the agent command exited successfully but Harbor stalled while
+collecting the finished Daytona sandbox. Its 13m 44.7s value is Harbor start to
+the recovered agent-completion timestamp, conservatively excluding the
+post-agent collection stall; `duration_basis` records that distinction.
+
+The regrade was necessary for artifact validity, not to change the task after
+seeing model behavior. The original hidden helper directly called concrete
+setter names; valid wiring refactors removed those setters, causing the test
+class itself to fail compilation. The repaired helper discovers compatible
+services and injects dependencies by type through either setters or fields.
+The untouched base still scores 0, the historical oracle still scores 1, and
+an alternate oracle with all seven concrete dependency setters removed also
+scores 1. All six Opus/Fable candidate worktrees then executed the final
+six-test suite and remained reward 0; the Grok and Sol trials ran only after
+that verifier was frozen. Regrade provenance is explicit in every packaged
+trial index, and the prompt-to-test audit is preserved under
+`long-horizon-controls/fairness-audit.md`.
+
+For cost accounting, the new work in this XAI extension used **$354.54** of
+reported model/API spend: $31.44 for the 80 Grok debugging trials, $76.55 for
+the eight-task Opus/Fable screen, $40.92 for superseded long-task calibration,
+and $205.63 for the 12 final long-task attempts. That is well below the $1,000
+OpenRouter ceiling. Direct Bedrock compatibility probes used the account's AWS
+credits and are not included in the OpenRouter total. Daytona infrastructure
+charges and inherited Amazon-sample model runs are also excluded.
+
 ## Turn, tool, and wall-clock profile
 
 The packaged artifacts retain enough timing and trajectory metadata to measure

@@ -1,0 +1,933 @@
+diff --git a/pom.xml b/pom.xml
+index 158fb3d..a102c48 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -259,6 +259,20 @@
+ 			<artifactId>spring-cloud-starter-aws-ses</artifactId>
+ 		</dependency>
+ 
++		<!-- JSON library for table extractor -->
++		<dependency>
++			<groupId>org.json</groupId>
++			<artifactId>json</artifactId>
++			<version>20240303</version>
++		</dependency>
++
++		<!-- Commons IO for file operations -->
++		<dependency>
++			<groupId>commons-io</groupId>
++			<artifactId>commons-io</artifactId>
++			<version>2.21.0</version>
++		</dependency>
++
+ 	</dependencies>
+ 
+ 	<dependencyManagement>
+diff --git a/src/main/java/com/finboost/bank/statement/parser/datastore/log/entity/RequestAccountLogEntity.java b/src/main/java/com/finboost/bank/statement/parser/datastore/log/entity/RequestAccountLogEntity.java
+index ffc1e18..cc17614 100644
+--- a/src/main/java/com/finboost/bank/statement/parser/datastore/log/entity/RequestAccountLogEntity.java
++++ b/src/main/java/com/finboost/bank/statement/parser/datastore/log/entity/RequestAccountLogEntity.java
+@@ -38,6 +38,7 @@ public class RequestAccountLogEntity {
+     private List<String> fileIds;
+     private String errorMessage;
+     private Boolean isInconsistent;
++    private String tableExtractorStatus;
+     @CreatedDate
+     private LocalDateTime createdDate;
+     @LastModifiedDate
+@@ -56,6 +57,7 @@ public class RequestAccountLogEntity {
+         this.status = status;
+         this.fileIds = account.getFileIds();
+         this.isInconsistent = Boolean.parseBoolean(LoggingPropertiesUtil.getValueFromMDC("isInconsistent"));
++        this.tableExtractorStatus = account.getTableExtractorStatus();
+     }
+ 
+     public RequestAccountLogEntity(AccountVO account, String errorMessage, String flowName, String subFlowName, String status){
+@@ -73,5 +75,6 @@ public class RequestAccountLogEntity {
+         if(!StringUtils.isEmpty(LoggingPropertiesUtil.getValueFromMDC("isInconsistent")))
+             this.isInconsistent = Boolean.parseBoolean(LoggingPropertiesUtil.getValueFromMDC("isInconsistent"));
+         this.errorMessage = errorMessage;
++        this.tableExtractorStatus = account.getTableExtractorStatus();
+     }
+ }
+diff --git a/src/main/java/com/finboost/bank/statement/parser/datastore/log/entity/RequestDocumentLogEntity.java b/src/main/java/com/finboost/bank/statement/parser/datastore/log/entity/RequestDocumentLogEntity.java
+index 803feeb..a66863d 100644
+--- a/src/main/java/com/finboost/bank/statement/parser/datastore/log/entity/RequestDocumentLogEntity.java
++++ b/src/main/java/com/finboost/bank/statement/parser/datastore/log/entity/RequestDocumentLogEntity.java
+@@ -43,6 +43,7 @@ public class RequestDocumentLogEntity {
+ 
+     private String digitapStatus;
+     private String apiEndpoint;
++    private String tableExtractorStatus;
+ 
+     @CreatedDate
+     private LocalDateTime createdDate;
+@@ -62,6 +63,7 @@ public class RequestDocumentLogEntity {
+         this.fileName = bankStatementVO.getOriginalFileName();
+         this.noOfPages = bankStatementVO.getPageCount();
+         this.status = status;
++        this.tableExtractorStatus = bankStatementVO.getTableExtractorStatus();
+     }
+ 
+     public RequestDocumentLogEntity(BankStatementVO bankStatementVO, String errorMessage, String flowName, String subFlowName, String status){
+@@ -78,6 +80,7 @@ public class RequestDocumentLogEntity {
+         this.noOfPages = bankStatementVO.getPageCount();
+         this.status = status;
+         this.errorMessage = errorMessage;
++        this.tableExtractorStatus = bankStatementVO.getTableExtractorStatus();
+     }
+ 
+     public RequestDocumentLogEntity(String apiEndPoint, String flowName, String subFlowName, String status, String digitapStatus){
+diff --git a/src/main/java/com/finboost/bank/statement/parser/representation/bankAccount/AccountVO.java b/src/main/java/com/finboost/bank/statement/parser/representation/bankAccount/AccountVO.java
+index 1db9d2a..38ddeb8 100644
+--- a/src/main/java/com/finboost/bank/statement/parser/representation/bankAccount/AccountVO.java
++++ b/src/main/java/com/finboost/bank/statement/parser/representation/bankAccount/AccountVO.java
+@@ -24,4 +24,5 @@ public class AccountVO {
+     RecencyValidationVO recencyValidationVO;
+     List<RecencyValidationErrorInfo> recencyValidationErrorInfo;
+     private String employerDetails;
++    private String tableExtractorStatus;
+ }
+diff --git a/src/main/java/com/finboost/bank/statement/parser/representation/bankstatement/BankStatementVO.java b/src/main/java/com/finboost/bank/statement/parser/representation/bankstatement/BankStatementVO.java
+index 43ab6f8..2c08e2a 100644
+--- a/src/main/java/com/finboost/bank/statement/parser/representation/bankstatement/BankStatementVO.java
++++ b/src/main/java/com/finboost/bank/statement/parser/representation/bankstatement/BankStatementVO.java
+@@ -4,6 +4,7 @@ import com.finboost.bank.statement.parser.representation.bankAccount.BankAccount
+ import com.finboost.bank.statement.parser.representation.bankAccount.BankTransactionVO;
+ import com.finboost.bank.statement.parser.representation.bankAccount.UploadStatementAPIError;
+ import com.finboost.bank.statement.parser.representation.document.extraction.DocumentExtractionResult;
++import com.finboost.bank.statement.parser.service.bankstatement.config.BankStatementProcessingConfig;
+ import lombok.AllArgsConstructor;
+ import lombok.Data;
+ import lombok.NoArgsConstructor;
+@@ -40,6 +41,8 @@ public class BankStatementVO {
+     public Integer continuousNoOfMonths = 0;
+     public Integer recencyNoOfLatestMonths = 0;
+     public Integer noOfContinuousMonthToBeChecked = 0;
++    public BankStatementProcessingConfig bankStatementProcessingConfig;
++    public String tableExtractorStatus;
+ 
+ 
+     public String getOriginalFileName(){
+diff --git a/src/main/java/com/finboost/bank/statement/parser/representation/document/extraction/DocumentExtractionRequest.java b/src/main/java/com/finboost/bank/statement/parser/representation/document/extraction/DocumentExtractionRequest.java
+index 2db5e2c..85ec681 100644
+--- a/src/main/java/com/finboost/bank/statement/parser/representation/document/extraction/DocumentExtractionRequest.java
++++ b/src/main/java/com/finboost/bank/statement/parser/representation/document/extraction/DocumentExtractionRequest.java
+@@ -1,5 +1,6 @@
+ package com.finboost.bank.statement.parser.representation.document.extraction;
+ 
++import com.finboost.bank.statement.parser.service.bankstatement.config.BankStatementProcessingConfig;
+ import lombok.AllArgsConstructor;
+ import lombok.Data;
+ import lombok.NoArgsConstructor;
+@@ -15,4 +16,5 @@ public class DocumentExtractionRequest {
+     public File statementFile;
+     public String bankName;
+     public Date statementFromDate;
++    public BankStatementProcessingConfig bankStatementProcessingConfig;
+ }
+diff --git a/src/main/java/com/finboost/bank/statement/parser/service/bankstatement/impl/BankStatementServiceImpl.java b/src/main/java/com/finboost/bank/statement/parser/service/bankstatement/impl/BankStatementServiceImpl.java
+index 58d6890..3c2ca07 100644
+--- a/src/main/java/com/finboost/bank/statement/parser/service/bankstatement/impl/BankStatementServiceImpl.java
++++ b/src/main/java/com/finboost/bank/statement/parser/service/bankstatement/impl/BankStatementServiceImpl.java
+@@ -412,7 +412,9 @@ public class BankStatementServiceImpl implements BankStatementService {
+                             request.getIsMissingMonthRecencyEnabled(),
+                             request.getContinuousNoOfMonths(),
+                             request.getRecencyNoOfLatestMonths(),
+-                            request.getNoOfContinuousMonthToBeChecked()
++                            request.getNoOfContinuousMonthToBeChecked(),
++                            null,
++                            null
+                     );
+ 
+                     result.add(bankStatementVO);
+@@ -454,7 +456,9 @@ public class BankStatementServiceImpl implements BankStatementService {
+                             null,
+                             0,
+                             0,
+-                            0
++                            0,
++                            null,
++                            null
+                     );
+ 
+                     result.add(bankStatementVO);
+@@ -494,7 +498,9 @@ public class BankStatementServiceImpl implements BankStatementService {
+                                     null,
+                                     0,
+                                     0,
+-                                    0
++                                    0,
++                                    null,
++                                    null
+                             );
+         
+                             result.add(bankStatementVO);        
+diff --git a/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/azure/AzureDocumentExtractionServiceImpl.java b/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/azure/AzureDocumentExtractionServiceImpl.java
+index 43dc34c..85741ad 100644
+--- a/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/azure/AzureDocumentExtractionServiceImpl.java
++++ b/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/azure/AzureDocumentExtractionServiceImpl.java
+@@ -9,7 +9,11 @@ import com.finboost.bank.statement.parser.service.document.extraction.DocumentEx
+ import com.finboost.bank.statement.parser.service.document.extraction.IBankSpecificParsingService;
+ import com.finboost.bank.statement.parser.service.document.extraction.bankstatement.BankStatementProcessorImpl;
+ import com.finboost.bank.statement.parser.service.document.extraction.post.processor.*;
++import com.finboost.bank.statement.parser.tableextractor.PDFTableExtractor;
++import com.finboost.bank.statement.parser.util.document.extraction.DocumentExtractionResultHtmlConverterUtil;
++import org.apache.commons.io.FileUtils;
+ import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.data.mongodb.core.aggregation.ConditionalOperators;
+ import org.springframework.stereotype.Service;
+ import lombok.extern.slf4j.Slf4j;
+ 
+@@ -29,48 +33,22 @@ public class AzureDocumentExtractionServiceImpl implements DocumentExtractionSer
+     private EPdfCharacterExtractionService ePdfCharacterExtractionService;
+     private IBankSpecificParsingService bankSpecificParsingService;
+ 
+-    @Autowired
+-    public void setAzureDocumentIntelligenceProcessor(AzureDocumentIntelligenceProcessor azureDocumentIntelligenceProcessor) {
+-        this.azureDocumentIntelligenceProcessor = azureDocumentIntelligenceProcessor;
+-    }
+ 
+-    @Autowired
+-    public void setAzureDocumentIntelligenceResponseMapper(AzureDocumentIntelligenceResponseMapper azureDocumentIntelligenceResponseMapper) {
+-        this.azureDocumentIntelligenceResponseMapper = azureDocumentIntelligenceResponseMapper;
+-    }
+ 
+-    @Autowired
+-    public void setHistogramColumnDetectionService(HistogramColumnDetectionService histogramColumnDetectionService) {
+-        this.histogramColumnDetectionService = histogramColumnDetectionService;
+-    }
+ 
+-    @Autowired
+-    public void setMeanShiftColumnDetectionService(MeanShiftColumnDetectionService meanShiftColumnDetectionService) {
+-        this.meanShiftColumnDetectionService = meanShiftColumnDetectionService;
+-    }
+ 
+-    @Autowired
+-    public void setAnalyzeDocuments(AnalyzeDocuments analyzeDocuments) {
+-        this.analyzeDocuments = analyzeDocuments;
+-    }
+     
+-    @Autowired
+-    public void setEPdfCharacterExtractionService(EPdfCharacterExtractionService ePdfCharacterExtractionService) {
+-        this.ePdfCharacterExtractionService = ePdfCharacterExtractionService;
+-    }
+ 
+-    @Autowired
+-    public void setBankSpecificParsingService(IBankSpecificParsingService bankSpecificParsingService) {
+-        this.bankSpecificParsingService = bankSpecificParsingService;
+-    }
+ 
+     @Override
+     public DocumentExtractionResult extractDocument(BankStatementVO bankStatementVO) throws IOException {
+         DocumentExtractionRequest documentExtractionRequest = new DocumentExtractionRequest();
+         documentExtractionRequest.setStatementFile(bankStatementVO.getDecryptedFile());
+         documentExtractionRequest.setBankName(bankStatementVO.getBank());
++
+         try{
+             documentExtractionRequest.setStatementFromDate(BankStatementProcessorImpl.parseDate(bankStatementVO.getBankAccountDetailsVO().getStatementFrom()));
++            documentExtractionRequest.setBankStatementProcessingConfig(bankStatementVO.getBankStatementProcessingConfig());
+         }catch (Exception e){
+             log.warn("Failed to parse statement-from-date from date string {}", bankStatementVO.getBankAccountDetailsVO().getStatementFrom());
+         }
+@@ -80,23 +58,46 @@ public class AzureDocumentExtractionServiceImpl implements DocumentExtractionSer
+     @Override
+     public DocumentExtractionResult extractDocument(DocumentExtractionRequest request) throws IOException {
+         // Process with Azure Document Intelligence
+-        AnalyzeResult analyzeResult = azureDocumentIntelligenceProcessor.processDocument(request.getStatementFile());
+-        DocumentExtractionResult result = azureDocumentIntelligenceResponseMapper.mapAnalyzeResultToDocument(analyzeResult);
+-        
+-        // Enhance with character-level information right after mapping
+-        try {
+-            boolean enhanced = ePdfCharacterExtractionService.enhanceDocumentWithCharacterInfo(result, request.getStatementFile());
+-            if (enhanced) {
+-                log.info("Successfully enhanced document with character-level information");
+-            } else {
+-                log.info("Document could not be enhanced with character-level information (likely a scanned PDF)");
+-            }
+-        } catch (Exception e) {
+-            log.warn("Failed to enhance document with character-level information: {}", e.getMessage());
++//        AnalyzeResult analyzeResult = azureDocumentIntelligenceProcessor.processDocument(request.getStatementFile());
++//        DocumentExtractionResult result = azureDocumentIntelligenceResponseMapper.mapAnalyzeResultToDocument(analyzeResult);
++//
++//        // Enhance with character-level information right after mapping
++//        try {
++//            boolean enhanced = ePdfCharacterExtractionService.enhanceDocumentWithCharacterInfo(result, request.getStatementFile());
++//            if (enhanced) {
++//                log.info("Successfully enhanced document with character-level information");
++//            } else {
++//                log.info("Document could not be enhanced with character-level information (likely a scanned PDF)");
++//            }
++//        } catch (Exception e) {
++//            log.warn("Failed to enhance document with character-level information: {}", e.getMessage());
++//        }
++//
++//        //check if the bank statement parsing happen bank specific
++//        bankSpecificParsingService.identifyBankSpecificStatementProcess(result, request);
++
++
++
++        DocumentExtractionResult result = null;
++
++
++        switch (request.getBankStatementProcessingConfig().getTableExtractorConfig().getExtractionStrategy()){
++            case GRID_LINE, TEXT_POSITION, BOX_LINE_TEXT_POSITION, SELECTED_ROWS_TEXT_POSITION:
++                long startTime = System.currentTimeMillis();
++                result = processUsingNative(request);
++                long endTime = System.currentTimeMillis();
++                double durationInSeconds = (endTime - startTime) / 1000.0;
++
++                System.out.println("Time taken: " + durationInSeconds + " seconds");
++                break;
++            default:
++                result = processUsingAzure(request);
++                break;
+         }
+ 
+-        //check if the bank statement parsing happen bank specific
+-        bankSpecificParsingService.identifyBankSpecificStatementProcess(result, request);
++        if (result == null) {
++            return result;
++        }
+ 
+         if(result.isSkipFurtherProcessing()){
+             return result;
+@@ -107,7 +108,7 @@ public class AzureDocumentExtractionServiceImpl implements DocumentExtractionSer
+         if(preProcessedResultByHeader != null && preProcessedResultByHeader.getPreProcessVerificationResult() != null) {
+             result.setPreProcessVerificationResult(preProcessedResultByHeader.getPreProcessVerificationResult());
+         }else {
+-            DocumentExtractionResult preprocessedResult = analyzeDocuments.preProcessForVerification(result, analyzeResult.getPages().size());
++            DocumentExtractionResult preprocessedResult = analyzeDocuments.preProcessForVerification(result, result.getNoOfPages());
+             if (preprocessedResult != null && preprocessedResult.getPreProcessVerificationResult() != null) {
+                 result.setPreProcessVerificationResult(preprocessedResult.getPreProcessVerificationResult());
+             }
+@@ -115,6 +116,37 @@ public class AzureDocumentExtractionServiceImpl implements DocumentExtractionSer
+         analyzeDocuments.analyzeDocument(result, true, true, true);
+ //        analyzeDocuments.extractBasicDetails(result);
+ 
++        //This code block is to local test purpose only
++//        String fullHtmlContent = DocumentExtractionResultHtmlConverterUtil.convertToHtml(result);
++//        File htmlFile = new File("/Users/jatinvadodariya/Documents/pdfoutput/TestProcessed.html");
++//        FileUtils.writeStringToFile(htmlFile, fullHtmlContent, "UTF-8");
++
++        return result;
++    }
++
++    public DocumentExtractionResult processUsingAzure(DocumentExtractionRequest request) throws IOException {
++        // Process with Azure Document Intelligence
++        AnalyzeResult analyzeResult = azureDocumentIntelligenceProcessor.processDocument(request.getStatementFile());
++        DocumentExtractionResult result = azureDocumentIntelligenceResponseMapper.mapAnalyzeResultToDocument(analyzeResult);
++
++        // Enhance with character-level information right after mapping
++        try {
++            boolean enhanced = ePdfCharacterExtractionService.enhanceDocumentWithCharacterInfo(result, request.getStatementFile());
++            if (enhanced) {
++                log.info("Successfully enhanced document with character-level information");
++            } else {
++                log.info("Document could not be enhanced with character-level information (likely a scanned PDF)");
++            }
++        } catch (Exception e) {
++            log.warn("Failed to enhance document with character-level information: {}", e.getMessage());
++        }
++
++        //check if the bank statement parsing happen bank specific
++        bankSpecificParsingService.identifyBankSpecificStatementProcess(result, request);
+         return result;
+     }
++
++    public DocumentExtractionResult processUsingNative(DocumentExtractionRequest request) throws IOException {
++        return PDFTableExtractor.extractTables(request.getStatementFile(),null, request.getBankStatementProcessingConfig().getTableExtractorConfig());
++    }
+ }
+diff --git a/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/bankstatement/BankStatementProcessorImpl.java b/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/bankstatement/BankStatementProcessorImpl.java
+index 73a5740..f49cf00 100644
+--- a/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/bankstatement/BankStatementProcessorImpl.java
++++ b/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/bankstatement/BankStatementProcessorImpl.java
+@@ -21,13 +21,16 @@ import com.finboost.bank.statement.parser.representation.structureLogging.Except
+ import com.finboost.bank.statement.parser.service.bankAccount.IBankAccountAnalysisService;
+ import com.finboost.bank.statement.parser.service.bankAccount.IBankTransactionFetchService;
+ import com.finboost.bank.statement.parser.service.bankAccount.categorisation.IBankTransactionCategorisationService;
++import com.finboost.bank.statement.parser.service.bankstatement.BankWiseStatementHandlerService;
+ import com.finboost.bank.statement.parser.service.bankstatement.InconsistencyFinderService;
++import com.finboost.bank.statement.parser.service.bankstatement.config.BankStatementProcessingConfig;
+ import com.finboost.bank.statement.parser.service.clientcallback.ClientCallbackService;
+ import com.finboost.bank.statement.parser.service.document.extraction.BankStatementProcessor;
+ import com.finboost.bank.statement.parser.service.document.extraction.DocumentExtractionService;
+ import com.finboost.bank.statement.parser.service.kms.impl.KmsEncryptDecrypt;
+ import com.finboost.bank.statement.parser.service.recencyValidation.RecencyValidationService;
+ import com.finboost.bank.statement.parser.service.requestlog.RequestLogService;
++import com.finboost.bank.statement.parser.tableextractor.config.ExtractionStrategy;
+ import com.finboost.bank.statement.parser.util.AmountParserUtil;
+ import com.finboost.bank.statement.parser.util.DateTimeUtil;
+ import com.finboost.bank.statement.parser.util.JsonUtil;
+@@ -68,6 +71,9 @@ public class BankStatementProcessorImpl implements BankStatementProcessor {
+     @Setter(onMethod_ = @Autowired)
+     private RequestLogService requestLogService;
+ 
++    @Setter(onMethod_ = @Autowired)
++    private BankWiseStatementHandlerService bankWiseStatementHandlerService;
++
+     @Autowired
+     public void setBankAccountAnalysisService(IBankAccountAnalysisService bankAccountAnalysisService) {
+         this.bankAccountAnalysisService = bankAccountAnalysisService;
+@@ -78,6 +84,11 @@ public class BankStatementProcessorImpl implements BankStatementProcessor {
+         this.bankAccountRepository = bankAccountRepository;
+     }
+ 
++    @Autowired
++    public void setBankWiseStatementHandlerService(BankWiseStatementHandlerService bankWiseStatementHandlerService) {
++        this.bankWiseStatementHandlerService = bankWiseStatementHandlerService;
++    }
++
+     private IBankTransactionRepository bankTransactionRepository;
+ 
+     @Autowired
+@@ -133,19 +144,21 @@ public class BankStatementProcessorImpl implements BankStatementProcessor {
+         List<BankStatementVO> validStatements = new ArrayList<>();
+ 
+         try {
+-            //Process bank statement to get transactions tables
+-            for (BankStatementVO bankStatementVO : bankStatementVOList) {
+-                //save request document details to the requestDocumentLog
+-                requestLogService.saveRequestDocumentLogData(bankStatementVO, FlowName.BANK_ACCOUNT.name(), SubFlowName.UPLOAD_STATEMENT.name(), RequestStatus.DOCUMENT_ANALYSIS_STARTED.name());
+-                documentExtractionResult = documentExtractionService.extractDocument(bankStatementVO);
+-                bankStatementVO.setDocumentExtractionResult(documentExtractionResult);
+-                requestLogService.saveRequestDocumentLogData(bankStatementVO, FlowName.BANK_ACCOUNT.name(), SubFlowName.UPLOAD_STATEMENT.name(), RequestStatus.DOCUMENT_ANALYSIS_COMPLETED.name());
+-            }
+-
+-//            extractBasicDetails(bankStatementVOList);
++//            //Process bank statement to get transactions tables
++//            for (BankStatementVO bankStatementVO : bankStatementVOList) {
++//                //save request document details to the requestDocumentLog
++//                requestLogService.saveRequestDocumentLogData(bankStatementVO, FlowName.BANK_ACCOUNT.name(), SubFlowName.UPLOAD_STATEMENT.name(), RequestStatus.DOCUMENT_ANALYSIS_STARTED.name());
++//                documentExtractionResult = documentExtractionService.extractDocument(bankStatementVO);
++//                bankStatementVO.setDocumentExtractionResult(documentExtractionResult);
++//                requestLogService.saveRequestDocumentLogData(bankStatementVO, FlowName.BANK_ACCOUNT.name(), SubFlowName.UPLOAD_STATEMENT.name(), RequestStatus.DOCUMENT_ANALYSIS_COMPLETED.name());
++//            }
++//
++////            extractBasicDetails(bankStatementVOList);
++//
++//            //Extract Transactions from transaction table
++//            extractTransactionsByBelowDate(bankStatementVOList);
+ 
+-            //Extract Transactions from transaction table
+-            extractTransactions(bankStatementVOList);
++            bankStatementVOList = processForTransaction(bankStatementVOList);
+ 
+             // Separate statements without transactions instead of removing them
+             for (BankStatementVO bankStatementVO : bankStatementVOList) {
+@@ -288,6 +301,60 @@ public class BankStatementProcessorImpl implements BankStatementProcessor {
+         }
+     }
+ 
++    public List<BankStatementVO> processForTransaction(List<BankStatementVO> bankStatementVOList) throws IOException{
++
++        //Process bank statement to get transactions tables
++        Integer fileIndex = 0;
++        for (BankStatementVO bankStatementVO : bankStatementVOList) {
++            DocumentExtractionResult documentExtractionResult;
++            //save request document details to the requestDocumentLog
++            requestLogService.saveRequestDocumentLogData(bankStatementVO, FlowName.BANK_ACCOUNT.name(), SubFlowName.UPLOAD_STATEMENT.name(), RequestStatus.DOCUMENT_ANALYSIS_STARTED.name());
++            BankStatementProcessingConfig bankStatementProcessingConfig = null;
++            try {
++                bankStatementProcessingConfig = bankWiseStatementHandlerService.getBankStatementProcessingConfig(bankStatementVO);
++                bankStatementVO.setBankStatementProcessingConfig(bankStatementProcessingConfig);
++                documentExtractionResult = documentExtractionService.extractDocument(bankStatementVO);
++
++                //set table extractor status
++                if(bankStatementProcessingConfig.getTableExtractorConfig().getExtractionStrategy().name().equals(ExtractionStrategy.ML_BASED.name())){
++                    bankStatementVO.setTableExtractorStatus("ML_PARSING");
++                }else{
++                    bankStatementVO.setTableExtractorStatus("NATIVE_PARSING");
++                }
++                bankStatementVO.setDocumentExtractionResult(documentExtractionResult);
++                parseTransactions(bankStatementVO, fileIndex);
++            } catch (Exception e){
++                // Native failed Retry with Azure ML_BASED
++                bankStatementVO.setBankStatementProcessingConfig(new BankStatementProcessingConfig()); //By default config is ML_BASED and Below_date
++                documentExtractionResult = documentExtractionService.extractDocument(bankStatementVO);
++                bankStatementVO.setTableExtractorStatus("NATIVE_PARSING_FAILED_TO_ML_PARSING");
++                bankStatementVO.setDocumentExtractionResult(documentExtractionResult);
++                parseTransactions(bankStatementVO, fileIndex);
++            }
++            requestLogService.saveRequestDocumentLogData(bankStatementVO, FlowName.BANK_ACCOUNT.name(), SubFlowName.UPLOAD_STATEMENT.name(), RequestStatus.DOCUMENT_ANALYSIS_COMPLETED.name());
++            fileIndex++;
++        }
++
++        return bankStatementVOList;
++
++    }
++
++    public void parseTransactions(BankStatementVO bankStatementVO, Integer fileIndex) throws IOException {
++
++        switch (bankStatementVO.getBankStatementProcessingConfig().getTransactionTableParsingConfig().getParsingType()){
++//            case ABOVE_DATE:
++//                // call above date
++//            case ABOVE_BELOW_DATE:
++//                // call above below date
++            case BELOW_DATE:
++                extractTransactionsByBelowDate(bankStatementVO,true, fileIndex);
++            default:
++                extractTransactionsByBelowDate(bankStatementVO,true, fileIndex);
++        }
++    }
++
++
++
+     /**
+      * Sends client callback with appropriate status, accounts, and errors
+      *
+@@ -357,7 +424,7 @@ public class BankStatementProcessorImpl implements BankStatementProcessor {
+ 
+ 
+         //Extract Transactions from transaction table
+-        extractTransactions(bankStatementVOList);
++        extractTransactionsByBelowDate(bankStatementVOList);
+ 
+         Map<String, AccountVO> accounts = prepareAccountsList(bankStatementVOList);
+ 
+@@ -514,11 +581,11 @@ public class BankStatementProcessorImpl implements BankStatementProcessor {
+         }
+     }
+ 
+-    public static void extractTransactions(List<BankStatementVO> bankStatementVOList) {
+-        extractTransactions(bankStatementVOList,true);
++    public static void extractTransactionsByBelowDate(List<BankStatementVO> bankStatementVOList) {
++        extractTransactionsByBelowDate(bankStatementVOList,true);
+     }
+ 
+-    public static void extractTransactions(List<BankStatementVO> bankStatementVOList, boolean sortTransactionByDate) {
++    public static void extractTransactionsByBelowDate(List<BankStatementVO> bankStatementVOList, boolean sortTransactionByDate) {
+         String clientId = LoggingPropertiesUtil.getValueFromMDC("clientId");
+         String businessUserId = LoggingPropertiesUtil.getValueFromMDC("businessUserId");
+         String referenceId = LoggingPropertiesUtil.getValueFromMDC("referenceId");
+@@ -526,106 +593,113 @@ public class BankStatementProcessorImpl implements BankStatementProcessor {
+         Integer fileIndex = 0;
+ 
+         for (BankStatementVO bankStatementVO : bankStatementVOList) {
++            extractTransactionsByBelowDate(bankStatementVO, sortTransactionByDate, fileIndex);
++            fileIndex++;
++        }
+ 
+-            List<BankTransactionVO> transactions = new LinkedList<>();
+-            DocumentExtractionResult extractionResult = bankStatementVO.getDocumentExtractionResult();
++    }
+ 
+-            if (extractionResult == null || extractionResult.getPages() == null) {
+-                continue;
+-            }
++    public static void extractTransactionsByBelowDate(BankStatementVO bankStatementVO, boolean sortTransactionByDate, int fileIndex) {
+ 
+-            try {
++        List<BankTransactionVO> transactions = new LinkedList<>();
++        DocumentExtractionResult extractionResult = bankStatementVO.getDocumentExtractionResult();
+ 
+-                // Iterate through all pages
+-                for (Map.Entry<Integer, Page> pageEntry : extractionResult.getPages().entrySet()) {
+-                    Page page = pageEntry.getValue();
+-                    if (page.getTables() == null) {
+-                        continue;
+-                    }
++        if (extractionResult == null || extractionResult.getPages() == null) {
++            return;
++        }
+ 
+-                    // Process each table in the page
+-                    for (Table table : page.getTables().values()) {
+-                        if (!table.getIsTransactionTable()) {
+-                            continue;
+-                        }
++        try {
+ 
+-                        if (table.getCells() == null) {
+-                            continue;
+-                        }
++            // Iterate through all pages
++            for (Map.Entry<Integer, Page> pageEntry : extractionResult.getPages().entrySet()) {
++                Page page = pageEntry.getValue();
++                if (page.getTables() == null) {
++                    return;
++                }
+ 
+-                        // Find AmountType column index once for the entire table
+-                        Integer amountTypeColIndex = findAmountTypeColumnIndex(table);
++                // Process each table in the page
++                for (Table table : page.getTables().values()) {
++                    if (!table.getIsTransactionTable()) {
++                        continue;
++                    }
+ 
+-                        //find Balance column index once for the entire table
+-                        Integer balanceTypeColIndex = findBalanceTypeColumnIndex(table);
++                    if (table.getCells() == null) {
++                        continue;
++                    }
+ 
++                    // Find AmountType column index once for the entire table
++                    Integer amountTypeColIndex = findAmountTypeColumnIndex(table);
+ 
+-                        // Process each row in the table
+-                        for (Map<Integer, TableCell> row : table.getCells().values()) {
++                    //find Balance column index once for the entire table
++                    Integer balanceTypeColIndex = findBalanceTypeColumnIndex(table);
+ 
+-                            BankTransactionVO transaction = new BankTransactionVO();
+ 
+-                            // Map columns based on txnColType
+-                            for (int colIndex = 0; colIndex < table.getTxnColType().size(); colIndex++) {
+-                                TableCell cell = row.get(colIndex);
+-                                if (cell == null) {
+-                                    continue;
+-                                }
+-                                if(cell.isHeaderOrFooterCell()){
+-                                    continue;
+-                                }
++                    // Process each row in the table
++                    for (Map<Integer, TableCell> row : table.getCells().values()) {
+ 
+-                                ColumnTransactionType colType = table.getTxnColType().get(colIndex);
++                        BankTransactionVO transaction = new BankTransactionVO();
+ 
+-                                try{
+-                                    switch (colType) {
+-                                        case TransactionDate:
+-                                            transaction.setTransactionDate(parseDate(cell.getContent()));
+-                                            break;
+-                                        case ValueDate:
+-                                            transaction.setTransactionValueDate(parseDate(cell.getContent()));
+-                                            break;
+-                                        case Description:
+-                                            transaction.setTransactionDescription(cell.getContent());
+-                                            break;
+-                                        case ChequeOrRef:
+-                                            transaction.setTransactionRemark(cell.getContent());
+-                                            break;
+-                                        case Debit:
+-                                        case Credit:
+-                                        case Amount:
+-                                            // Skip if transaction amount is already set when there is both
+-                                            // debit and credit column available
+-                                            if (isTransactionAmountSet(transaction)) {
+-                                                break;
+-                                            }
+-                                            processDebitCreditAmount(transaction, cell, colType, amountTypeColIndex, row, balanceTypeColIndex);
+-                                            break;
+-                                        case Balance:
+-                                            if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
+-                                                //transaction.setTransactionBalance(Double.parseDouble(cell.getContent().replaceAll("[^\\d.]", "")));
+-                                                transaction.setTransactionBalance(AmountParserUtil.getAmount(cell.getContent()));
+-                                            }
++                        // Map columns based on txnColType
++                        for (int colIndex = 0; colIndex < table.getTxnColType().size(); colIndex++) {
++                            TableCell cell = row.get(colIndex);
++                            if (cell == null) {
++                                continue;
++                            }
++                            if(cell.isHeaderOrFooterCell()){
++                                continue;
++                            }
++
++                            ColumnTransactionType colType = table.getTxnColType().get(colIndex);
++
++                            try{
++                                switch (colType) {
++                                    case TransactionDate:
++                                        transaction.setTransactionDate(parseDate(cell.getContent()));
++                                        break;
++                                    case ValueDate:
++                                        transaction.setTransactionValueDate(parseDate(cell.getContent()));
++                                        break;
++                                    case Description:
++                                        transaction.setTransactionDescription(cell.getContent());
++                                        break;
++                                    case ChequeOrRef:
++                                        transaction.setTransactionRemark(cell.getContent());
++                                        break;
++                                    case Debit:
++                                    case Credit:
++                                    case Amount:
++                                        // Skip if transaction amount is already set when there is both
++                                        // debit and credit column available
++                                        if (isTransactionAmountSet(transaction)) {
+                                             break;
+-                                    }
+-                                }catch (Exception e){
+-                                    log.error(" " + JsonUtil.getJsonStringFromObject(LoggingPropertiesUtil.doLog(RequestStatus.FAILED.name(), "Something went wrong while extracting transactions", ExceptionDetails.exceptionDetails(e.getMessage()))));
++                                        }
++                                        processDebitCreditAmount(transaction, cell, colType, amountTypeColIndex, row, balanceTypeColIndex);
++                                        break;
++                                    case Balance:
++                                        if (cell.getContent() != null && !cell.getContent().trim().isEmpty()) {
++                                            //transaction.setTransactionBalance(Double.parseDouble(cell.getContent().replaceAll("[^\\d.]", "")));
++                                            transaction.setTransactionBalance(AmountParserUtil.getAmount(cell.getContent()));
++                                        }
++                                        break;
+                                 }
++                            }catch (Exception e){
++                                log.error(" " + JsonUtil.getJsonStringFromObject(LoggingPropertiesUtil.doLog(RequestStatus.FAILED.name(), "Something went wrong while extracting transactions", ExceptionDetails.exceptionDetails(e.getMessage()))));
+                             }
++                        }
+ 
+-                            // Add transaction only if it has at least date and amount
+-                            if (transaction.getTransactionDate() != null && transaction.getTransactionAmount() != null
+-                                    && transaction.getTransactionType() != null && (transaction.getTransactionBalance() != null || extractionResult.isStatementWithoutBalance())) {
+-                                transaction.setFileId(bankStatementVO.getFileId());
+-                                transaction.setFileIndex(fileIndex);
+-                                transaction.setUniqueTransactionId(UUID.randomUUID().toString());
+-                                transactions.add(transaction);
+-                            }
++                        // Add transaction only if it has at least date and amount
++                        if (transaction.getTransactionDate() != null && transaction.getTransactionAmount() != null
++                                && transaction.getTransactionType() != null && (transaction.getTransactionBalance() != null || extractionResult.isStatementWithoutBalance())) {
++                            transaction.setFileId(bankStatementVO.getFileId());
++                            //transaction.setFileIndex(fileIndex);
++                            transaction.setUniqueTransactionId(UUID.randomUUID().toString());
++                            transactions.add(transaction);
+                         }
+                     }
+                 }
++            }
+ 
+-                // Check and swap transaction dates if needed (Assuming we have received statements in same format)
++            // Check and swap transaction dates if needed (Assuming we have received statements in same format)
+ //                if (!transactions.isEmpty() && hasValueDates(transactions)) {
+ //                    boolean shouldSwap = checkIfDatesShouldBeSwapped(
+ //                            transactions,
+@@ -638,74 +712,72 @@ public class BankStatementProcessorImpl implements BankStatementProcessor {
+ //                    }
+ //                }
+ 
+-                // Statement is with reverse order date.
+-                if(bankStatementVO.getDocumentExtractionResult().isStatementWithReversedOrder()){
+-                    List<BankTransactionVO> reversedTransactions = new LinkedList<>();
+-                    for(int i = transactions.size()-1; i >= 0; i--) {
+-                        reversedTransactions.add(transactions.get(i));
+-                    }
+-                    transactions = reversedTransactions;
++            // Statement is with reverse order date.
++            if(bankStatementVO.getDocumentExtractionResult().isStatementWithReversedOrder()){
++                List<BankTransactionVO> reversedTransactions = new LinkedList<>();
++                for(int i = transactions.size()-1; i >= 0; i--) {
++                    reversedTransactions.add(transactions.get(i));
+                 }
++                transactions = reversedTransactions;
++            }
+ 
+-                // Statement has reverse order per date - sort transactions day-wise where each day's transactions are in reverse order
+-                if(bankStatementVO.getDocumentExtractionResult().isStatementWithReverseOrderPerDate()){
+-                    // Group transactions by date
+-                    Map<Date, List<BankTransactionVO>> transactionsByDate = transactions.stream()
+-                            .collect(Collectors.groupingBy(BankTransactionVO::getTransactionDate, LinkedHashMap::new, Collectors.toList()));
+-                    
+-                    // Reverse the order of transactions within each date
+-                    List<BankTransactionVO> reversedPerDateTransactions = new LinkedList<>();
+-                    for (Map.Entry<Date, List<BankTransactionVO>> entry : transactionsByDate.entrySet()) {
+-                        List<BankTransactionVO> dayTransactions = entry.getValue();
+-                        // Reverse the transactions for this specific date
+-                        for(int i = dayTransactions.size()-1; i >= 0; i--) {
+-                            reversedPerDateTransactions.add(dayTransactions.get(i));
+-                        }
++            // Statement has reverse order per date - sort transactions day-wise where each day's transactions are in reverse order
++            if(bankStatementVO.getDocumentExtractionResult().isStatementWithReverseOrderPerDate()){
++                // Group transactions by date
++                Map<Date, List<BankTransactionVO>> transactionsByDate = transactions.stream()
++                        .collect(Collectors.groupingBy(BankTransactionVO::getTransactionDate, LinkedHashMap::new, Collectors.toList()));
++
++                // Reverse the order of transactions within each date
++                List<BankTransactionVO> reversedPerDateTransactions = new LinkedList<>();
++                for (Map.Entry<Date, List<BankTransactionVO>> entry : transactionsByDate.entrySet()) {
++                    List<BankTransactionVO> dayTransactions = entry.getValue();
++                    // Reverse the transactions for this specific date
++                    for(int i = dayTransactions.size()-1; i >= 0; i--) {
++                        reversedPerDateTransactions.add(dayTransactions.get(i));
+                     }
+-                    transactions = reversedPerDateTransactions;
+                 }
++                transactions = reversedPerDateTransactions;
++            }
+ 
+-                //find the balance if the statement doesn't have the balance field
+-                if(extractionResult.isStatementWithoutBalance() && !CollectionUtils.isEmpty(transactions)){
+-                    // Calculate initial balance based on first transaction
+-                    BigDecimal prevBalance;
+-                    BankTransactionVO firstTransaction = transactions.get(0);
+-                    if (firstTransaction.getTransactionType() == TransactionType.CREDIT) {
+-                        prevBalance = BigDecimal.ZERO;
+-                    } else {
+-                        prevBalance = firstTransaction.getTransactionAmount().multiply(new BigDecimal("2"));
+-                    }
++            //find the balance if the statement doesn't have the balance field
++            if(extractionResult.isStatementWithoutBalance() && !CollectionUtils.isEmpty(transactions)){
++                // Calculate initial balance based on first transaction
++                BigDecimal prevBalance;
++                BankTransactionVO firstTransaction = transactions.get(0);
++                if (firstTransaction.getTransactionType() == TransactionType.CREDIT) {
++                    prevBalance = BigDecimal.ZERO;
++                } else {
++                    prevBalance = firstTransaction.getTransactionAmount().multiply(new BigDecimal("2"));
++                }
+ 
+-                    // Calculate running balance for each transaction
+-                    for (BankTransactionVO transaction : transactions) {
+-                        if (transaction.getTransactionType() == TransactionType.CREDIT) {
+-                            transaction.setTransactionBalance(prevBalance.add(transaction.getTransactionAmount()));
+-                        } else {
+-                            transaction.setTransactionBalance(prevBalance.subtract(transaction.getTransactionAmount()));
+-                        }
+-                        prevBalance = transaction.getTransactionBalance();
++                // Calculate running balance for each transaction
++                for (BankTransactionVO transaction : transactions) {
++                    if (transaction.getTransactionType() == TransactionType.CREDIT) {
++                        transaction.setTransactionBalance(prevBalance.add(transaction.getTransactionAmount()));
++                    } else {
++                        transaction.setTransactionBalance(prevBalance.subtract(transaction.getTransactionAmount()));
+                     }
++                    prevBalance = transaction.getTransactionBalance();
+                 }
++            }
+ 
+-                // Sort transactions by transaction date
+-                if(sortTransactionByDate) {
+-                    transactions.sort(new Comparator<>() {
+-                        @Override
+-                        public int compare(BankTransactionVO t1, BankTransactionVO t2) {
+-                            if (t1.getTransactionDate() == null || t2.getTransactionDate() == null) {
+-                                return 0;
+-                            }
+-                            return t1.getTransactionDate().compareTo(t2.getTransactionDate());
++            // Sort transactions by transaction date
++            if(sortTransactionByDate) {
++                transactions.sort(new Comparator<>() {
++                    @Override
++                    public int compare(BankTransactionVO t1, BankTransactionVO t2) {
++                        if (t1.getTransactionDate() == null || t2.getTransactionDate() == null) {
++                            return 0;
+                         }
+-                    });
+-                }
++                        return t1.getTransactionDate().compareTo(t2.getTransactionDate());
++                    }
++                });
++            }
+ 
+-                bankStatementVO.setBankTransactions(transactions);
++            bankStatementVO.setBankTransactions(transactions);
+ 
+-            }catch (Exception e) {
+-                log.error(" " + JsonUtil.getJsonStringFromObject(LoggingPropertiesUtil.doLog(RequestStatus.FAILED.name(), "Something went wrong while extracting transactions", ExceptionDetails.exceptionDetails(e.getMessage()))));
+-            }
+-            fileIndex++;
++        }catch (Exception e) {
++            log.error(" " + JsonUtil.getJsonStringFromObject(LoggingPropertiesUtil.doLog(RequestStatus.FAILED.name(), "Something went wrong while extracting transactions", ExceptionDetails.exceptionDetails(e.getMessage()))));
+         }
+     }
+ 
+@@ -760,7 +832,7 @@ public class BankStatementProcessorImpl implements BankStatementProcessor {
+ 
+             //Set employer details.
+             accountVO.setEmployerDetails(firstStatement.getEmployerDetails());
+-
++            accountVO.setTableExtractorStatus(firstStatement.getTableExtractorStatus());
+ 
+             //Set recency check parameters
+             RecencyValidationVO recencyValidationVO = new RecencyValidationVO();
+diff --git a/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/post/processor/AnalyzeDocuments.java b/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/post/processor/AnalyzeDocuments.java
+index ceac63b..888376c 100644
+--- a/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/post/processor/AnalyzeDocuments.java
++++ b/src/main/java/com/finboost/bank/statement/parser/service/document/extraction/post/processor/AnalyzeDocuments.java
+@@ -126,7 +126,7 @@ public class AnalyzeDocuments {
+                     BankStatementVO bankStatementVO = new BankStatementVO();
+                     bankStatementVO.setDocumentExtractionResult(copyResult.copyOfPage(page.getPageNumber()));
+                     bankStatementVOList.add(bankStatementVO);
+-                    BankStatementProcessorImpl.extractTransactions(bankStatementVOList, false);
++                    BankStatementProcessorImpl.extractTransactionsByBelowDate(bankStatementVOList, false);
+                     if(!bankStatementVOList.isEmpty() && bankStatementVOList.get(0).getBankTransactions() != null && !bankStatementVOList.get(0).getBankTransactions().isEmpty()) {
+                         Integer inconsistencyCount = InconsistencyFinderService.checkInconsistencyForCount(bankStatementVOList.get(0).getBankTransactions());
+                         if (inconsistencyCount != null && inconsistencyCount == 0 && validTransactionList(bankStatementVOList.get(0).getBankTransactions())){
+@@ -272,7 +272,7 @@ public class AnalyzeDocuments {
+                     bankStatementVO.setDocumentExtractionResult(copyResult.copyOfPage(page.getPageNumber()));
+                     bankStatementVOList.add(bankStatementVO);
+                     try {
+-                        BankStatementProcessorImpl.extractTransactions(bankStatementVOList,false);
++                        BankStatementProcessorImpl.extractTransactionsByBelowDate(bankStatementVOList,false);
+                     }catch (Exception e){
+                         continue;
+                     }
+diff --git a/src/main/java/com/finboost/bank/statement/parser/util/DateTimeUtil.java b/src/main/java/com/finboost/bank/statement/parser/util/DateTimeUtil.java
+index 3090e10..cba78b9 100644
+--- a/src/main/java/com/finboost/bank/statement/parser/util/DateTimeUtil.java
++++ b/src/main/java/com/finboost/bank/statement/parser/util/DateTimeUtil.java
+@@ -252,8 +252,9 @@ public class DateTimeUtil {
+         datePatterns.put(Pattern.compile("(((0?[1-9])|1[0-2]),((0?[1-9])|[1-2][0-9]|3[0-1]),[0-9]{4})"), "MM,dd,yyyy");
+         datePatterns.put(Pattern.compile("(((0?[1-9])|[1-2][0-9]|3[0-1])\\/((0?[1-9])|1[0-2])\\/[0-9]{2})"), "dd/MM/yy");
+         datePatterns.put(Pattern.compile("((0?[1-9]|1[0-2])[.](0?[1-9]|[1-2][0-9]|3[0-1])[.][0-9]{4})"), "MM.dd.yyyy");
+-        datePatterns.put(Pattern.compile("([0-9]{2}[\\s]*[A-z]{3}[,][\\s]*\\d{4})"), "dd MMM, yyyy");
++        datePatterns.put(Pattern.compile("([0-9]{2}[\\s]+[A-z]{3}[,][\\s]+\\d{4})"), "dd MMM, yyyy");
+         datePatterns.put(Pattern.compile("(?i)(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)([0-3]?[0-9]),([0-9]{4})"), "MMMd,yyyy");
++        datePatterns.put(Pattern.compile("([0-9]{2}[A-z]{3}[,]\\d{4})"), "ddMMM,yyyy");
+ 
+         // Special case for custom month format
+         Pattern customMonthPattern = Pattern.compile("([0-3]?[0-9][A-z]{4}[0-9]{4})");
+diff --git a/src/main/java/com/finboost/bank/statement/parser/util/PdfTextExtractionUtil.java b/src/main/java/com/finboost/bank/statement/parser/util/PdfTextExtractionUtil.java
+index 4b85dcb..0a0ff04 100644
+--- a/src/main/java/com/finboost/bank/statement/parser/util/PdfTextExtractionUtil.java
++++ b/src/main/java/com/finboost/bank/statement/parser/util/PdfTextExtractionUtil.java
+@@ -1,15 +1,16 @@
+ package com.finboost.bank.statement.parser.util;
+ 
++
++
+ import lombok.extern.slf4j.Slf4j;
+ import org.apache.pdfbox.Loader;
+ import org.apache.pdfbox.pdmodel.PDDocument;
+ import org.apache.pdfbox.text.PDFTextStripper;
++
+ import org.springframework.context.ApplicationContext;
+ import org.springframework.stereotype.Component;
+ 
+-import java.io.File;
+-import java.io.IOException;
+-import java.io.StringWriter;
++import java.io.*;
+ import java.util.Optional;
+ 
+ /**
+@@ -42,7 +43,11 @@ public class PdfTextExtractionUtil {
+      * @throws IOException If an I/O error occurs during the conversion
+      */
+     public static String convertPDFToText(File file) throws IOException {
+-        return convertPDFToText(file, null);
++        return convertPDFToText(file, null,false);
++    }
++
++    public static String convertPDFToTextByPositionOrder(File file) throws IOException {
++        return convertPDFToText(file, null, true);
+     }
+ 
+     /**
+@@ -55,13 +60,17 @@ public class PdfTextExtractionUtil {
+      * @return The extracted text as a string
+      * @throws IOException If an I/O error occurs during the conversion
+      */
+-    public static String convertPDFToText(File file, String password) throws IOException {
++    public static String convertPDFToText(File file, String password, boolean isByPositionOrder) throws IOException {
+         StringWriter writer = new StringWriter();
+         try {
+             // Load and process the PDF document
+             try (PDDocument document = Loader.loadPDF(file, password)) {
+                 int pageCount = document.getNumberOfPages();
+                 PDFTextStripper stripper = new PDFTextStripper();
++                if(isByPositionOrder) {
++                    stripper.setSortByPosition(true);
++                }
++
+ 
+                 // Process each page
+                 for (int page = 1; page <= pageCount; page++) {
+@@ -90,4 +99,5 @@ public class PdfTextExtractionUtil {
+         }
+         return writer.toString();
+     }
++
+ } 
+\ No newline at end of file

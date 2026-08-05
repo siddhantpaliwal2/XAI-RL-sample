@@ -42,6 +42,7 @@ TASK_SNAPSHOTS = {
     "long-native-table-migration": "harbor-probe-long-native-table-migration-4g",
 }
 PRINT_LOCK = threading.Lock()
+DENIED_TASK_CONFIG = {"permission": {"task": "deny"}}
 
 
 def emit(message: str) -> None:
@@ -66,6 +67,15 @@ def parse_model(value: str) -> tuple[str, str]:
     if not alias or not route or not alias.replace("-", "").isalnum():
         raise argparse.ArgumentTypeError(f"invalid model specification: {value}")
     return alias, route
+
+
+def task_tool_is_denied(value: object) -> bool:
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return False
+    return value == DENIED_TASK_CONFIG
 
 
 def trial_artifacts(job_dir: Path) -> tuple[Path, dict, dict] | None:
@@ -133,8 +143,9 @@ def valid_existing(
     if str(trajectory_agent.get("version")) != agent_version:
         return None
     if disable_task_tool:
-        expected_config = json.dumps({"permission": {"task": "deny"}}, separators=(",", ":"))
-        if (agent.get("kwargs") or {}).get("opencode_config") != expected_config:
+        if not task_tool_is_denied(
+            (agent.get("kwargs") or {}).get("opencode_config")
+        ):
             return None
     if environment_kwargs.get("snapshot_template_name") != snapshot:
         return None
@@ -211,7 +222,7 @@ def run_one(
     }
     if disable_task_tool:
         opencode_config = json.dumps(
-            {"permission": {"task": "deny"}}, separators=(",", ":")
+            DENIED_TASK_CONFIG, separators=(",", ":")
         )
         command[command.index("--env-file"):command.index("--env-file")] = [
             "--ak",
