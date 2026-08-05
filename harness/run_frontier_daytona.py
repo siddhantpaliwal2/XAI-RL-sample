@@ -297,6 +297,12 @@ def main() -> int:
         help="ALIAS=ROUTE; repeat for multiple models (defaults to Opus 5 and Fable 5)",
     )
     parser.add_argument("--task", action="append", choices=tuple(TASK_SNAPSHOTS))
+    parser.add_argument(
+        "--attempt-start",
+        type=int,
+        default=1,
+        help="first provider-attempt number (useful for infrastructure supplements)",
+    )
     parser.add_argument("--attempts", type=int, default=3)
     parser.add_argument("--concurrency", type=int, default=12)
     parser.add_argument("--retries", type=int, default=2)
@@ -318,11 +324,15 @@ def main() -> int:
         parser.error(f"env file does not exist: {env_file}")
     if (
         args.concurrency < 1
+        or args.attempt_start < 1
         or args.attempts < 1
         or args.retries < 0
         or args.job_timeout < 1
     ):
-        parser.error("concurrency and attempts must be positive; retries cannot be negative")
+        parser.error(
+            "concurrency, attempt-start, and attempts must be positive; "
+            "retries cannot be negative"
+        )
     models = dict(args.model or DEFAULT_MODELS.items())
     if len(models) != len(args.model or DEFAULT_MODELS):
         parser.error("model aliases must be unique")
@@ -333,7 +343,7 @@ def main() -> int:
     logs_dir = ROOT / "sample-run" / "frontier-runner-logs"
     jobs = [
         (alias, route, task, attempt)
-        for attempt in range(1, args.attempts + 1)
+        for attempt in range(args.attempt_start, args.attempt_start + args.attempts)
         for task in tasks
         for alias, route in models.items()
     ]
