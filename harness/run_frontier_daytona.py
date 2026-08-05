@@ -41,6 +41,9 @@ TASK_SNAPSHOTS = {
     "xrepo-txenrich4-latent": "harbor-probe-xrepo-txenrich4-latent-4g",
     "long-native-table-migration": "harbor-probe-long-native-table-migration-4g",
 }
+DEFAULT_TASKS = tuple(
+    task for task in TASK_SNAPSHOTS if task != "long-native-table-migration"
+)
 PRINT_LOCK = threading.Lock()
 DENIED_TASK_CONFIG = {"permission": {"task": "deny"}}
 
@@ -323,7 +326,9 @@ def main() -> int:
     models = dict(args.model or DEFAULT_MODELS.items())
     if len(models) != len(args.model or DEFAULT_MODELS):
         parser.error("model aliases must be unique")
-    tasks = args.task or list(TASK_SNAPSHOTS)
+    # The long-horizon gate is a separate screen with a different attempt
+    # budget. Include it only when the caller names it explicitly.
+    tasks = args.task or list(DEFAULT_TASKS)
     jobs_dir = args.jobs_dir.resolve()
     logs_dir = ROOT / "sample-run" / "frontier-runner-logs"
     jobs = [
