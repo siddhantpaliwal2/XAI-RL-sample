@@ -46,6 +46,54 @@ This is why a single aggregate pass@1 should not be read as a total ordering:
 Grok is more repeatable where it wins; GPT is more broadly capable across the
 bank.
 
+## Turn, tool, and wall-clock profile
+
+The packaged artifacts retain enough timing and trajectory metadata to measure
+the run directly. A **model turn** here is an agent-sourced OpenCode trajectory
+step; every such step records exactly one LLM call. Each attempt also has one
+initial user instruction step, so the 80 trajectories contain **967 model
+turns** and **1,047 total trajectory steps**. They contain **2,521 tool calls**.
+
+The per-trial `duration_seconds` value is full trial wall time from Harbor's
+`started_at` to `finished_at`, including environment setup, agent setup, agent
+execution, and verification. Summing those independently running trials gives
+**21,432.916 seconds (5h 57m 12.9s)**. The mean trial took **4m 27.9s**, the
+median **3m 52.0s**, and the 90th percentile **8m 33.5s**; the range was
+**1m 28.5s to 15m 14.5s**.
+
+Because the trials ran concurrently, summed trial time is not the end-to-end
+elapsed time. The first valid trial started at `2026-08-05T01:55:54.926Z` and
+the last finished at `2026-08-05T03:04:23.728Z`, an observed valid-trial
+wall-clock envelope of **1h 08m 28.8s**. Peak observed concurrency was **12**,
+matching the worker-pool limit. Summed active trial time divided by that
+envelope is **5.22**, so the valid workload achieved 5.22x effective
+parallelism relative to running those same trials serially. This envelope does
+not include infrastructure/auth failures excluded from the valid set or any
+operator time before the first valid trial and after the last.
+
+| Task | Model turns | Mean turns / attempt | Mean trial time | Trial-time range | Summed trial-minutes |
+|---|---:|---:|---:|---:|---:|
+| credit-normalize | 109 | 10.9 | 3.12m | 2.48-3.95m | 31.18 |
+| doc-extractors | 91 | 9.1 | 1.89m | 1.59-2.39m | 18.94 |
+| financial-tools | 82 | 8.2 | 1.70m | 1.48-1.85m | 17.03 |
+| phone-invites | 80 | 8.0 | 2.09m | 1.80-2.32m | 20.91 |
+| fiu | 154 | 15.4 | 5.44m | 4.14-7.49m | 54.40 |
+| txenrich | 142 | 14.2 | 6.77m | 5.51-10.20m | 67.74 |
+| txenrich3 | 143 | 14.3 | 4.89m | 3.78-5.82m | 48.91 |
+| txenrich4 | 166 | 16.6 | 9.81m | 7.53-15.24m | 98.11 |
+| **All trials** | **967** | **12.1** | **4.47m** | **1.48-15.24m** | **357.22** |
+
+The phase timestamps put the mean trial at 2.2s of environment setup, 20.5s
+of agent setup, 234.6s of agent execution, and 6.6s of verification, with the
+small remainder in handoffs between phases. Solved attempts were shorter on
+average than unsolved attempts (**10.6 vs. 12.6 model turns** and **3.07m vs.
+4.96m**), though that comparison is confounded by task difficulty rather than
+being a causal measure of solution efficiency.
+
+The same valid trajectories report **46,841,681 input tokens**, including
+**39,586,944 cached tokens**, **467,658 output tokens**, and **$31.44** in model
+cost.
+
 ## Grok's win conditions
 
 ### 1. A small number of named helpers with behaviorally direct symptoms
@@ -167,9 +215,9 @@ semantic-boundary or multi-bank task.
 
 ## Cost and caveats
 
-- The 80 valid trajectories report **$31.44** of model cost, 1,047 agent steps,
-  and 357.2 summed agent-minutes. Infrastructure/auth failures encountered while
-  operating the wave are excluded from both scores and these valid-trial totals.
+- The runtime, turn, token, and cost totals above cover the 80 valid graded
+  trajectories. Infrastructure/auth failures encountered while operating the
+  wave are excluded from both scores and those valid-trial totals.
 - Ten attempts per task are enough to expose systematic zero rows and strong
   concentration, but each individual solve rate still has binomial uncertainty.
 - `pass@10` is 1 for any n=10 cell with at least one solve and 0 otherwise. Its
@@ -178,4 +226,3 @@ semantic-boundary or multi-bank task.
 - Hidden tests assert behavior, not oracle patch identity. Alternative correct
   implementations pass; the failures above are observable output failures, not
   textual-diff mismatches.
-
