@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Merge the OpenRouter screen with Bedrock trials into an audited pass@10.
+"""Merge the original screen with completion trials into an audited pass@10.
 
 The original Opus 5 and Fable 5 screen used one OpenRouter attempt per
-available task cell. The completion run adds nine valid Bedrock attempts per
-available cell. Fable/FIU remains excluded because both providers consistently
-filter the task before verification. Every Bedrock trial is checked against the
-requested route, OpenCode version, Daytona snapshot, task checksum, and the
-model name recorded on every trajectory step before it is packaged.
+available task cell. The completion run adds nine further valid attempts per
+available cell, primarily on Bedrock. Fable/FIU remains excluded because both
+providers consistently filter the task before verification. Every completion
+trial is checked against its requested route, OpenCode version, Daytona
+snapshot, task checksum, and the model name recorded on every trajectory step
+before it is packaged.
 """
 
 from __future__ import annotations
@@ -44,15 +45,21 @@ MODELS = {
     "opus5": {
         "label": "claude-opus-5",
         "openrouter_route": "openrouter/anthropic/claude-opus-5",
-        "bedrock_route": "amazon-bedrock/global.anthropic.claude-opus-5",
+        "bedrock_routes": ["amazon-bedrock/global.anthropic.claude-opus-5"],
     },
     "fable5": {
         "label": "claude-fable-5",
         "openrouter_route": "openrouter/anthropic/claude-fable-5",
-        "bedrock_route": "amazon-bedrock/global.anthropic.claude-fable-5",
+        "bedrock_routes": [
+            "amazon-bedrock/global.anthropic.claude-fable-5",
+            "amazon-bedrock/us.anthropic.claude-fable-5",
+        ],
     },
 }
 EXCLUDED_CELLS = {("fable5", "xrepo-fiu-latent"): "provider_content_filter"}
+PROVIDER_LIMITED_CELLS = {
+    ("fable5", "latent-doc-extractors"): "provider_content_filter_after_n3",
+}
 
 
 def pass_at_k(n: int, c: int, k: int) -> float | None:
@@ -152,7 +159,7 @@ def validate_no_fallback_events(trial_dir: Path) -> None:
             raise SystemExit(f"fallback event in {output_path}:{line_number}")
 
 
-def package_bedrock_trial(
+def package_completion_trial(
     alias: str,
     task: str,
     provider_attempt: int,
@@ -161,7 +168,13 @@ def package_bedrock_trial(
     result: dict,
     trajectory: dict,
 ) -> dict:
-    route = MODELS[alias]["bedrock_route"]
+    route = trajectory.get("agent", {}).get("model_name")
+    allowed_routes = {
+        MODELS[alias]["openrouter_route"],
+        *MODELS[alias]["bedrock_routes"],
+    }
+    if route not in allowed_routes:
+        raise SystemExit(f"unapproved completion route in {trial_dir}: {route}")
     step_models = {
         step.get("model_name")
         for step in trajectory.get("steps") or []
@@ -203,17 +216,18 @@ def package_bedrock_trial(
             raise SystemExit(f"missing trial artifact: {source}")
         shutil.copy2(source, destination)
 
+    provider = route.split("/", 1)[0]
     return {
         "task": task,
         "attempt": combined_attempt,
         "provider_attempt": provider_attempt,
-        "attempt_uid": f"amazon-bedrock-{provider_attempt:02d}",
+        "attempt_uid": f"{provider}-{provider_attempt:02d}",
         "harness": "opencode",
         "model": MODELS[alias]["label"],
         "route": route,
-        "provider": "amazon-bedrock",
+        "provider": provider,
         "fallback_disabled": True,
-        "provider_data_share": alias == "fable5",
+        "provider_data_share": alias == "fable5" and provider == "amazon-bedrock",
         "reward": reward,
         "f2p_passed": f2p_passed,
         "f2p_total": len(fail_to_pass),
@@ -251,13 +265,13 @@ def main() -> int:
         rows_by_model[alias] = baseline
 
     pattern = re.compile(
-        rf"^{re.escape(args.run_id)}-(opus5|fable5)-(.+)-a(\d{{2}})$"
+        rf"^{re.escape(args.run_id)}-(opus5|fable5)-(.+)-a(\d+)$"
     )
-    seen_bedrock: set[tuple[str, str, int]] = set()
-    bedrock_candidates: dict[tuple[str, str], list[tuple[int, Path, dict, dict]]] = (
+    seen_completion: set[tuple[str, str, int]] = set()
+    completion_candidates: dict[tuple[str, str], list[tuple[int, Path, dict, dict]]] = (
         defaultdict(list)
     )
-    for job_dir in sorted(args.jobs_dir.resolve().glob(f"{args.run_id}-*-a??")):
+    for job_dir in sorted(args.jobs_dir.resolve().glob(f"{args.run_id}-*-a*")):
         match = pattern.match(job_dir.name)
         if not match:
             continue
@@ -266,9 +280,20 @@ def main() -> int:
             continue
         provider_attempt = int(attempt_text)
         key = (alias, task, provider_attempt)
-        if key in seen_bedrock:
-            raise SystemExit(f"duplicate Bedrock trial: {key}")
-        route = MODELS[alias]["bedrock_route"]
+        if key in seen_completion:
+            raise SystemExit(f"duplicate completion trial: {key}")
+        try:
+            route = json.loads((job_dir / "matrix-metadata.json").read_text())[
+                "model_route"
+            ]
+        except (OSError, KeyError, json.JSONDecodeError):
+            continue
+        allowed_routes = {
+            MODELS[alias]["openrouter_route"],
+            *MODELS[alias]["bedrock_routes"],
+        }
+        if route not in allowed_routes:
+            continue
         valid = valid_existing(
             job_dir,
             route=route,
@@ -283,10 +308,10 @@ def main() -> int:
         if found is None:
             continue
         trial_dir, result, trajectory = found
-        bedrock_candidates[(alias, task)].append(
+        completion_candidates[(alias, task)].append(
             (provider_attempt, trial_dir, result, trajectory)
         )
-        seen_bedrock.add(key)
+        seen_completion.add(key)
 
     missing: dict[str, dict[str, int]] = {}
     for alias, rows in rows_by_model.items():
@@ -296,7 +321,9 @@ def main() -> int:
                 continue
             baseline_count = sum(row["task"] == task for row in rows)
             needed = args.expected_attempts - baseline_count
-            available = len(bedrock_candidates[(alias, task)])
+            available = len(completion_candidates[(alias, task)])
+            if (alias, task) in PROVIDER_LIMITED_CELLS:
+                continue
             if available < needed:
                 model_missing[task] = needed - available
         if model_missing:
@@ -305,7 +332,7 @@ def main() -> int:
         raise SystemExit(f"incomplete pass@10 matrix: {missing}")
 
     # Infrastructure retries can leave gaps in provider attempt numbers. Select
-    # the first required valid Bedrock jobs and number only valid model trials
+    # the first required valid completion jobs and number only valid model trials
     # contiguously in the combined denominator.
     for alias, rows in rows_by_model.items():
         for task in TASKS:
@@ -314,7 +341,7 @@ def main() -> int:
             baseline_count = sum(row["task"] == task for row in rows)
             needed = args.expected_attempts - baseline_count
             candidates = sorted(
-                bedrock_candidates[(alias, task)], key=lambda item: item[0]
+                completion_candidates[(alias, task)], key=lambda item: item[0]
             )[:needed]
             for valid_index, (
                 provider_attempt,
@@ -323,7 +350,7 @@ def main() -> int:
                 trajectory,
             ) in enumerate(candidates, start=1):
                 rows.append(
-                    package_bedrock_trial(
+                    package_completion_trial(
                         alias,
                         task,
                         provider_attempt,
@@ -362,6 +389,11 @@ def main() -> int:
             if (alias, task) in EXCLUDED_CELLS:
                 summary["excluded"] = True
                 summary["exclusion_reason"] = EXCLUDED_CELLS[(alias, task)]
+            if (alias, task) in PROVIDER_LIMITED_CELLS:
+                summary["provider_limited"] = True
+                summary["provider_limitation_reason"] = PROVIDER_LIMITED_CELLS[
+                    (alias, task)
+                ]
             summaries.append(summary)
             matrix[f"opencode|{model['label']}|{task}"] = {
                 key: summary[key] for key in ("n", "c", "pass@1", "pass@3", "pass@10")
@@ -398,27 +430,31 @@ def main() -> int:
         cost_by_provider: dict[str, float] = defaultdict(float)
         for row in rows:
             cost_by_provider[row["provider"]] += row.get("cost_usd") or 0
-        measured_summaries = [
-            item for item in summaries if item["pass@1"] is not None
-        ]
+        measured_by_k = {
+            metric: [item for item in summaries if item[metric] is not None]
+            for metric in ("pass@1", "pass@3", "pass@10")
+        }
         totals = {
             "attempts": len(rows),
             "solves": sum(row["reward"] >= 1 for row in rows),
             "macro_pass@1": round(
-                sum(item["pass@1"] for item in measured_summaries)
-                / len(measured_summaries),
+                sum(item["pass@1"] for item in measured_by_k["pass@1"])
+                / len(measured_by_k["pass@1"]),
                 4,
             ),
             "macro_pass@3": round(
-                sum(item["pass@3"] for item in measured_summaries)
-                / len(measured_summaries),
+                sum(item["pass@3"] for item in measured_by_k["pass@3"])
+                / len(measured_by_k["pass@3"]),
                 4,
             ),
             "macro_pass@10": round(
-                sum(item["pass@10"] for item in measured_summaries)
-                / len(measured_summaries),
+                sum(item["pass@10"] for item in measured_by_k["pass@10"])
+                / len(measured_by_k["pass@10"]),
                 4,
             ),
+            "macro_task_counts": {
+                metric: len(items) for metric, items in measured_by_k.items()
+            },
             "cost_usd": round(sum(cost_by_provider.values()), 4),
             "cost_usd_by_provider": {
                 provider: round(cost, 4)
@@ -437,14 +473,17 @@ def main() -> int:
         }
         payload = {
             "model": model["label"],
-            "routes": [model["openrouter_route"], model["bedrock_route"]],
+            "routes": [model["openrouter_route"], *model["bedrock_routes"]],
             "harness": "opencode-1.18.13",
             "environment": "daytona-2cpu-4gb-amd64",
             "target_attempts_per_available_task": args.expected_attempts,
             "methodology": (
-                "Original OpenRouter attempt plus Bedrock completion attempts; "
+                "Original OpenRouter attempt plus validated completion attempts, "
+                "primarily on Bedrock; "
                 "only trials with real verifier verdicts enter n. Fable/FIU remains "
-                "excluded after consistent OpenRouter and Bedrock content filters."
+                "excluded after consistent OpenRouter and Bedrock content filters; "
+                "Fable/doc remains provider-limited at n=3 after a bounded exact-"
+                "harness retry sweep across both providers."
             ),
             "tasks": summaries,
             "totals": totals,
