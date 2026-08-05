@@ -1,0 +1,38 @@
+/usr/local/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+collecting ... collected 22 items
+
+tests/test_credit_normalize_boundaries.py::TestUnknownCreditorCaseFold::test_lowercase_placeholder_is_junk PASSED [  4%]
+tests/test_credit_normalize_boundaries.py::TestUnknownCreditorCaseFold::test_mixed_case_placeholder_is_junk PASSED [  9%]
+tests/test_credit_normalize_boundaries.py::TestUnknownCreditorCaseFold::test_real_creditor_is_not_junk PASSED [ 13%]
+tests/test_credit_normalize_boundaries.py::TestDedupeTradelinesCaseFold::test_case_differing_duplicates_collapse PASSED [ 18%]
+tests/test_credit_normalize_boundaries.py::TestDedupeTradelinesCaseFold::test_distinct_accounts_are_kept PASSED [ 22%]
+tests/test_credit_normalize_boundaries.py::TestDedupeTradelinesCaseFold::test_identical_duplicates_collapse PASSED [ 27%]
+tests/test_credit_normalize_boundaries.py::TestAddressSuffixAnchor::test_bare_suffix_token_is_address PASSED [ 31%]
+tests/test_credit_normalize_boundaries.py::TestAddressSuffixAnchor::test_city_state_line_is_address PASSED [ 36%]
+tests/test_credit_normalize_boundaries.py::TestAddressSuffixAnchor::test_name_prefixed_by_suffix_is_not_address FAILED [ 40%]
+tests/test_credit_normalize_boundaries.py::TestBureauTagAbbreviations::test_efx_tag_maps_to_equifax PASSED [ 45%]
+tests/test_credit_normalize_boundaries.py::TestBureauTagAbbreviations::test_eqx_tag_maps_to_equifax PASSED [ 50%]
+tests/test_credit_normalize_boundaries.py::TestBureauTagAbbreviations::test_full_bureau_name_maps PASSED [ 54%]
+tests/test_credit_normalize_boundaries.py::TestNumericLineRejection::test_alpha_creditor_is_plausible PASSED [ 59%]
+tests/test_credit_normalize_boundaries.py::TestNumericLineRejection::test_creditor_starting_with_digit_is_plausible PASSED [ 63%]
+tests/test_credit_normalize_boundaries.py::TestNumericLineRejection::test_pure_numeric_line_is_rejected PASSED [ 68%]
+tests/test_credit_pdf_pipeline.py::JunkFilterTests::test_accepts_real_creditor PASSED [ 72%]
+tests/test_credit_pdf_pipeline.py::JunkFilterTests::test_rejects_one_dollar_artifact_tradeline PASSED [ 77%]
+tests/test_credit_pdf_pipeline.py::JunkFilterTests::test_rejects_past_due_label PASSED [ 81%]
+tests/test_credit_pdf_pipeline.py::JunkFilterTests::test_rejects_table_artifact_creditor PASSED [ 86%]
+tests/test_credit_pdf_pipeline.py::BureauRouterTests::test_assigns_tagged_tradeline_to_one_bureau PASSED [ 90%]
+tests/test_credit_pdf_pipeline.py::BureauRouterTests::test_broadcasts_untagged_tradelines_to_all_scored_bureaus PASSED [ 95%]
+tests/test_credit_pdf_pipeline.py::BureauRouterTests::test_filters_junk_before_assignment PASSED [100%]
+
+=================================== FAILURES ===================================
+_____ TestAddressSuffixAnchor.test_name_prefixed_by_suffix_is_not_address ______
+tests/test_credit_normalize_boundaries.py:82: in test_name_prefixed_by_suffix_is_not_address
+    self.assertFalse(is_address_or_contact_line("Steven"))
+E   AssertionError: True is not false
+=========================== short test summary info ============================
+FAILED tests/test_credit_normalize_boundaries.py::TestAddressSuffixAnchor::test_name_prefixed_by_suffix_is_not_address
+========================= 1 failed, 21 passed in 0.18s =========================

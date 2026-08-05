@@ -1,0 +1,677 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "ses_02c81776effehIZejrE7z7hbEb",
+  "agent": {
+    "name": "opencode",
+    "version": "1.18.13",
+    "model_name": "amazon-bedrock/global.anthropic.claude-fable-5"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "source": "user",
+      "message": "<uploaded_files>/app</uploaded_files>\n\n# Incident write-up: financial-summary metrics disagree with source data at the margins\n\n## Issue details\n\nSeveral of the read-only routines that roll raw bank-feed, credit-bureau, and\naccounting exports up into the structured metric blocks on the underwriting\nsurface are emitting figures that do not match their inputs - but only for a\nnarrow class of records. Every reproduction gathered so far sits on a margin of\nsome kind: a quantity landing exactly on a documented cut-off instead of\ncomfortably past it; a report handed over at the smallest column or period count\nthe format permits; a collection holding an even pair, so the count itself is\nwhat decides the answer; and a field carrying one of the\nreserved \"nothing here\" placeholder codes that is being echoed back as if it\nwere a genuine amount. Hand the same routines data sitting well inside the usual\nranges and the numbers come out right, which is why nothing stood out in review.\n\n## Expected outcome\n\nEach metric should agree with what the source record plainly says at these\nmargins. A value resting on a threshold is handled the way the documented rule\nfor that threshold states. The smallest well-formed report still yields its\nper-period figures. A two-element collection is measured from its actual\ncontents rather than dismissed as too small. A\nreserved placeholder code is discarded, never read as data. Everywhere away from\nthe margins the output must not move at all.\n\n## Affected areas\n\nThe fault is contained in the deterministic, side-effect-free summarization\nlayer: plain arithmetic, comparisons, and roll-ups over already-parsed bank,\ncredit, and accounting structures. No database, network, or model component is\nin the loop. Each wrong figure traces to how one boundary - or one reserved\nvalue - is treated inside that computation, so the corrections are small and\nlocal.\n\n## Testing notes\n\nThe existing automated checks all pass today and must still pass afterward; they\nonly ever drive mid-range inputs, so they are silent about the margins described\nabove. Judge the fix on whether the summaries come out correct on the\nexact-threshold, minimum-size, single/pair, and placeholder-code cases. Do not\ntouch anything under the project's `tests` tree.\n\nReproduce and confirm with:\n\n    cd /app/loangen-agent && python -m pytest tests -v\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-05T19:55:18.012000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_UPPCKynoY4ds9S1ZKEHU2p",
+          "function_name": "bash",
+          "arguments": {
+            "command": "ls -R /app/loangen-agent | head -80"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_KKdIBx0R2OOFtxTPFEhdUb",
+          "function_name": "todowrite",
+          "arguments": {
+            "todos": [
+              {
+                "content": "Explore codebase and locate summarization layer",
+                "status": "in_progress",
+                "priority": "high"
+              },
+              {
+                "content": "Identify boundary/placeholder bugs",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Fix bugs locally",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Run tests to confirm no regressions",
+                "status": "pending",
+                "priority": "high"
+              }
+            ]
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_UPPCKynoY4ds9S1ZKEHU2p",
+            "content": "/app/loangen-agent:\nDockerfile\nREADME.md\nagent\ndeploy\ndocker\ndocker-compose.yml\ndocs\nrequirements.txt\ntests\ntraining\n\n/app/loangen-agent/agent:\n__init__.py\n__pycache__\nanalytics\narray\nauth\nbilling\nchat\nchat_server.py\ncontext_builder.py\ncore\ncredit\ndocuments\nintegrations\nlender_billing\nllm\nmain.py\nobservability\npipeline.py\nplaid\nprompts\nseed\nservices\nstorage\ntools\nvoice_agent\n\n/app/loangen-agent/agent/__pycache__:\n__init__.cpython-314.pyc\n\n/app/loangen-agent/agent/analytics:\n__init__.py\nmodels\nrouter.py\nseed.py\nservices\n\n/app/loangen-agent/agent/analytics/models:\n__init__.py\ncredit_bureau.py\nplaid.py\nquickbooks.py\n\n/app/loangen-agent/agent/analytics/services:\n__init__.py\nbank_plaid_analytics_service.py\ncredit_bureau_analytics.py\ncredit_cache_service.py\ncredit_report_analytics_service.py\nplaid_analytics.py\nquickbooks_analytics.py\n\n/app/loangen-agent/agent/array:\n__init__.py\nclient.py\ncredit_report_narrative.py\ncredit_report_pdf.py\ninternal_router.py\nmodels.py\nrouter.py\nschemas.py\nservice.py\n\n/app/loangen-agent/agent/auth:\n__init__.py\ncommon\nlender\nuser\n"
+          },
+          {
+            "source_call_id": "tooluse_KKdIBx0R2OOFtxTPFEhdUb",
+            "content": "[\n  {\n    \"content\": \"Explore codebase and locate summarization layer\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Identify boundary/placeholder bugs\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix bugs locally\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Run tests to confirm no regressions\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10405,
+        "completion_tokens": 249,
+        "cached_tokens": 10403,
+        "cost_usd": 0.0331855,
+        "extra": {
+          "cache_write_tokens": 825
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-05T19:55:25.008000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_bYON4qIEwP9Tlxvm3Vqvbp",
+          "function_name": "task",
+          "arguments": {
+            "description": "Explore analytics summarization layer",
+            "prompt": "Research task, do NOT write code. In /app/loangen-agent, there is a deterministic, side-effect-free summarization layer that rolls raw bank-feed (Plaid), credit-bureau, and accounting (QuickBooks) exports into structured metric blocks. Likely under agent/analytics/services/ (bank_plaid_analytics_service.py, credit_bureau_analytics.py, credit_report_analytics_service.py, plaid_analytics.py, quickbooks_analytics.py) and possibly agent/credit or agent/array.\n\nI'm hunting for boundary-condition bugs of these classes:\n1. A value landing exactly on a documented cut-off/threshold handled wrong (e.g. > vs >=, off-by-one on comparison against documented rule stated in comments/docstrings).\n2. Minimum-size report: smallest column or period count the format permits fails to yield per-period figures (e.g. off-by-one in loop, requiring len > N when len >= N is valid, division by len-1, slicing that drops the only element).\n3. A collection with exactly two elements (even pair) dismissed as \"too small\" (e.g. len < 3 check) or a median-of-even-count computed wrong; something where the count parity decides the answer.\n4. A reserved \"nothing here\" placeholder/sentinel code (like -1, 9999, 999999999, \"NA\") echoed back as a genuine amount instead of being discarded.\n\nPlease read through the summarization/computation code in those services (and any pure helper modules they use) and report back:\n- Every suspicious comparison/threshold that contradicts nearby comments/docstrings/documented rules\n- Any loops/slices/guards that fail on minimum-size inputs\n- Any len-based guards that mistreat 2-element collections, or median/average logic wrong for even counts\n- Any sentinel/placeholder values documented in models or comments that are not filtered out in computations\n\nFor each finding give file path, line numbers, the exact code, and why it's wrong (cite the documented rule nearby). Be very thorough - read whole files. Also check agent/analytics/models/ for documented sentinel codes. Return a structured list of findings.",
+            "subagent_type": "explore"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_bYON4qIEwP9Tlxvm3Vqvbp",
+            "content": "<task id=\"ses_02c810bafffeSD8XRmj4jSaImU\" state=\"completed\">\n<task_result>\nI've read all the summarization services, their models, the seed fixtures that pin the raw formats, and the documented rules (`docs/BANK_ANALYTICS_CHECKLIST.md` plus module docstrings). Here is the structured findings report.\n\n---\n\n# Findings\n\n## HIGH CONFIDENCE \u2014 contradicts a documented rule nearby\n\n### Finding 1 \u2014 Sentinel `-5` (\"Not applicable\") echoed as a genuine amount (category 4)\n**File:** `/app/loangen-agent/agent/analytics/services/credit_bureau_analytics.py`, lines 92\u2013101 (vs. docstring lines 12\u201317 and `_safe_int` lines 79\u201389)\n\n```python\ndef _safe_float(val: str | None, default: float | None = None) -> float | None:\n    if val is None or val == \"\" or val == \"N/A\":\n        return default\n    try:\n        v = float(val)\n        if v in (-3.0, -4.0):        # <-- -5.0 missing\n            return default\n```\n\nThe module docstring documents the reserved codes:\n\n```\nSpecial values in Array.com CREDIT_SUMMARY data:\n  -3  = Not enough information to compute\n  -4  = No data available from bureau\n  -5  = Not applicable for this bureau\n```\n\n`_safe_int` (line 85) correctly filters `(-3, -4, -5)`, but `_safe_float` only filters `-3.0` and `-4.0`. Every float summary metric built in `_extract_summary_metrics` (lines 325\u2013332) \u2014 `total_balance` (PT202), `total_credit_limit` (PT054), `revolving_utilization_pct` (PT016), `bankcard_utilization_pct` (PT126), `monthly_payment_total` (PT014), `mortgage_payment` (PT019), `auto_payment` (PT021), `pct_never_delinquent` (PT093) \u2014 will echo a bureau `-5` as a real value (e.g. \"Revolving Utilization: -5.0%\"). Downstream, `agent/array/credit_report_narrative.py` line 76 uses `s.revolving_utilization_pct or 'N/A'`, which catches `None`/`0` but **not** `-5.0`, so the sentinel is fed to the LLM/PDF as a genuine percentage. `_analyze_tradeline` (lines 248\u2013251) uses the same broken helper for tradeline amounts.\n\n### Finding 2 \u2014 Two-month dataset dismissed as \"too small\"; volatility silently 0 (categories 3, 2, 1)\n**File:** `/app/loangen-agent/agent/analytics/services/plaid_analytics.py`, lines 56\u201362\n\n```python\ndef _compute_volatility(values: list[float]) -> float:\n    if len(values) <= 2:          # <-- should be < 2\n        return 0.0\n    ...\n    return round((statistics.stdev(values) / abs(mean)) * 100, 1)\n```\n\nThe documented rule (`docs/BANK_ANALYTICS_CHECKLIST.md`, line 105) says:\n\n> `inflow_volatility_pct` | Coefficient of variation ... **If fewer than 2 months** or mean = 0 \u2192 `0`.\n\n`statistics.stdev` is defined for exactly 2 points, and the doc says only \"fewer than 2\" should short-circuit. With exactly two months of data (an even pair \u2014 the smallest count for which variability exists), the guard returns `0.0`. Consequences: at line 303\u2013304 `if inflow_vol < 15: score += 5` inflates `cash_flow_score` for 2-month windows, and in `build_bank_analytics_checklist_v1` (line 437) the pattern is misclassified as `strong_affordability` (`inflow_volatility_pct < 20 and outflow_volatility_pct < 20`) when true volatility may be huge.\n\n### Finding 3 \u2014 `>= 75` documented cut-off implemented as `> 75` (category 1)\n**File:** `/app/loangen-agent/agent/analytics/services/plaid_analytics.py`, lines 405\u2013407\n\n```python\nnear_limit_count = sum(\n    1 for a in credit_accounts if float(a.get(\"utilization_pct\") or 0) > 75.0\n)\n```\n\n`docs/BANK_ANALYTICS_CHECKLIST.md` line 66 documents:\n\n> `credit_exposure.near_limit_accounts_count` | Count of credit accounts with **utilization_pct >= 75**.\n\nA credit card sitting exactly on the 75.0% cut-off is not counted as near-limit. (The related in-compute flag at line 268\u2013269, `(a.utilization_pct or 0) > 75`, has the same exclusive boundary.)\n\n### Finding 4 \u2014 Declining-balance trend requires 4 declining months, doc says 3 (category 1)\n**File:** `/app/loangen-agent/agent/analytics/services/plaid_analytics.py`, lines 262\u2013266\n\n```python\nbalance_trend = [mcf.ending_balance_estimate for mcf in monthly_cash_flows]\ndeclining = len(balance_trend) >= 3 and all(\n    balance_trend[i] < balance_trend[i - 1]\n    for i in range(max(1, len(balance_trend) - 3), len(balance_trend))\n)\n```\n\n`docs/BANK_ANALYTICS_CHECKLIST.md` line 162 documents:\n\n> `declining_balance_trend` | True if **last 3** `ending_balance_estimate` values are strictly decreasing (requires \u2265 3 months).\n\n\"Last 3 values strictly decreasing\" needs 2 comparisons (`range(len - 2, len)`), but the code uses `range(len - 3, len)` = 3 comparisons = the last **four** values must decline whenever `len >= 4`. Example: balances `[10, 8, 12, 9, 7]` \u2014 last three (`12, 9, 7`) strictly decrease, doc says True, code returns False (checks `8 < 10`? no wait, checks indices 2,3,4: `12<8` fails). It only matches the doc accidentally at exactly `len == 3` thanks to `max(1, ...)`. Off-by-one: `len - 3` should be `len - 2`. This suppresses the `declining_balance_trend` risk flag and the `score -= 10` penalty (line 312\u2013313).\n\n### Finding 5 \u2014 Minimum/canonical QB report shape yields no per-month figures (category 2)\n**File:** `/app/loangen-agent/agent/analytics/services/quickbooks_analytics.py`, lines 78\u201385\n\n```python\ndef _extract_monthly_from_summary(section: dict | None, num_months: int) -> list[float]:\n    if not section:\n        return []\n    summary = section.get(\"Summary\", {})\n    col_data = summary.get(\"ColData\", [])\n    if len(col_data) <= num_months + 2:      # <-- off-by-one: should be <\n        return []\n    return [_safe_float(col_data[i].get(\"value\", \"0\")) for i in range(1, num_months + 1)]\n```\n\nThe QB monthly P&L format (module docstring lines 7\u201310; verified against the format builders in `/app/loangen-agent/agent/seed/trial_data/smb_quickbooks.py` lines 39\u201345 and `/app/loangen-agent/agent/seed/trial_data/demo_user_profiles.py` lines 421\u2013443) has Summary `ColData = [label] + N month values + [TOTAL]` \u2014 **exactly `num_months + 2` entries**. The sibling row parser applies the correct inclusive rule at line 103:\n\n```python\nif len(values) >= num_months + 2:\n    monthly = [...]\n```\n\nThe summary guard demands `len > num_months + 2`, which the format never produces, so it rejects the smallest (and only) valid column count. Effects:\n- `IncomeStatement.monthly_income` (built at line 144) is always `[]`.\n- `_compute_seasonality(pl.monthly_income, pl.months)` (line 486) is gated by `len(monthly_income) < 6` (line 396), so `QBAnalyticsResult.seasonality` is **always None** \u2014 peak/trough months, seasonality ratio, and seasonal risk are never produced, even for a full 12-month report.\n\nFix direction: `if len(col_data) < num_months + 2: return []`.\n\n---\n\n## MEDIUM CONFIDENCE \u2014 suspicious boundaries without an explicit contradicting doc line\n\n### Finding 6 \u2014 `99` runway placeholder treated/echoed as a genuine figure (category 4, documented as placeholder)\n- `/app/loangen-agent/agent/analytics/services/plaid_analytics.py` line 207: `runway = round(total_balance / avg_out, 1) if avg_out > 0 else 99.0`\n- `/app/loangen-agent/agent/analytics/services/quickbooks_analytics.py` line 471: `runway = round(bs.cash_and_bank / burn_rate, 1) if burn_rate > 0 else 99`\n\n`docs/BANK_ANALYTICS_CHECKLIST.md` line 108 explicitly calls `99.0` a \"placeholder 'long runway' when no spend\". Yet at lines 288\u2013289 the placeholder feeds scoring as if real (`if runway > 6: score += 15`), and it is emitted verbatim in `stability.runway_months` of the checklist (line 521) and `QBAnalyticsResult.runway_months`, where consumers (chat LLM, dashboard) cannot distinguish \"99 months of runway\" from \"no outflow data\". Possibly intended, but the reserved code is never filtered downstream.\n\n### Finding 7 \u2014 Missing `available` balance on a credit account inflates utilization to 100%\n**File:** `/app/loangen-agent/agent/analytics/services/plaid_analytics.py`, lines 76\u201382\n\n```python\navailable = acc.balances.available or 0\n...\nif limit and limit > 0 and acc.type == \"credit\":\n    util = round(((limit - available) / limit) * 100, 1)\n```\n\n`PlaidBalance.available` is `Optional[float] = None` (models/plaid.py line 23). Plaid frequently returns `null` available for credit accounts; the `or 0` coercion turns \"unknown\" into utilization = 100%, which then trips `high_utilization_credit` (`> 75`, line 268) and the `score -= 5` penalty. A null placeholder is being treated as a genuine 0 amount.\n\n### Finding 8 \u2014 \"Severe delinquency\" excludes a single 90-day late (off-by-one suspicion)\n**File:** `/app/loangen-agent/agent/analytics/services/credit_bureau_analytics.py`, lines 437\u2013441\n\n```python\nsevere_delinquency_count = sum(\n    1\n    for t in tradelines\n    if (int(t.get(\"late_90\") or 0) > 1) or bool(t.get(\"is_chargeoff\"))\n)\n```\n\nA tradeline with exactly one 90-day-late event (`late_90 == 1`) is not counted as severe, while the adjacent `delinquent_open_count` (lines 442\u2013450) uses `> 0` for the same field. No doc pins the intended rule, but `> 1` on a count where 1 is already a serious event looks like an off-by-one (`>= 1` likely intended).\n\n### Finding 9 \u2014 Utilization guidance labels disagree with inclusive boundaries (cosmetic, category 1)\n**File:** `/app/loangen-agent/agent/array/credit_report_pdf.py`, lines 740\u2013748\n\n```python\nif rev_util <= 10:\n    note = \"Excellent \u2014 utilization under 10% is optimal ...\"\nelif rev_util <= 30:\n    note = \"Good \u2014 utilization under 30% is within the recommended range.\"\n```\n\nAt exactly 10% or 30% the note claims \"under 10%/30%\" while the comparison is inclusive. Display-only mismatch between comparison and stated rule.\n\n---\n\n## Checked and found clean (for completeness)\n\n- `credit_bureau_analytics.py` `_filter_inquiries_last_2_years` (lines 151\u2013171): `inq_date >= cutoff` is correctly inclusive at exactly 730 days; unparseable dates are deliberately included (comment at line 167).\n- `_classify_risk_tier` (lines 111\u2013121): inclusive `>=` bands at 800/740/670/580 match standard FICO tier cut-offs.\n- `quickbooks_analytics.py` `parse_aging` line 310 `if len(cd) < 7` \u2014 the aging format has exactly 7 columns (name + 5 buckets + total, per seed builders), so the inclusive minimum is correct.\n- `_compute_seasonality` guard `len(monthly_income) < 6` (line 396) is internally consistent: top-3/bottom-3 selections are disjoint at exactly 6 (though it is currently dead code due to Finding 5).\n- `plaid_analytics.py` `_enumerate_months_inclusive` (lines 356\u2013370): `while (y, m) <= (y2, m2)` correctly includes both endpoints; single-month case returns that one month.\n- `plaid_analytics.py` line 331 `sorted_dates`: a single transaction yields one element; `[0]`/`[-1]` both resolve \u2014 no minimum-size failure.\n- `plaid_analytics.py` lines 221/234/246: `or 1` guards on totals/`num_months` prevent zero-division without corrupting values (0/1 = 0).\n- `_get_previous_score` (`credit_bureau_analytics.py` lines 561\u2013597): `len(array_reports) < 2 \u2192 None` is correct \u2014 exactly 2 reports correctly yields a trend.\n- `agent/credit/*` and `agent/analytics/services/credit_cache_service.py`: routing/caching only, no threshold computations. `agent/array` computation is limited to the PDF/narrative rendering covered above; medians are not used anywhere in the analytics layer.\n\n## Summary table\n\n| # | File:Lines | Category | Severity |\n|---|-----------|----------|----------|\n| 1 | `credit_bureau_analytics.py:92-101` | Sentinel `-5` not filtered (doc lines 12-17) | High |\n| 2 | `plaid_analytics.py:56-62` | 2-element series returns 0 volatility (doc: \"fewer than 2\") | High |\n| 3 | `plaid_analytics.py:405-407` | `> 75` vs documented `>= 75` | Medium |\n| 4 | `plaid_analytics.py:262-266` | Last-4 vs documented last-3 declining check | Medium |\n| 5 | `quickbooks_analytics.py:78-85` | `<=` vs `<` rejects canonical `num_months + 2` summary width; kills monthly_income & seasonality | High |\n| 6 | `plaid_analytics.py:207,288`, `quickbooks_analytics.py:471` | Documented `99` placeholder used/echoed as real | Low-Medium |\n| 7 | `plaid_analytics.py:76-82` | Null `available` \u2192 100% utilization | Medium |\n| 8 | `credit_bureau_analytics.py:437-441` | `late_90 > 1` likely off-by-one | Low-Medium |\n| 9 | `credit_report_pdf.py:740-748` | Inclusive boundary vs \"under X%\" label | Low |\n</task_result>\n</task>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11230,
+        "completion_tokens": 811,
+        "cached_tokens": 11228,
+        "cost_usd": 0.064123,
+        "extra": {
+          "cache_write_tokens": 986
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-05T20:01:35.455000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "The exploration mapped the four incident repro classes to concrete findings. Let me verify each in the source before fixing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_AoZlWahBsCpijJXBWxGENh",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/analytics/services/credit_bureau_analytics.py",
+            "limit": 110
+          }
+        },
+        {
+          "tool_call_id": "tooluse_BwosSTVFykIvGDJTdILDLy",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/analytics/services/plaid_analytics.py",
+            "offset": 40,
+            "limit": 40
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_AoZlWahBsCpijJXBWxGENh",
+            "content": "<path>/app/loangen-agent/agent/analytics/services/credit_bureau_analytics.py</path>\n<type>file</type>\n<content>\n1: \"\"\"\n2: Credit Bureau Analytics Service.\n3: \n4: Parses raw Array.com MISMO 2.4 JSON from MongoDB and computes\n5: structured credit analytics for the dashboard.\n6: \n7: KEY DESIGN PRINCIPLE:\n8:   _FACTOR and _POSITIVE_FACTOR in the CREDIT_SCORE section are the single\n9:   most important signals for understanding credit health. They explain\n10:   exactly WHY the score is what it is and drive coaching recommendations.\n11: \n12: Special values in Array.com CREDIT_SUMMARY data:\n13:   -3  = Not enough information to compute\n14:   -4  = No data available from bureau\n15:   -5  = Not applicable for this bureau\n16:   N/A = Not applicable\n17:   \"\"  = No data\n18: \n19: Uses Beanie ODM (not raw Motor) for all database queries \u2014 consistent\n20: with the project-wide database pattern in agent.core.database.\n21: \"\"\"\n22: from __future__ import annotations\n23: \n24: import logging\n25: from datetime import datetime, timedelta, timezone\n26: from typing import Any, Callable, Optional\n27: \n28: from agent.analytics.models.credit_bureau import (\n29:     CreditAnalyticsResult,\n30:     CreditFactorAnalysis,\n31:     CreditInquiry,\n32:     CreditLiability,\n33:     CreditReportDocument,\n34:     CreditResponse,\n35:     CreditSummaryMetrics,\n36:     InquiryAnalysis,\n37:     ScoreFactor,\n38:     SummaryDataPoint,\n39:     TradelineAnalysis,\n40: )\n41: from agent.array.models import CreditReport, CreditReportAnalysis\n42: from agent.credit.report_source import is_array_credit_report, latest_array_credit_report_query\n43: \n44: logger = logging.getLogger(\"loangen-credit-analytics\")\n45: \n46: FACTOR_CATEGORY_MAP: dict[str, str] = {\n47:     \"32\": \"utilization\",\n48:     \"65\": \"mix\",\n49:     \"8\": \"history\",\n50:     \"43\": \"age\",\n51:     \"1\": \"history\",\n52:     \"2\": \"utilization\",\n53:     \"3\": \"utilization\",\n54:     \"4\": \"age\",\n55:     \"5\": \"inquiries\",\n56:     \"6\": \"history\",\n57:     \"7\": \"history\",\n58:     \"9\": \"history\",\n59:     \"10\": \"mix\",\n60:     \"14\": \"utilization\",\n61:     \"40\": \"utilization\",\n62: }\n63: \n64: FACTOR_SEVERITY_MAP: dict[str, str] = {\n65:     \"32\": \"medium\",\n66:     \"65\": \"low\",\n67:     \"8\": \"high\",\n68:     \"43\": \"low\",\n69:     \"1\": \"high\",\n70:     \"2\": \"high\",\n71:     \"3\": \"medium\",\n72:     \"6\": \"high\",\n73:     \"7\": \"medium\",\n74:     \"14\": \"high\",\n75:     \"40\": \"medium\",\n76: }\n77: \n78: \n79: def _safe_int(val: str | None, default: int | None = None) -> int | None:\n80:     \"\"\"Parse a CREDIT_SUMMARY value, returning None for special/missing values.\"\"\"\n81:     if val is None or val == \"\" or val == \"N/A\":\n82:         return default\n83:     try:\n84:         v = int(val)\n85:         if v in (-3, -4, -5):\n86:             return default\n87:         return v\n88:     except (ValueError, TypeError):\n89:         return default\n90: \n91: \n92: def _safe_float(val: str | None, default: float | None = None) -> float | None:\n93:     if val is None or val == \"\" or val == \"N/A\":\n94:         return default\n95:     try:\n96:         v = float(val)\n97:         if v in (-3.0, -4.0):\n98:             return default\n99:         return v\n100:     except (ValueError, TypeError):\n101:         return default\n102: \n103: \n104: def _get_summary_value(data_set: list[SummaryDataPoint], attr_id: str) -> str | None:\n105:     for dp in data_set:\n106:         if dp.id == attr_id:\n107:             return dp.value\n108:     return None\n109: \n110: \n\n(Showing lines 1-110 of 776. Use offset=111 to continue.)\n</content>"
+          },
+          {
+            "source_call_id": "tooluse_BwosSTVFykIvGDJTdILDLy",
+            "content": "<path>/app/loangen-agent/agent/analytics/services/plaid_analytics.py</path>\n<type>file</type>\n<content>\n40: }\n41: \n42: INCOME_PRIMARIES = {\"INCOME\", \"TRANSFER_IN\"}\n43: \n44: EXPENSE_PRIMARIES = {\n45:     \"BANK_FEES\", \"ENTERTAINMENT\", \"FOOD_AND_DRINK\", \"GENERAL_MERCHANDISE\",\n46:     \"HOME_IMPROVEMENT\", \"MEDICAL\", \"PERSONAL_CARE\", \"GENERAL_SERVICES\",\n47:     \"GOVERNMENT_AND_NON_PROFIT\", \"TRANSPORTATION\", \"TRAVEL\",\n48:     \"RENT_AND_UTILITIES\", \"LOAN_PAYMENTS\", \"TRANSFER_OUT\",\n49: }\n50: \n51: \n52: def _parse_month(date_str: str) -> str:\n53:     return date_str[:7] if len(date_str) >= 7 else date_str\n54: \n55: \n56: def _compute_volatility(values: list[float]) -> float:\n57:     if len(values) <= 2:\n58:         return 0.0\n59:     mean = statistics.mean(values)\n60:     if mean == 0:\n61:         return 0.0\n62:     return round((statistics.stdev(values) / abs(mean)) * 100, 1)\n63: \n64: \n65: def compute_plaid_analytics(raw_json: dict[str, Any], smb_id: str) -> PlaidAnalyticsResult:\n66:     \"\"\"Compute full bank analytics from a raw Plaid transactions/get response.\"\"\"\n67:     response = PlaidTransactionsResponse.model_validate(raw_json)\n68: \n69:     # --- Accounts ---\n70:     accounts: list[AccountSummary] = []\n71:     total_balance = 0.0\n72:     total_available = 0.0\n73:     type_counts: dict[str, int] = defaultdict(int)\n74: \n75:     for acc in response.accounts:\n76:         current = acc.balances.current or 0\n77:         available = acc.balances.available or 0\n78:         limit = acc.balances.limit\n79: \n\n(Showing lines 40-79 of 860. Use offset=80 to continue.)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10405,
+        "completion_tokens": 922,
+        "cached_tokens": 10403,
+        "cost_usd": 0.1541355,
+        "extra": {
+          "cache_write_tokens": 7809
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-05T20:01:54.854000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_0ODBiFh3H12gEaoYExdFUK",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/analytics/services/plaid_analytics.py",
+            "limit": 30,
+            "offset": 395
+          }
+        },
+        {
+          "tool_call_id": "tooluse_gHa86FCc7Yhb0lGKULj9KT",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/analytics/services/quickbooks_analytics.py",
+            "limit": 50,
+            "offset": 70
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_0ODBiFh3H12gEaoYExdFUK",
+            "content": "<path>/app/loangen-agent/agent/analytics/services/plaid_analytics.py</path>\n<type>file</type>\n<content>\n395:     income_sources = sorted(\n396:         plaid_analytics_payload.get(\"income_sources\") or [],\n397:         key=lambda x: float(x.get(\"total_amount\") or 0),\n398:         reverse=True,\n399:     )\n400:     risk = plaid_analytics_payload.get(\"risk_flags\") or {}\n401: \n402:     credit_accounts = [a for a in accounts if str(a.get(\"type\") or \"\").lower() == \"credit\"]\n403:     limits = [float(a.get(\"credit_limit\") or 0) for a in credit_accounts if a.get(\"credit_limit\")]\n404:     total_credit_limit = round(sum(limits), 2)\n405:     near_limit_count = sum(\n406:         1 for a in credit_accounts if float(a.get(\"utilization_pct\") or 0) > 75.0\n407:     )\n408:     utilizations = [float(a.get(\"utilization_pct\") or 0) for a in credit_accounts if a.get(\"utilization_pct\") is not None]\n409:     overall_util = round(sum(utilizations) / len(utilizations), 1) if utilizations else None\n410: \n411:     months_observed = sorted({str(m.get(\"month\")) for m in monthly if m.get(\"month\")})\n412:     expected: list[str] = []\n413:     if len(months_observed) >= 2:\n414:         expected = _enumerate_months_inclusive(months_observed[0], months_observed[-1])\n415:     missing_months = sorted(set(expected) - set(months_observed)) if expected else []\n416: \n417:     total_inflows = round(sum(float(m.get(\"total_inflows\") or 0) for m in monthly), 2)\n418:     total_outflows = round(sum(float(m.get(\"total_outflows\") or 0) for m in monthly), 2)\n419:     net_total = round(total_inflows - total_outflows, 2)\n420: \n421:     largest_inflow_ever = 0.0\n422:     largest_outflow_ever = 0.0\n423:     for m in monthly:\n424:         largest_inflow_ever = max(largest_inflow_ever, float(m.get(\"largest_inflow\") or 0))\n\n(Showing lines 395-424 of 860. Use offset=425 to continue.)\n</content>"
+          },
+          {
+            "source_call_id": "tooluse_gHa86FCc7Yhb0lGKULj9KT",
+            "content": "<path>/app/loangen-agent/agent/analytics/services/quickbooks_analytics.py</path>\n<type>file</type>\n<content>\n70:     summary = section.get(\"Summary\", {})\n71:     col_data = summary.get(\"ColData\", [])\n72:     if not col_data:\n73:         return 0.0\n74:     idx = col_index if col_index >= 0 else len(col_data) - 1\n75:     return _safe_float(col_data[idx].get(\"value\", \"0\"))\n76: \n77: \n78: def _extract_monthly_from_summary(section: dict | None, num_months: int) -> list[float]:\n79:     if not section:\n80:         return []\n81:     summary = section.get(\"Summary\", {})\n82:     col_data = summary.get(\"ColData\", [])\n83:     if len(col_data) <= num_months + 2:\n84:         return []\n85:     return [_safe_float(col_data[i].get(\"value\", \"0\")) for i in range(1, num_months + 1)]\n86: \n87: \n88: def _extract_data_rows(section: dict | None) -> list[dict]:\n89:     if not section:\n90:         return []\n91:     inner_rows = section.get(\"Rows\", {}).get(\"Row\", [])\n92:     return [r for r in inner_rows if r.get(\"type\") == \"Data\"]\n93: \n94: \n95: def _row_to_line_item(row: dict, num_months: int) -> IncomeStatementLine:\n96:     col_data = row.get(\"ColData\", [])\n97:     values = _get_coldata_values(col_data)\n98:     name = values[0] if values else \"\"\n99:     account_id = col_data[0].get(\"id\", \"\") if col_data else \"\"\n100:     total = _safe_float(values[-1]) if values else 0\n101: \n102:     monthly = []\n103:     if len(values) >= num_months + 2:\n104:         monthly = [_safe_float(values[i]) for i in range(1, num_months + 1)]\n105: \n106:     return IncomeStatementLine(\n107:         name=name,\n108:         account_id=account_id,\n109:         total=total,\n110:         monthly=monthly,\n111:     )\n112: \n113: \n114: # ---------------------------------------------------------------------------\n115: # Report parsers\n116: # ---------------------------------------------------------------------------\n117: \n118: \n119: def parse_profit_and_loss(raw: dict[str, Any]) -> IncomeStatement:\n\n(Showing lines 70-119 of 641. Use offset=120 to continue.)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 18214,
+        "completion_tokens": 235,
+        "cached_tokens": 18212,
+        "cost_usd": 0.0708445,
+        "extra": {
+          "cache_write_tokens": 3269
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-05T20:02:00.807000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_wvtzJicM2OKhO5yNIS3QK1",
+          "function_name": "grep",
+          "arguments": {
+            "pattern": "fewer than 2|>= 75|near_limit",
+            "path": "/app/loangen-agent/docs"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_wvtzJicM2OKhO5yNIS3QK1",
+            "content": "Found 2 matches\n/app/loangen-agent/docs/BANK_ANALYTICS_CHECKLIST.md:\n  Line 66: | `credit_exposure.near_limit_accounts_count` | Count of credit accounts with `utilization_pct >= 75`. |\n\n  Line 105: | `inflow_volatility_pct` | Coefficient of variation of monthly inflows: \\(\\text{round}\\left(\\frac{\\text{stdev}(\\text{inflow values})}{\\text{mean}(\\text{inflow values})} \\times 100,\\, 1\\right)\\). If fewer than 2 months or mean = 0 \u2192 `0`. |\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 21483,
+        "completion_tokens": 172,
+        "cached_tokens": 21481,
+        "cost_usd": 0.0538635,
+        "extra": {
+          "cache_write_tokens": 1901
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-05T20:02:08.207000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "Docs confirmed. Now checking whether the in-compute high-utilization flag also has a documented rule:",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_1f9XviKJw4aRyvqbpUfDBW",
+          "function_name": "grep",
+          "arguments": {
+            "path": "/app/loangen-agent/docs",
+            "pattern": "utilization"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_1f9XviKJw4aRyvqbpUfDBW",
+            "content": "Found 4 matches\n/app/loangen-agent/docs/BANK_ANALYTICS_CHECKLIST.md:\n  Line 66: | `credit_exposure.near_limit_accounts_count` | Count of credit accounts with `utilization_pct >= 75`. |\n\n  Line 67: | `credit_exposure.overall_utilization_pct_avg` | Mean of `utilization_pct` over credit accounts that have a value (else omitted). |\n\n  Line 68: | `credit_exposure.high_utilization_flag` | `risk_flags.high_utilization_credit` from analytics. |\n\n  Line 171: | `cash_flow_score` | Heuristic 0\u2013100: starts at 50; adjusts for avg net, runway, negative months, inflow volatility, gambling, fees, declining balance, high utilization (see `compute_plaid_analytics`). |\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 23384,
+        "completion_tokens": 319,
+        "cached_tokens": 23382,
+        "cost_usd": 0.0442645,
+        "extra": {
+          "cache_write_tokens": 393
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-05T20:02:17.821000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_K08YPebE1JLeZ2Czyjymyj",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/analytics/services/plaid_analytics.py",
+            "limit": 15,
+            "offset": 260
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_K08YPebE1JLeZ2Czyjymyj",
+            "content": "<path>/app/loangen-agent/agent/analytics/services/plaid_analytics.py</path>\n<type>file</type>\n<content>\n260: \n261:     # --- Risk flags ---\n262:     balance_trend = [mcf.ending_balance_estimate for mcf in monthly_cash_flows]\n263:     declining = len(balance_trend) >= 3 and all(\n264:         balance_trend[i] < balance_trend[i - 1]\n265:         for i in range(max(1, len(balance_trend) - 3), len(balance_trend))\n266:     )\n267: \n268:     high_util = any(\n269:         (a.utilization_pct or 0) > 75 for a in accounts\n270:     )\n271: \n272:     risk_flags = RiskFlags(\n273:         gambling_transactions=risk_gambling,\n274:         loan_payment_count=risk_loan_count,\n\n(Showing lines 260-274 of 860. Use offset=275 to continue.)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 23777,
+        "completion_tokens": 118,
+        "cached_tokens": 23775,
+        "cost_usd": 0.0373825,
+        "extra": {
+          "cache_write_tokens": 615
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-05T20:02:22.259000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_MGZeEexqkIpNCxAu3C7QrM",
+          "function_name": "todowrite",
+          "arguments": {
+            "todos": [
+              {
+                "content": "Explore codebase and locate summarization layer",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Identify boundary/placeholder bugs",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Fix: -5 sentinel not filtered in _safe_float (credit_bureau_analytics.py)",
+                "priority": "high",
+                "status": "in_progress"
+              },
+              {
+                "content": "Fix: 2-month volatility guard <=2 vs <2 (plaid_analytics.py)",
+                "priority": "high",
+                "status": "pending"
+              },
+              {
+                "content": "Fix: near-limit >75 vs documented >=75 (plaid_analytics.py)",
+                "priority": "high",
+                "status": "pending"
+              },
+              {
+                "content": "Fix: QB summary min-width <= vs < (quickbooks_analytics.py)",
+                "priority": "high",
+                "status": "pending"
+              },
+              {
+                "content": "Run tests to confirm no regressions",
+                "priority": "high",
+                "status": "pending"
+              }
+            ]
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_MGZeEexqkIpNCxAu3C7QrM",
+            "content": "[\n  {\n    \"content\": \"Explore codebase and locate summarization layer\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Identify boundary/placeholder bugs\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix: -5 sentinel not filtered in _safe_float (credit_bureau_analytics.py)\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix: 2-month volatility guard <=2 vs <2 (plaid_analytics.py)\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix: near-limit >75 vs documented >=75 (plaid_analytics.py)\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix: QB summary min-width <= vs < (quickbooks_analytics.py)\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Run tests to confirm no regressions\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 24392,
+        "completion_tokens": 737,
+        "cached_tokens": 24390,
+        "cost_usd": 0.0668725,
+        "extra": {
+          "cache_write_tokens": 449
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-08-05T20:02:39.354000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_jWPDgiLjSCtbek4Pu3Fxrv",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/analytics/services/credit_bureau_analytics.py",
+            "oldString": "        if v in (-3.0, -4.0):\n            return default",
+            "newString": "        if v in (-3.0, -4.0, -5.0):\n            return default"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_jzVjSq8SqJfgwIA0I4htGo",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/analytics/services/plaid_analytics.py",
+            "oldString": "    if len(values) <= 2:\n        return 0.0",
+            "newString": "    if len(values) < 2:\n        return 0.0"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_qUiodd01t8XkTd52ICKlrD",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/analytics/services/plaid_analytics.py",
+            "oldString": "        1 for a in credit_accounts if float(a.get(\"utilization_pct\") or 0) > 75.0",
+            "newString": "        1 for a in credit_accounts if float(a.get(\"utilization_pct\") or 0) >= 75.0"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_gFzavv7XfTeVNqAk7QaNI1",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/analytics/services/quickbooks_analytics.py",
+            "oldString": "    if len(col_data) <= num_months + 2:\n        return []",
+            "newString": "    if len(col_data) < num_months + 2:\n        return []"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_jWPDgiLjSCtbek4Pu3Fxrv",
+            "content": "Edit applied successfully."
+          },
+          {
+            "source_call_id": "tooluse_jzVjSq8SqJfgwIA0I4htGo",
+            "content": "Edit applied successfully."
+          },
+          {
+            "source_call_id": "tooluse_qUiodd01t8XkTd52ICKlrD",
+            "content": "Edit applied successfully."
+          },
+          {
+            "source_call_id": "tooluse_gFzavv7XfTeVNqAk7QaNI1",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 24841,
+        "completion_tokens": 658,
+        "cached_tokens": 24839,
+        "cost_usd": 0.0680715,
+        "extra": {
+          "cache_write_tokens": 825
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-08-05T20:02:50.545000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "Now verify with quick sanity checks on the margin cases, then run the full suite:",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_zJQoPCzuThwPz8XKBVpMyl",
+          "function_name": "bash",
+          "arguments": {
+            "command": "python - <<'EOF'\nfrom agent.analytics.services.credit_bureau_analytics import _safe_float, _safe_int\nassert _safe_float(\"-5\") is None and _safe_float(\"-3\") is None and _safe_float(\"-4.0\") is None\nassert _safe_float(\"-5.0\") is None\nassert _safe_float(\"42.5\") == 42.5 and _safe_float(\"0\") == 0.0\nassert _safe_int(\"-5\") is None and _safe_int(\"7\") == 7\n\nfrom agent.analytics.services.plaid_analytics import _compute_volatility\nimport statistics\nassert _compute_volatility([100.0]) == 0.0\nassert _compute_volatility([100.0, 50.0]) == round(statistics.stdev([100.0,50.0])/75.0*100,1)\nassert _compute_volatility([]) == 0.0\nassert _compute_volatility([10.0, 10.0, 10.0]) == 0.0\n\nfrom agent.analytics.services.quickbooks_analytics import _extract_monthly_from_summary\n# canonical: label + N months + TOTAL = N+2 entries\nsec = {\"Summary\": {\"ColData\": [{\"value\": \"Total Income\"}, {\"value\": \"100\"}, {\"value\": \"200\"}, {\"value\": \"300\"}]}}\nassert _extract_monthly_from_summary(sec, 2) == [100.0, 200.0], _extract_monthly_from_summary(sec, 2)\n# too-narrow still rejected\nassert _extract_monthly_from_summary({\"Summary\": {\"ColData\": [{\"value\": \"x\"}, {\"value\": \"1\"}]}}, 2) == []\nassert _extract_monthly_from_summary(None, 3) == []\nprint(\"all margin checks pass\")\nEOF",
+            "workdir": "/app/loangen-agent"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_zJQoPCzuThwPz8XKBVpMyl",
+            "content": "all margin checks pass\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 25666,
+        "completion_tokens": 830,
+        "cached_tokens": 25664,
+        "cost_usd": 0.077134,
+        "extra": {
+          "cache_write_tokens": 796
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-08-05T20:03:07.101000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_RIE2C2Rc6X98h8XxUoXwmz",
+          "function_name": "bash",
+          "arguments": {
+            "command": "python -m pytest tests -v 2>&1 | tail -40",
+            "workdir": "/app/loangen-agent"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_RIE2C2Rc6X98h8XxUoXwmz",
+            "content": "            if doc_id == \"doc-stale\":\n                return stale_doc\n            return None\n    \n        mock_svc = MagicMock()\n        mock_svc.re_enqueue_stale_document = AsyncMock(return_value=True)\n    \n        with patch(\"agent.core.config.settings\") as mock_settings:\n            mock_settings.document_ingestion_enabled = True\n            mock_settings.ingestion_stale_job_minutes = 15\n            with patch(\n                \"agent.services.smbapplications.models.SMBApplication.get\",\n                new=AsyncMock(side_effect=fake_get),\n            ):\n                with patch(\n                    \"agent.documents.ingestion.stale_recovery.UserDocument.get\",\n                    new=AsyncMock(side_effect=fake_get),\n                ):\n                    with patch(\n                        \"agent.documents.ingestion.readiness.get_application_document_ids\",\n                        new=AsyncMock(return_value=[\"doc-stale\"]),\n                    ):\n                        recovered = await recover_stale_documents_for_application(\n                            \"app-1\",\n                            service=mock_svc,\n                        )\n    \n>       self.assertEqual(recovered, 1)\nE       AssertionError: 0 != 1\n\ntests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n================== 7 failed, 166 passed, 24 skipped in 2.37s ===================\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 26462,
+        "completion_tokens": 97,
+        "cached_tokens": 26460,
+        "cost_usd": 0.0418675,
+        "extra": {
+          "cache_write_tokens": 843
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-08-05T20:03:15.278000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "7 failures appeared, but all in unrelated areas (document ingestion, Twilio calls). Checking whether they're pre-existing:",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_oGGe5otWBdwDASrkKNPbNV",
+          "function_name": "bash",
+          "arguments": {
+            "command": "git stash && python -m pytest tests -q 2>&1 | tail -12; git stash pop",
+            "workdir": "/app/loangen-agent"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_oGGe5otWBdwDASrkKNPbNV",
+            "content": "Saved working directory and index state WIP on main: 6620f0b import codebase\nE       AssertionError: 0 != 1\n\ntests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n7 failed, 166 passed, 24 skipped in 2.36s\nOn branch main\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git restore <file>...\" to discard changes in working directory)\n\tmodified:   agent/analytics/services/credit_bureau_analytics.py\n\tmodified:   agent/analytics/services/plaid_analytics.py\n\tmodified:   agent/analytics/services/quickbooks_analytics.py\n\nno changes added to commit (use \"git add\" and/or \"git commit -a\")\nDropped refs/stash@{0} (d311b2d658a8e0bf9aba8afb78164e63d15d2a36)\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 27305,
+        "completion_tokens": 259,
+        "cached_tokens": 27303,
+        "cost_usd": 0.052048,
+        "extra": {
+          "cache_write_tokens": 942
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 14,
+      "timestamp": "2026-08-05T20:03:26.908000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_5ufwa1mTTE8jA8hVHmOJAA",
+          "function_name": "bash",
+          "arguments": {
+            "command": "git diff",
+            "workdir": "/app/loangen-agent"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_0THMjE8Gb2kpLaBhOipB0D",
+          "function_name": "todowrite",
+          "arguments": {
+            "todos": [
+              {
+                "content": "Explore codebase and locate summarization layer",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Identify boundary/placeholder bugs",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Fix: -5 sentinel not filtered in _safe_float (credit_bureau_analytics.py)",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Fix: 2-month volatility guard <=2 vs <2 (plaid_analytics.py)",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Fix: near-limit >75 vs documented >=75 (plaid_analytics.py)",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Fix: QB summary min-width <= vs < (quickbooks_analytics.py)",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Run tests to confirm no regressions",
+                "priority": "high",
+                "status": "completed"
+              }
+            ]
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_5ufwa1mTTE8jA8hVHmOJAA",
+            "content": "diff --git a/loangen-agent/agent/analytics/services/credit_bureau_analytics.py b/loangen-agent/agent/analytics/services/credit_bureau_analytics.py\nindex 547bffc..2e62210 100644\n--- a/loangen-agent/agent/analytics/services/credit_bureau_analytics.py\n+++ b/loangen-agent/agent/analytics/services/credit_bureau_analytics.py\n@@ -94,7 +94,7 @@ def _safe_float(val: str | None, default: float | None = None) -> float | None:\n         return default\n     try:\n         v = float(val)\n-        if v in (-3.0, -4.0):\n+        if v in (-3.0, -4.0, -5.0):\n             return default\n         return v\n     except (ValueError, TypeError):\ndiff --git a/loangen-agent/agent/analytics/services/plaid_analytics.py b/loangen-agent/agent/analytics/services/plaid_analytics.py\nindex 2a34475..580d220 100644\n--- a/loangen-agent/agent/analytics/services/plaid_analytics.py\n+++ b/loangen-agent/agent/analytics/services/plaid_analytics.py\n@@ -54,7 +54,7 @@ def _parse_month(date_str: str) -> str:\n \n \n def _compute_volatility(values: list[float]) -> float:\n-    if len(values) <= 2:\n+    if len(values) < 2:\n         return 0.0\n     mean = statistics.mean(values)\n     if mean == 0:\n@@ -403,7 +403,7 @@ def build_bank_analytics_checklist_v1(plaid_analytics_payload: dict[str, Any]) -\n     limits = [float(a.get(\"credit_limit\") or 0) for a in credit_accounts if a.get(\"credit_limit\")]\n     total_credit_limit = round(sum(limits), 2)\n     near_limit_count = sum(\n-        1 for a in credit_accounts if float(a.get(\"utilization_pct\") or 0) > 75.0\n+        1 for a in credit_accounts if float(a.get(\"utilization_pct\") or 0) >= 75.0\n     )\n     utilizations = [float(a.get(\"utilization_pct\") or 0) for a in credit_accounts if a.get(\"utilization_pct\") is not None]\n     overall_util = round(sum(utilizations) / len(utilizations), 1) if utilizations else None\ndiff --git a/loangen-agent/agent/analytics/services/quickbooks_analytics.py b/loangen-agent/agent/analytics/services/quickbooks_analytics.py\nindex acf7ea9..0ddbad3 100644\n--- a/loangen-agent/agent/analytics/services/quickbooks_analytics.py\n+++ b/loangen-agent/agent/analytics/services/quickbooks_analytics.py\n@@ -80,7 +80,7 @@ def _extract_monthly_from_summary(section: dict | None, num_months: int) -> list\n         return []\n     summary = section.get(\"Summary\", {})\n     col_data = summary.get(\"ColData\", [])\n-    if len(col_data) <= num_months + 2:\n+    if len(col_data) < num_months + 2:\n         return []\n     return [_safe_float(col_data[i].get(\"value\", \"0\")) for i in range(1, num_months + 1)]\n \n"
+          },
+          {
+            "source_call_id": "tooluse_0THMjE8Gb2kpLaBhOipB0D",
+            "content": "[\n  {\n    \"content\": \"Explore codebase and locate summarization layer\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Identify boundary/placeholder bugs\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix: -5 sentinel not filtered in _safe_float (credit_bureau_analytics.py)\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix: 2-month volatility guard <=2 vs <2 (plaid_analytics.py)\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix: near-limit >75 vs documented >=75 (plaid_analytics.py)\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix: QB summary min-width <= vs < (quickbooks_analytics.py)\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Run tests to confirm no regressions\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  }\n]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 28247,
+        "completion_tokens": 583,
+        "cached_tokens": 28245,
+        "cost_usd": 0.069115,
+        "extra": {
+          "cache_write_tokens": 936
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 15,
+      "timestamp": "2026-08-05T20:03:54.909000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-fable-5",
+      "message": "Done. Four one-line fixes in the deterministic summarization layer, each mapping to one of the four reported margin classes:\n\n**1. Reserved placeholder echoed as data** \u2014 agent/analytics/services/credit_bureau_analytics.py:97\nThe module docstring documents Array.com sentinel codes `-3`/`-4`/`-5`. `_safe_int` filtered all three, but `_safe_float` missed `-5.0` (\"Not applicable for this bureau\"), so every float summary metric (total balance, revolving utilization %, monthly payments, etc.) echoed `-5` as a genuine amount. Added `-5.0` to the filter.\n\n**2. Even pair decided by count alone** \u2014 agent/analytics/services/plaid_analytics.py:57\n`_compute_volatility` returned `0.0` for `len(values) <= 2`, but the documented rule (docs/BANK_ANALYTICS_CHECKLIST.md:105) says only \"fewer than 2 months\" short-circuits, and `statistics.stdev` is well-defined for exactly 2 points. A two-month window was reported as zero volatility, inflating `cash_flow_score` and misclassifying affordability. Changed to `< 2`.\n\n**3. Value exactly on the documented cut-off** \u2014 agent/analytics/services/plaid_analytics.py:406\n`near_limit_accounts_count` is documented (docs/BANK_ANALYTICS_CHECKLIST.md:66) as counting accounts with `utilization_pct >= 75`, but the code used `> 75.0`, excluding an account sitting exactly at 75%. Changed to `>=`.\n\n**4. Smallest well-formed report yields no per-period figures** \u2014 agent/analytics/services/quickbooks_analytics.py:83\nThe QB summary row format is `[label] + N month values + [TOTAL]` \u2014 exactly `num_months + 2` columns (the only width the format produces; the sibling row parser at line 103 correctly uses `>= num_months + 2`). The summary guard demanded strictly more, so `monthly_income` was always empty and seasonality analysis was permanently dead. Changed `<=` to `<`.\n\nVerification:\n- Direct margin checks pass: `-5` sentinels now discarded, 2-month volatility computed, exact-75% counted, canonical-width QB summary yields per-month values (and narrower malformed input still rejected).\n- `python -m pytest tests -v`: 166 passed, 24 skipped \u2014 identical to the pristine tree. The 7 failures (document ingestion, inbound calls) pre-exist before my changes (confirmed via `git stash`) and are unrelated to the analytics layer. Nothing under `tests/` was touched.",
+      "metrics": {
+        "prompt_tokens": 29183,
+        "completion_tokens": 902,
+        "cached_tokens": 29181,
+        "cost_usd": 0.1003135,
+        "extra": {
+          "cache_write_tokens": 2081
+        }
+      },
+      "llm_call_count": 1
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 304994,
+    "total_completion_tokens": 6892,
+    "total_cached_tokens": 304966,
+    "total_cost_usd": 0.9332210000000001,
+    "total_steps": 15
+  }
+}

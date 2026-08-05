@@ -1,87 +1,139 @@
 {
-  "model": "openrouter/anthropic/claude-opus-5",
+  "model": "claude-opus-5",
+  "routes": [
+    "openrouter/anthropic/claude-opus-5",
+    "amazon-bedrock/global.anthropic.claude-opus-5"
+  ],
   "harness": "opencode-1.18.13",
   "environment": "daytona-2cpu-4gb-amd64",
-  "attempts_per_task": 1,
+  "target_attempts_per_available_task": 10,
+  "methodology": "Original OpenRouter attempt plus validated completion attempts, primarily on Bedrock; only trials with real verifier verdicts enter n. Fable/FIU remains excluded after consistent OpenRouter and Bedrock content filters; Fable/doc remains provider-limited at n=3 after a bounded exact-harness retry sweep across both providers.",
   "tasks": [
     {
       "task": "latent-credit-normalize",
-      "n": 1,
-      "c": 1,
-      "pass@1": 1.0,
-      "pass@3": null,
-      "pass@10": null
+      "n": 10,
+      "c": 8,
+      "pass@1": 0.8,
+      "pass@3": 1.0,
+      "pass@10": 1.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "latent-doc-extractors",
-      "n": 1,
-      "c": 1,
-      "pass@1": 1.0,
-      "pass@3": null,
-      "pass@10": null
+      "n": 10,
+      "c": 6,
+      "pass@1": 0.6,
+      "pass@3": 0.9667,
+      "pass@10": 1.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "latent-financial-tools",
-      "n": 1,
-      "c": 0,
-      "pass@1": 0.0,
-      "pass@3": null,
-      "pass@10": null
+      "n": 10,
+      "c": 3,
+      "pass@1": 0.3,
+      "pass@3": 0.7083,
+      "pass@10": 1.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "latent-phone-invites",
-      "n": 1,
-      "c": 1,
-      "pass@1": 1.0,
-      "pass@3": null,
-      "pass@10": null
+      "n": 10,
+      "c": 9,
+      "pass@1": 0.9,
+      "pass@3": 1.0,
+      "pass@10": 1.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "xrepo-fiu-latent",
-      "n": 1,
-      "c": 1,
+      "n": 10,
+      "c": 10,
       "pass@1": 1.0,
-      "pass@3": null,
-      "pass@10": null
+      "pass@3": 1.0,
+      "pass@10": 1.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "xrepo-txenrich-latent",
-      "n": 1,
-      "c": 1,
-      "pass@1": 1.0,
-      "pass@3": null,
-      "pass@10": null
+      "n": 10,
+      "c": 9,
+      "pass@1": 0.9,
+      "pass@3": 1.0,
+      "pass@10": 1.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "xrepo-txenrich3-latent",
-      "n": 1,
-      "c": 1,
+      "n": 10,
+      "c": 10,
       "pass@1": 1.0,
-      "pass@3": null,
-      "pass@10": null
+      "pass@3": 1.0,
+      "pass@10": 1.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "xrepo-txenrich4-latent",
-      "n": 1,
+      "n": 10,
       "c": 0,
       "pass@1": 0.0,
-      "pass@3": null,
-      "pass@10": null
+      "pass@3": 0.0,
+      "pass@10": 0.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     }
   ],
   "totals": {
-    "attempts": 8,
-    "solves": 6,
-    "mean_pass@1": 0.75,
-    "cost_usd": 35.3954,
-    "model_turns": 367,
-    "tool_calls": 375,
+    "attempts": 80,
+    "solves": 55,
+    "macro_pass@1": 0.6875,
+    "macro_pass@3": 0.8344,
+    "macro_pass@10": 0.875,
+    "macro_task_counts": {
+      "pass@1": 8,
+      "pass@3": 8,
+      "pass@10": 8
+    },
+    "cost_usd": 294.0547,
+    "cost_usd_by_provider": {
+      "amazon-bedrock": 258.6594,
+      "openrouter": 35.3954
+    },
+    "attempts_by_provider": {
+      "openrouter": 8,
+      "amazon-bedrock": 72
+    },
+    "model_turns": 3061,
+    "tool_calls": 3316,
     "duration_seconds": {
-      "mean": 802.522,
-      "median": 537.047,
-      "p90": 1812.732,
-      "min": 438.98,
-      "max": 1812.732
+      "mean": 766.09,
+      "median": 614.521,
+      "p90": 1408.293,
+      "min": 304.255,
+      "max": 1827.951
     }
   },
   "per_attempt_data": "opus5_trials.json"

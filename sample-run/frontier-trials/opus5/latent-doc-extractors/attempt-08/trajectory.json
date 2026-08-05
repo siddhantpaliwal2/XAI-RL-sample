@@ -1,0 +1,1004 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "ses_02c856018ffevF1Cqei4qlUdTc",
+  "agent": {
+    "name": "opencode",
+    "version": "1.18.13",
+    "model_name": "amazon-bedrock/global.anthropic.claude-opus-5"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "source": "user",
+      "message": "<uploaded_files>/app</uploaded_files>\n\n# DEALDOC-2214: some deal documents lose one field at extraction\n\n**Type:** Bug \u00b7 **Priority:** High \u00b7 **Component:** document field extraction\n**Reporter:** underwriting operations\n\n## Description\n\nSince the last review cycle we have four confirmed cases where a deal document\nwas parsed, most fields came out right, but one structured number the document\nplainly contains never made it into the extracted fields. Re-uploading\nreproduces it every time, and in each case a *nearly identical* document - same\nlayout, slightly different figures - extracts perfectly. So this is not a\nformatting or OCR problem; something about the particular values themselves is\ntripping the extraction.\n\n## Cases\n\n1. **An appraisal** whose appraised value comes back empty. The document is\n   well-formed and the figure is plainly there; a sister appraisal for a\n   somewhat larger property extracts its value fine.\n\n2. **A rent roll** that yields no total rent. It is a small roll - the leanest\n   one we've seen come through - but it is a legitimate rent roll, and rolls\n   with more rows total correctly.\n\n3. **A settlement statement** whose loan amount comes back empty. It is a\n   modest loan, on the small end of what we write, but well within what the\n   product allows; larger statements extract normally.\n\n4. **A credit summary** for an exceptionally strong borrower that yields no\n   score at all. Weaker borrowers' summaries extract their scores fine. The\n   strong score is a real, valid score - the extractor just won't hand it over.\n\n## Acceptance\n\nThe extractors are deterministic - same document text in, same fields out.\nWhatever is rejecting these particular values must be found and corrected so\neach case above yields the number its document states, and nothing that\ncurrently extracts correctly changes. The repository's existing tests all pass\ntoday and must still pass.\n\nDo not modify anything under `loangen-agent/tests/`.\n\nVerify with:\n\n    cd /app/loangen-agent && python -m pytest tests -v\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-05T19:50:59.760000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "I'll start by exploring the repository structure to understand the codebase.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_IvORIxLjp23z87AhhWykqr",
+          "function_name": "bash",
+          "arguments": {
+            "command": "find /app/loangen-agent -type f -name \"*.py\" | head -50 && echo \"---\" && ls /app/loangen-agent"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_OOwQ09iT5kCfDh6yu9Rk4o",
+          "function_name": "task",
+          "arguments": {
+            "description": "Find document field extraction code",
+            "prompt": "Explore the repository at /app/loangen-agent (workspace root /app). I need a thorough map of the document field extraction subsystem.\n\nSpecifically find and report:\n1. All files involved in extracting structured fields from deal documents (appraisal appraised value, rent roll total rent, settlement statement loan amount, credit summary credit score).\n2. The exact file paths and line numbers of any validation, bounds-checking, range-checking, or threshold logic applied to extracted numeric values (e.g. min/max constraints, plausibility checks, sanity filters).\n3. Any constants/config defining limits (e.g. MIN_/MAX_ values, product limits, score ranges).\n4. The test files under loangen-agent/tests/ that cover extraction, and what they assert.\n\nReport file paths with line numbers and quote the relevant code snippets. Be very thorough.",
+            "subagent_type": "explore"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_IvORIxLjp23z87AhhWykqr",
+            "content": "/app/loangen-agent/agent/__init__.py\n/app/loangen-agent/agent/analytics/__init__.py\n/app/loangen-agent/agent/analytics/models/__init__.py\n/app/loangen-agent/agent/analytics/models/credit_bureau.py\n/app/loangen-agent/agent/analytics/models/plaid.py\n/app/loangen-agent/agent/analytics/models/quickbooks.py\n/app/loangen-agent/agent/analytics/router.py\n/app/loangen-agent/agent/analytics/seed.py\n/app/loangen-agent/agent/analytics/services/__init__.py\n/app/loangen-agent/agent/analytics/services/bank_plaid_analytics_service.py\n/app/loangen-agent/agent/analytics/services/credit_bureau_analytics.py\n/app/loangen-agent/agent/analytics/services/credit_cache_service.py\n/app/loangen-agent/agent/analytics/services/credit_report_analytics_service.py\n/app/loangen-agent/agent/analytics/services/plaid_analytics.py\n/app/loangen-agent/agent/analytics/services/quickbooks_analytics.py\n/app/loangen-agent/agent/array/__init__.py\n/app/loangen-agent/agent/array/client.py\n/app/loangen-agent/agent/array/credit_report_narrative.py\n/app/loangen-agent/agent/array/credit_report_pdf.py\n/app/loangen-agent/agent/array/internal_router.py\n/app/loangen-agent/agent/array/models.py\n/app/loangen-agent/agent/array/router.py\n/app/loangen-agent/agent/array/schemas.py\n/app/loangen-agent/agent/array/service.py\n/app/loangen-agent/agent/auth/__init__.py\n/app/loangen-agent/agent/auth/common/__init__.py\n/app/loangen-agent/agent/auth/common/audit_models.py\n/app/loangen-agent/agent/auth/common/audit_service.py\n/app/loangen-agent/agent/auth/common/enums.py\n/app/loangen-agent/agent/auth/common/migration_service.py\n/app/loangen-agent/agent/auth/common/schemas.py\n/app/loangen-agent/agent/auth/lender/__init__.py\n/app/loangen-agent/agent/auth/lender/models.py\n/app/loangen-agent/agent/auth/lender/router.py\n/app/loangen-agent/agent/auth/lender/schemas.py\n/app/loangen-agent/agent/auth/lender/service.py\n/app/loangen-agent/agent/auth/user/__init__.py\n/app/loangen-agent/agent/auth/user/models.py\n/app/loangen-agent/agent/auth/user/router.py\n/app/loangen-agent/agent/auth/user/schemas.py\n/app/loangen-agent/agent/auth/user/service.py\n/app/loangen-agent/agent/billing/__init__.py\n/app/loangen-agent/agent/billing/models.py\n/app/loangen-agent/agent/billing/router.py\n/app/loangen-agent/agent/billing/schemas.py\n/app/loangen-agent/agent/billing/service.py\n/app/loangen-agent/agent/chat/__init__.py\n/app/loangen-agent/agent/chat/models.py\n/app/loangen-agent/agent/chat/service.py\n/app/loangen-agent/agent/chat_server.py\n---\nDockerfile\nREADME.md\nagent\ndeploy\ndocker\ndocker-compose.yml\ndocs\nrequirements.txt\ntests\ntraining\n"
+          },
+          {
+            "source_call_id": "tooluse_OOwQ09iT5kCfDh6yu9Rk4o",
+            "content": "<task id=\"ses_02c853f97ffecxOKq3o8JBW91i\" state=\"completed\">\n<task_result>\nI have a complete picture now. Here is the thorough map of the document field extraction subsystem.\n\n---\n\n# Document Field Extraction Subsystem \u2014 Map\n\n## 1. Files involved in extracting structured fields from deal documents\n\n### Core extraction pipeline (bytes \u2192 text \u2192 facts)\n\n| Path | Role |\n|---|---|\n| `/app/loangen-agent/agent/documents/extraction/router.py` | Entry point `extract_document()` \u2014 routes bytes to XLSX / PDF / image extractor; Azure-layout-first for configured types, PyMuPDF fallback |\n| `/app/loangen-agent/agent/documents/extraction/azure_di.py` | Azure Document Intelligence (`prebuilt-layout` / `prebuilt-read`); builds `structured_fields` from tables |\n| `/app/loangen-agent/agent/documents/extraction/pdf_probe.py` | Local PyMuPDF text layer probe |\n| `/app/loangen-agent/agent/documents/extraction/xlsx.py` | pandas \u2192 CSV text for XLSX/XLS |\n| `/app/loangen-agent/agent/documents/extraction/table_text.py` | Table grid \u2192 pipe-delimited rows; `last_amount_in_text()`, `find_row_amount()`, tax/PFS/bank row extractors |\n| `/app/loangen-agent/agent/documents/extraction/base.py` | `ExtractionResult` / `ExtractionPage` dataclasses |\n\n### Field extractors (the heart of the subsystem)\n\n| Path | Role |\n|---|---|\n| **`/app/loangen-agent/agent/documents/extractors/cre_fields.py`** (798 lines) | **All four target fields live here**: appraisal, rent roll, HUD settlement, credit report \u2014 plus T12, construction, lease, debt schedule, PFS, 1040, P&L |\n| `/app/loangen-agent/agent/documents/extractors/generic.py` (291 lines) | `extract_structured_fields(document_type, result)` dispatcher \u2014 merges Azure fields, table-row fields, then CRE extractors per `DocumentType` |\n| `/app/loangen-agent/agent/documents/document_qa/retrieval.py:475` | `extract_labeled_amounts()` \u2014 generic label\u2192amount parser used for PFS line items |\n\n### The four target fields \u2014 exact locations\n\n| Target field | Extractor function | File:lines | Fact keys |\n|---|---|---|---|\n| Appraisal appraised value | `extract_appraisal_fields` | `extractors/cre_fields.py:74-241` | `as_is_value`, `as_complete_value`, `appraisal_sale_price` |\n| Rent roll total rent | `extract_rent_roll_fields` | `extractors/cre_fields.py:244-295` (+ `_sum_rent_amounts:43-54`) | `gross_potential_rent`, `vacancy` |\n| Settlement statement loan amount | `extract_hud_fields` | `extractors/cre_fields.py:326-344` | `hud_loan_amount`, `loan_amount_hud` |\n| Credit summary credit score | `extract_credit_report_fields` | `extractors/cre_fields.py:763-792` | `bureau_fico_scores`, `primary_fico_score`, `credit_score_mention` |\n\nAppraisal sale-price fallback also at `extractors/generic.py:278-291` (`_find_appraisal_sale_price`), and FICO regex fallback at `extractors/generic.py:38` + `84-87`.\n\n### Orchestration / persistence / consumption\n\n| Path | Role |\n|---|---|\n| `/app/loangen-agent/agent/documents/ingestion/service.py:281` and `:361` | Calls `extract_structured_fields`; persists each fact as a `DocumentExtraction` row; merges into deal summary |\n| `/app/loangen-agent/agent/documents/ingestion/worker.py`, `queue.py`, `readiness.py`, `stale_recovery.py`, `chunking.py`, `embeddings.py` | Async ingestion plumbing |\n| `/app/loangen-agent/agent/documents/deal_summary/merger.py` | `merge_deal_summary()` \u2014 versioned merge of facts + field_sources into `ApplicationDealSummary` |\n| `/app/loangen-agent/agent/documents/deal_summary/portfolio.py` | `merge_portfolio_property()` \u2014 multi-property aggregation (`total_as_is_value`, `total_gross_potential_rent`, \u2026) |\n| `/app/loangen-agent/agent/documents/intelligence_models.py:42-64` | `DocumentExtraction` Beanie model (`field_key`, `field_value: Any`, `confidence`, `ingestion_version`) |\n| `/app/loangen-agent/agent/documents/report/builders.py` | Renders extracted facts: `_build_appraisal_report:252`, `_build_rent_roll_report:274`, `_build_t12_report:386`, `_build_hud_report:422` |\n| `/app/loangen-agent/agent/services/cre_qualification/facts.py` | Resolver layer over facts (`resolve_appraisal_value`, `resolve_hud_loan_amount`, `resolve_document_fico`, `resolve_gpr`, \u2026) |\n| `/app/loangen-agent/agent/services/cre_qualification/cross_checks.py` | Cross-document validation of extracted values |\n| `/app/loangen-agent/agent/services/cre_qualification/required_docs.py:76-101` | `_FACT_SATISFIES` \u2014 which extracted keys prove a doc requirement |\n| `/app/loangen-agent/agent/documents/pii.py` | PII redaction applied to text before chunking/extraction persistence |\n\n### Credit-PDF sub-pipeline (separate, MISMO-oriented, for the Credit tab)\n`/app/loangen-agent/agent/documents/credit_pdf/`: `parser.py`, `rules_parser.py`, `llm_fallback.py`, `bureau_router.py`, `validation.py`, `normalize.py`, `junk_filter.py`, `segment.py`, `detect.py`, `extract.py`, `reconcile.py`, `mismo_builder.py`, `models.py`, `adapters/xactus.py`, `adapters/generic.py`.\nConsumed by `/app/loangen-agent/agent/credit/ingestion_service.py` (invoked from `documents/ingestion/service.py:453-470`).\n\n---\n\n## 2. Validation / bounds / range / threshold logic on extracted numeric values\n\n### A. `extractors/cre_fields.py` \u2014 primary bounds logic\n\n**Rent-roll rent summation bounds** (`cre_fields.py:43-54`):\n```python\ndef _sum_rent_amounts(text: str) -> Optional[float]:\n    \"\"\"Sum monthly rent figures from rent-roll style lines.\"\"\"\n    total = 0.0\n    count = 0\n    for line in text.splitlines():\n        low = line.lower()\n        if \"rent\" in low or \"monthly\" in low:\n            amt = _money(line)\n            if amt is not None and 100 < amt < 5_000_000:   # line 51 \u2014 plausibility band\n                total += amt\n                count += 1\n    return total if count >= 3 else None                    # line 54 \u2014 min-3-rows sanity gate\n```\n\n**Appraisal value sanity filter** (`cre_fields.py:64-71`):\n```python\ndef _sanitize_value_amount(val: Optional[float], *, min_amount: float = 100_000) -> Optional[float]:\n    if val is None:\n        return None\n    try:\n        f = float(val)\n    except (TypeError, ValueError):\n        return None\n    return f if f > min_amount else None      # line 71 \u2014 STRICT >, so exactly 100,000 is dropped\n```\nApplied at `cre_fields.py:84` (`as_is_value` from BBG/USPAP table), `:94` (`as_complete_value`), `:100` (labeled-amount fallback loop). Note it is **not** applied to `purchase_price:119`, `spent_to_date:127`, `remaining_budget_appraisal:136`, `building_sf:144`.\n\n**Cap-rate range normalization** (`cre_fields.py:219-223`):\n```python\ncap = _find_labeled_amount(text, (\"cap rate\", \"capitalization rate\"))\nif cap is not None and cap > 1:\n    facts[\"cap_rate\"] = cap / 100\nelif cap is not None and 0.01 < cap < 1:\n    facts[\"cap_rate\"] = cap\n```\n\n**HUD / settlement loan amount minimum threshold** (`cre_fields.py:323`, `:336-341`):\n```python\n_MIN_HUD_LOAN_AMOUNT = 10_000.0                      # line 323\n...\nfor key, patterns in mappings:\n    val = _find_labeled_amount(text, patterns)\n    if val is not None:\n        if key == \"hud_loan_amount\" and val <= _MIN_HUD_LOAN_AMOUNT:   # line 339 \u2014 <= drops exactly 10,000\n            continue\n        facts[key] = val\n```\n\n**Occupancy / percentage normalization** (`>1` \u21d2 divide by 100):\n- `cre_fields.py:264` `physical_occupancy`\n- `cre_fields.py:290` `tenant_concentration`\n- `cre_fields.py:471` `lease_escalation_pct`\n- `cre_fields.py:539` `ownership_percentage`\n\n**Construction budget guards** (`cre_fields.py:390`, `:398-399`, `:407-411`):\n```python\nif val is not None and val > 0:                      # line 390 \u2014 line items must be positive\n    items[label.strip()[:80]] = val\n...\nif budget and budget > 0:                            # line 398 \u2014 divide-by-zero guard\n    facts[\"contingency_pct\"] = contingency / budget\n...\n    sqft = float(sf)\n    if sqft > 0:                                     # line 410\n        facts[\"cost_per_sf\"] = float(budget_total) / sqft\n```\n\n**PFS amount floors and duplicate-exclusion** (`cre_fields.py:703-747`):\n```python\ndef _scan_after_label(\n    label_pat: str,\n    *,\n    min_amount: float = 1_000,                       # line 706 \u2014 default floor\n    max_lookahead: int = 40,                         # line 707 \u2014 bounded search window\n    exclude: Optional[float] = None,\n) -> Optional[float]:\n    ...\n            val = _parse_money(cleaned)\n            if val is None or val < min_amount:      # line 718\n                continue\n            if exclude is not None and abs(val - exclude) < 1:   # line 720 \u2014 reject echo of prior total\n                continue\n            return val\n...\nassets      = _scan_after_label(r\"22\\.\\s*Total of All Assets\", min_amount=100_000)   # line 725\nliabilities = _scan_after_label(r\"30\\.\\s*Total Liabilities\", min_amount=100_000, exclude=assets)  # 726-730\nnet_worth   = _scan_after_label(r\"31\\.\\s*Net Worth\", min_amount=100_000, exclude=assets)          # 731-735\ncash        = _scan_after_label(r\"12\\.\\s*Cash\\s*\\(Schedule A\\)\", min_amount=100)                  # 737\nmkt         = _scan_after_label(r\"13\\.\\s*U\\.S\\. gov't\\. and marketable securities\", min_amount=100) # 744-747\n```\n\n**Credit score range check \u2014 \u26a0\ufe0f INCONSISTENT UPPER BOUND** (`cre_fields.py:773-791`):\n```python\nfor bureau, pat in patterns:\n    m = re.search(pat, text, re.IGNORECASE)\n    if m:\n        score = int(m.group(1))\n        if 300 <= score < 850:                # line 777 \u2014 EXCLUSIVE upper bound\n            bureau_scores[bureau] = score\n\nif not bureau_scores:\n    for m in re.finditer(r\"(\\d{3})\\s+Factors\\s*\u2022\", text):\n        score = int(m.group(1))\n        if 300 <= score <= 850:               # line 783 \u2014 INCLUSIVE upper bound\n            bureau_scores.setdefault(f\"bureau_{len(bureau_scores) + 1}\", score)\n\nif bureau_scores:\n    facts[\"bureau_fico_scores\"] = bureau_scores\n    scores = sorted(bureau_scores.values())\n    mid = scores[len(scores) // 2]            # line 789 \u2014 upper-median for even counts\n    facts[\"primary_fico_score\"] = mid\n    facts[\"credit_score_mention\"] = mid\n```\n\n> **Anomaly:** line 777 is the *only* place in the entire repository that uses `< 850` rather than `<= 850`. Every other credit-score bounds check uses the inclusive form (`credit_pdf/validation.py:27,47`; `credit_pdf/rules_parser.py:57`; `credit_pdf/bureau_router.py:26,121`; `credit_pdf/llm_fallback.py:101`; `credit_pdf/adapters/xactus.py:380,396,402`; `cre_qualification/facts.py:159,165`; `loanproducts/schemas.py:60`; `cre_qualification/constants.py:117 FICO_MAX = 850`). Verified empirically: a `FICO Risk Score, Classic (04) 850` line is silently dropped by the named-bureau branch, while the generic `Factors \u2022` fallback would accept it \u2014 and the fallback only runs if `bureau_scores` is *entirely* empty, so a perfect 850 alongside two other bureaus is lost without warning. It also shifts `primary_fico_score` (median) downward.\n>\n> Secondary asymmetry: `_sanitize_value_amount` uses exclusive `f > 100_000` (cre_fields.py:71) while the downstream consumer `resolve_appraisal_value` uses inclusive `v >= 100_000` (facts.py:149).\n\n### B. `extraction/table_text.py` \u2014 amount parsing filter\n\n```python\n79: def last_amount_in_text(text: str) -> Optional[float]:\n80:     \"\"\"Return the last plausible monetary amount in a string (IRS forms: amount in last column).\"\"\"\n...\n92:         if value >= 0:              # non-negative filter (regex cannot capture leading minus,\n93:             candidates.append(value)#  so parenthesized negatives become positive)\n94:     return candidates[-1] if candidates else None\n```\n`extract_pfs_fields_from_rows:146-162` \u2014 label length gate at `:155` (`if len(label) < 3: continue`).\n\n### C. `services/cre_qualification/facts.py` \u2014 resolver-level bounds\n\n```python\n138: def resolve_appraisal_value(facts):\n...\n149:         if v is not None and v >= 100_000:      # inclusive floor\n150:             return v\n\n154: def resolve_document_fico(facts) -> Optional[int]:\n155:     primary = get_fact(facts, \"primary_fico_score\", \"credit_score_mention\")\n...\n159:             if 300 <= score <= 850:\n160:                 return score\n163:     bureau = facts.get(\"bureau_fico_scores\")\n165:         scores = sorted(int(v) for v in bureau.values()\n                            if isinstance(v, (int, float)) and 300 <= v <= 850)\n167:             return scores[len(scores) // 2]\n```\nAlso: `:65` liquid-vs-total-assets echo rejection (`abs(direct - total_assets) < 1`); `:208`, `:288`, `:300`, `:372`, `:413` percent normalization (`>1 \u21d2 /100`); `:291` `total > 0` guard; `:336-346` \"reject CTC-only totals mistakenly stored as total budget when spent exceeds it\"; `:383` `net_income <= 0` guard.\n\n### D. `services/cre_qualification/cross_checks.py` \u2014 cross-document tolerance thresholds\n\n```python\n 35:     base = max(abs(value_a), abs(value_b), 1)\n 36:     var_pct = abs(value_a - value_b) / base\n 37:     passed = var_pct <= tolerance_pct\n```\n| Check | Line | Tolerance | Penalty |\n|---|---|---|---|\n| Cash: PFS vs Plaid | 72-80 | `CROSS_CHECK_TOLERANCE_PCT` (0.10) | 10 |\n| FICO: Array vs PDF | 87 | `abs(a-b) <= 10` points | 8 |\n| Schedule E vs NOI | 108-117 | 0.25 | 12 |\n| T12 NOI vs Schedule E | 124-133 | 0.25 | 10 |\n| Appraisal vs PFS RE holdings | 140-149 | 0.35 | 12 |\n| Portfolio revenue vs GPR | 156-165 | 0.25 | 10 |\n| Loan amount: HUD vs credit mortgage | 180-189 | 0.15 | 10 |\n| Loan amount: HUD vs application | 192-202 | 0.05, **gated on `hud_loan >= 10_000`** (line 192) | 8 |\n| Net worth vs AGI (sanity) | 212-221 | 1.0 | 5 |\n| NOI: T12 vs appraisal | 229-238 | 0.20 | 12 |\n| GPR vs Schedule E | 246-255 | 0.30 | 10 |\n| Remaining budget: appraisal vs CTC | 272-281 | 0.25 | 8 |\n| Readiness deductions | 298-303 | `-15` / `-min(20, missing*5)` | \u2014 |\n| Confidence clamp | 305 | `max(0.0, min(100.0, confidence))` | \u2014 |\n\n### E. `credit_pdf/validation.py` \u2014 parsed credit report validation\n\n```python\n27:     scored_bureaus = [b for b in parsed.bureaus.values() if b.score and 300 <= b.score <= 850]\n28:     if not scored_bureaus:\n29:         errors.append(\"No valid credit scores (300-850) found in PDF.\")\n...\n47:         if report.score and not (300 <= report.score <= 850):\n48:             warnings.append(f\"Invalid score for {bureau}: {report.score}\")\n52:     if parsed.confidence < 0.35:\n53:         warnings.append(f\"Low parse confidence ({parsed.confidence:.2f}).\")\n55:     if parsed.format_id == \"generic\" and parsed.confidence < 0.45:\n```\nRelated: `credit_pdf/rules_parser.py:57`, `credit_pdf/bureau_router.py:26` & `:121`, `credit_pdf/llm_fallback.py:41` (prompt: \"score must be 300-850 or null\") & `:101`, `credit_pdf/adapters/xactus.py:380,396,402`, `credit_pdf/junk_filter.py` + `normalize.py:108` (`is_plausible_creditor_line`).\n\n### F. `extraction/router.py` \u2014 text-length threshold\n```python\n72:     min_chars = settings.document_pdf_text_probe_min_chars   # default 200\n73:     if len(local.full_text.strip()) >= min_chars:\n74:         return local\n79:         if len(di.full_text.strip()) >= len(local.full_text.strip()):\n```\n\n### G. `services/cre_qualification/scoring.py` \u2014 score clamps\n```python\n10: def clamp(value: float, lo: float = 0.0, hi: float = 100.0) -> float:\n17:     return clamp((fico - FICO_MIN) / (FICO_MAX - FICO_MIN) * 100)\n62:     return clamp((dscr - 1.0) / 1.5)\n68:     return clamp(ltv)\n74:     return clamp(ratio / 0.30 * 100)\n```\n\n---\n\n## 3. Constants / config defining limits\n\n### Extraction-local constants\n| Constant | Path:line | Value |\n|---|---|---|\n| `_MIN_HUD_LOAN_AMOUNT` | `agent/documents/extractors/cre_fields.py:323` | `10_000.0` |\n| `_sanitize_value_amount(min_amount=\u2026)` | `agent/documents/extractors/cre_fields.py:64` | `100_000` default |\n| rent-line plausibility band | `agent/documents/extractors/cre_fields.py:51` | `100 < amt < 5_000_000` (inline) |\n| `_scan_after_label(min_amount=\u2026, max_lookahead=\u2026)` | `agent/documents/extractors/cre_fields.py:706-707` | `1_000`, `40` |\n| credit-score bands | `agent/documents/extractors/cre_fields.py:777`, `:783` | `300..<850` \u26a0\ufe0f / `300..850` |\n| `extract_labeled_amounts(limit=\u2026)` | `agent/documents/document_qa/retrieval.py:475` | `40` |\n| `MAX_DPD_MONTHS` | `agent/array/credit_report_pdf.py:76` | `24` |\n\n### `agent/services/cre_qualification/constants.py`\n```python\n 18: DEAL_SCORE_MIN_COVERAGE_PCT = 60.0\n 83: RECOMMENDATION_STRONG_PROCEED_MIN = 80.0\n 84: RECOMMENDATION_PROCEED_MIN = 60.0\n 85: RECOMMENDATION_MANUAL_UW_MIN = 40.0\n 88: DECISION_DSCR_MIN = 1.20\n 89: DECISION_LTV_MAX = 0.80\n 90: DECISION_CONFIDENCE_MIN = 70.0\n 91: DECISION_LIQUIDITY_MIN_RATIO = 0.10\n 94: CROSS_CHECK_TOLERANCE_PCT = 0.10\n108: PD_LOGISTIC_A = -3.5\n109: PD_LOGISTIC_B = 5.0\n112: LGD_LIQUIDATION_COST_PCT = 0.10\n113: LGD_FORCED_SALE_HAIRCUT_DEFAULT = 0.70\n116: FICO_MIN = 300\n117: FICO_MAX = 850\n```\nPlus weight dicts `DEAL_SCORE_WEIGHTS:6`, `SPONSOR_SCORE_WEIGHTS:21`, `CREDIT_SCORE_WEIGHTS:31`, `PROPERTY_SCORE_WEIGHTS:40`, `CASHFLOW_SCORE_WEIGHTS:49`, `COLLATERAL_SCORE_WEIGHTS:57`, `PROJECT_SCORE_WEIGHTS:65`, `STRUCTURE_SCORE_WEIGHTS:74`, `PD_RISK_WEIGHTS:97`.\n\n### `agent/core/config.py` \u2014 extraction settings\n```python\n150: document_intelligence_api_version: str = \"2024-11-30\"\n151: document_intelligence_default_model: str = \"prebuilt-read\"\n152: document_intelligence_layout_model: str = \"prebuilt-layout\"\n154: document_intelligence_layout_document_types = (\"personal_tax_return,business_tax_return,\"\n                 \"personal_financial_statement,bank_statement,credit_report\")\n184: document_ingestion_max_pages: int = 500\n185: document_ingestion_chunk_size: int = 600\n186: document_ingestion_chunk_overlap: int = 80\n187: document_pdf_text_probe_min_chars: int = 200\n198: document_qa_excerpt_max_chars: int = 900\n205: document_pii_redaction_enabled: bool = True\n213: document_report_llm_max_input_chars: int = 28000\n219: document_credit_pdf_rules_min_confidence: float = 0.45\n220: document_credit_pdf_llm_max_chars: int = 18000\n221: document_credit_pdf_parse_min_chars: int = 200\n```\nValidators: `config.py:762-782` (`document_intelligence_positive_int`, all listed numeric settings must be `> 0`), `:784-789` `embedding_dimensions > 0`, `:861` overlap < chunk size, `:867` `vector_pool_k >= top_k`.\n\n### Product / score limits elsewhere\n```python\nagent/services/loanproducts/schemas.py:60   min_credit_score: int = Field(..., ge=300, le=850)\nagent/services/loanproducts/schemas.py:93-94 min_amount / max_amount: ge=0\nagent/services/loanproducts/schemas.py:113-115, 147-151  min_amount <= max_amount validators\nagent/services/cre_qualification/lender_match.py:155  product.min_amount <= loan_amount <= product.max_amount\nagent/tools/credit_bureau.py:23,50,74,101,125  \"fico_score_range\": {\"min\": 300, \"max\": 850}\n```\n\n---\n\n## 4. Tests under `loangen-agent/tests/` covering extraction\n\n### `tests/test_cre_field_extraction.py` (39 lines) \u2014 primary unit tests for all four target fields\n| Test | Line | Asserts |\n|---|---|---|\n| `test_appraisal_extracts_as_is_value` | 16-19 | `\"As-Is Value: $1,250,000\"` \u21d2 `as_is_value == 1_250_000.0` |\n| `test_rent_roll_occupancy` | 21-25 | `total_units == 20`; `physical_occupancy \u2248 0.9` |\n| `test_t12_noi` | 27-30 | `noi == 300_000.0` |\n| `test_hud_loan_amount` | 32-35 | `\"Loan Amount: $800,000\"` \u21d2 `hud_loan_amount == 800_000.0` |\n\n> Coverage gap: no test exercises the **boundary values** of any bounds check \u2014 no test at `as_is_value == 100_000`, `hud_loan_amount == 10_000`, rent `== 100` / `== 5_000_000`, or **credit score `== 850`**. `test_cre_field_extraction.py` does not import `extract_credit_report_fields` at all.\n\n### `tests/test_bridge_broadway_extraction.py` (114 lines) \u2014 regression suite; **only place `extract_credit_report_fields` is asserted**\nSkips unless `c:\\Gautam\\...\\fwddealtoevaluate` exists (`:37-38`) and `pymupdf` importable (`:39-42`) \u2014 i.e. **skipped in CI/Linux**.\n| Test | Line | Asserts |\n|---|---|---|\n| `test_bridge_appraisal` | 44-50 | `as_is_value == 1_700_000`, `building_sf == 22_800`, `physical_occupancy == 1.0`, `rent_per_sf \u2248 7.29`, `gross_potential_rent > 150_000` |\n| `test_broadway_appraisal` | 52-57 | `as_is_value == 2_100_000`, `building_sf == 41_550`, `rent_per_sf \u2248 6.07` |\n| `test_portfolio_appraisal_merge` | 59-80 | `total_as_is_value == 3_800_000`, `portfolio_property_count == 2`, `total_building_sf == 64_350` |\n| `test_pl_2025_multi_column` | 82-90 | portfolio revenue/expense/net-income sums, `pl_statement_year == 2025` |\n| `test_pl_2026_ytd` | 92-95 | revenue sum, `pl_statement_ytd` truthy |\n| `test_pfs_totals` | 97-101 | `total_assets == 14_801_705`, `total_liabilities == 6_939_211`, `net_worth == 7_862_494` |\n| **`test_credit_report_bureau_scores`** | 103-110 | `transunion == 662`, `experian == 665`, `equifax == 675`, `primary_fico_score == 665` \u2014 all well below 850, so the `< 850` bug is invisible here |\n\n### `tests/test_oak_hill_extraction.py` (107 lines) \u2014 regression; also Windows-path gated (`:15-17`, `:31-32`)\n| Test | Line | Asserts |\n|---|---|---|\n| `test_appraisal_oak_hill_values` | 30-48 | `as_is_value == 1_850_000`, `as_complete_value == 2_050_000`, `remaining_budget_appraisal == 155_000`, `spent_to_date == 280_000`, `building_sf == 17_000`, `physical_occupancy == 1.0`, `rent_per_sf \u2248 10.38`, `property_state == \"MA\"` |\n| `test_cost_to_complete_xlsx_text` | 50-58 | `remaining_budget == 107_000` |\n| `test_rehab_completed_xlsx_text` | 60-68 | `spent_to_date == 183_750` |\n| `test_qualification_engine_with_oak_hill_facts` | 70-103 | engine runs on hand-built facts; `cross_checks` non-empty; `structure_score` present |\n| *(bug in file)* | 20-26 | `_read_appraisal_text` calls `self.skipTest` at module scope \u2014 `NameError` if `fitz` missing |\n\n### `tests/test_document_intelligence.py` (40 lines)\n- `test_credit_report_fico` (`:32-36`): `ExtractionResult(\"Borrower FICO credit score: 712\")` \u21d2 `credit_score_mention == 712`, key present in `sources`. Exercises the `_FICO` regex path in `generic.py:84-87`, **not** `extract_credit_report_fields`' range check.\n- `test_redacts_ssn_email_phone` (`:15-20`), `test_chunk_text_splits_long_content` (`:24-28`).\n\n### `tests/test_document_layout_extraction.py` (95 lines)\n- `test_schedule_c_row_preserves_label_and_amount` (`:26-36`) \u2014 `build_table_grid` + `grid_to_row_lines`.\n- `test_extract_gross_profit_from_rows` (`:38-41`) \u2014 `schedule_c_gross_profit == 135099.0`.\n- `test_last_amount_picks_rightmost_value` (`:43-44`) \u2014 `last_amount_in_text(\"5 | Gross profit | 135,099\") == 135099.0`.\n- `test_tax_facts_merged_from_structured_fields` (`:48-59`) \u2014 Azure `structured_fields` merge into facts + sources.\n- `test_personal_tax_uses_layout_when_configured` (`:63-77`), `test_appraisal_stays_off_layout_list_by_default` (`:79-91`) \u2014 `settings.uses_layout_extraction()`.\n\n### `tests/test_document_qa_hybrid.py`\n- `test_labeled_amounts_from_pfs_text` (`:91-95`) \u2014 `extract_labeled_amounts` \u21d2 `real estate income == 125000.0`.\n- `test_structured_pfs_fields` (`:97-105`) \u2014 `extract_structured_fields(PERSONAL_FINANCIAL_STATEMENT, \u2026)` \u21d2 `pfs_line_items` present, `pfs_real_estate_income == 125000.0`.\n\n### `tests/test_required_docs.py` (69 lines) \u2014 extracted-fact satisfaction\n- `test_facts_satisfy_appraisal_without_doc_type` (`:28-35`) \u2014 `{\"as_is_value\": 1_700_000}` removes `property_appraisal` from missing.\n- `test_facts_satisfy_pfs_and_credit` (`:37-45`) \u2014 `{total_assets, net_worth, primary_fico_score: 665}` satisfies PFS + credit_report.\n- `test_project_score_not_inflated_without_budget` (`:47-65`), `test_rehab_budget_satisfies_construction_budget` (`:20-26`), `test_normalize_enum_style_type` (`:17-18`).\n\n### `tests/test_credit_pdf_pipeline.py` \u2014 credit_pdf sub-pipeline\n- `JunkFilterTests` (`:17-29`): rejects table-artifact creditor, \"past due\" label, `$1` artifact tradeline; accepts real creditor.\n- `BureauRouterTests` (`:32-72`): broadcasts untagged tradelines to all scored bureaus, assigns tagged tradelines to one bureau, filters junk before assignment.\n- No test asserts the `300..850` validation in `credit_pdf/validation.py`.\n\n### Supporting / adjacent\n- `tests/test_config_document_intelligence.py` \u2014 Settings validation (defaults, QA-requires-ingestion, Azure DI required, endpoint normalization).\n- `tests/test_document_report.py` \u2014 report builders over extracted facts (`test_builds_gross_profit_card:35`, LLM payload coercion, label cleaning, LLM type config).\n- `tests/test_cre_qualification.py:90` \u2014 `test_rich_cre_context_enables_deal_score_and_cross_checks` with facts incl. `as_is_value`, `hud_loan_amount`, `gross_potential_rent`.\n- `tests/test_document_ingestion_readiness.py`, `tests/test_ingestion_stale_recovery.py`, `tests/test_document_ingestion_production.py` \u2014 ingestion lifecycle.\n- `tests/test_oak_hill_qualification.py`, `tests/test_bridge_broadway_qualification.py`, `tests/test_qualification_report_pdf.py` \u2014 downstream (use `min_amount=25_000`, `max_amount=5_000_000` product limits).\n\n---\n\n## Summary of notable findings\n\n1. **`agent/documents/extractors/cre_fields.py:777`** uses `if 300 <= score < 850:` \u2014 the sole exclusive-upper-bound credit-score check in the repo (11+ other sites use `<= 850`, and `FICO_MAX = 850` in `cre_qualification/constants.py:117`). A perfect 850 bureau score is silently discarded and the `primary_fico_score` median (line 789) skews low. No test covers the 850 boundary.\n2. **`_sanitize_value_amount` (line 71) uses strict `>`** while its consumer `facts.py:149` uses `>=` \u2014 an appraised value of exactly $100,000 is dropped at extraction but would be accepted at resolution.\n3. **`_MIN_HUD_LOAN_AMOUNT` uses `<=` (line 339)** so a settlement loan amount of exactly $10,000 is rejected; the matching cross-check at `cross_checks.py:192` uses `>= 10_000` (inclusive) \u2014 same off-by-one asymmetry.\n4. `last_amount_in_text` (`table_text.py:92`) filters `value >= 0` but the regex cannot capture signs, so parenthesized/negative statement figures silently become positive.\n5. The two richest extraction regression suites (`test_oak_hill_extraction.py`, `test_bridge_broadway_extraction.py`) are hard-gated on absolute Windows paths and therefore **always skip** on this platform.\n</task_result>\n</task>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10401,
+        "completion_tokens": 487,
+        "cached_tokens": 10399,
+        "cost_usd": 0.02199075,
+        "extra": {
+          "cache_write_tokens": 737
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-05T19:56:01.514000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_YtxLBFRtxcVgKxnJvMUwHX",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/cre_fields.py",
+            "limit": 120
+          }
+        },
+        {
+          "tool_call_id": "tooluse_9iyJ2StV15Cf5sh4L0FmDd",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && git log --oneline | head -20"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_YtxLBFRtxcVgKxnJvMUwHX",
+            "content": "<path>/app/loangen-agent/agent/documents/extractors/cre_fields.py</path>\n<type>file</type>\n<content>\n1: \"\"\"CRE-specific structured field extraction from document text and tables.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import re\n6: from typing import Any, Dict, List, Optional, Sequence, Tuple\n7: \n8: from agent.documents.extraction.table_text import find_row_amount, last_amount_in_text\n9: \n10: _MONEY = re.compile(\n11:     r\"\\$\\s?([\\d,]+(?:\\.\\d{2})?)|\\b([\\d,]+(?:\\.\\d{2})?)\\s*(?:USD|dollars?)\\b\",\n12:     re.IGNORECASE,\n13: )\n14: _PERCENT = re.compile(r\"(\\d{1,3}(?:\\.\\d+)?)\\s*%\")\n15: _SCHEDULE_E = re.compile(r\"schedule\\s+e\", re.IGNORECASE)\n16: \n17: \n18: def _money(text: str) -> Optional[float]:\n19:     return last_amount_in_text(text)\n20: \n21: \n22: def _safe_float(v: Any) -> Optional[float]:\n23:     if v is None:\n24:         return None\n25:     try:\n26:         return float(v)\n27:     except (TypeError, ValueError):\n28:         return None\n29: \n30: \n31: def _find_labeled_amount(text: str, patterns: Sequence[str]) -> Optional[float]:\n32:     lines = text.splitlines()\n33:     for line in lines:\n34:         low = line.lower()\n35:         if any(p in low for p in patterns):\n36:             amt = _money(line)\n37:             if amt is not None:\n38:                 return amt\n39:     flat = [line for line in lines if \"|\" in line]\n40:     return find_row_amount(flat, patterns)\n41: \n42: \n43: def _sum_rent_amounts(text: str) -> Optional[float]:\n44:     \"\"\"Sum monthly rent figures from rent-roll style lines.\"\"\"\n45:     total = 0.0\n46:     count = 0\n47:     for line in text.splitlines():\n48:         low = line.lower()\n49:         if \"rent\" in low or \"monthly\" in low:\n50:             amt = _money(line)\n51:             if amt is not None and 100 < amt < 5_000_000:\n52:                 total += amt\n53:                 count += 1\n54:     return total if count >= 3 else None\n55: \n56: \n57: def _parse_money(s: str) -> Optional[float]:\n58:     try:\n59:         return float(s.replace(\",\", \"\"))\n60:     except ValueError:\n61:         return None\n62: \n63: \n64: def _sanitize_value_amount(val: Optional[float], *, min_amount: float = 100_000) -> Optional[float]:\n65:     if val is None:\n66:         return None\n67:     try:\n68:         f = float(val)\n69:     except (TypeError, ValueError):\n70:         return None\n71:     return f if f > min_amount else None\n72: \n73: \n74: def extract_appraisal_fields(text: str) -> Dict[str, Any]:\n75:     facts: Dict[str, Any] = {}\n76: \n77:     # BBG / USPAP table: \"Market Value - As Is ... $1,700,000\"\n78:     as_is_table = re.search(\n79:         r\"Market\\s+Value\\s*[-\u2013]\\s*As\\s+Is[^\\$]{0,200}\\$([\\d,]+)\",\n80:         text,\n81:         re.IGNORECASE | re.DOTALL,\n82:     )\n83:     if as_is_table:\n84:         val = _sanitize_value_amount(_parse_money(as_is_table.group(1)))\n85:         if val is not None:\n86:             facts[\"as_is_value\"] = val\n87: \n88:     as_complete_table = re.search(\n89:         r\"(?:Prospective\\s+)?Market\\s+Value[^\\$]{0,120}As\\s+Complete[^\\$]{0,120}\\$([\\d,]+)\",\n90:         text,\n91:         re.IGNORECASE | re.DOTALL,\n92:     )\n93:     if as_complete_table:\n94:         ac = _sanitize_value_amount(_parse_money(as_complete_table.group(1)))\n95:         if ac is not None:\n96:             facts[\"as_complete_value\"] = ac\n97: \n98:     if \"as_is_value\" not in facts:\n99:         for pat in (\"as-is value\", \"as is value\", \"value conclusion\", \"appraised value\"):\n100:             val = _sanitize_value_amount(_find_labeled_amount(text, (pat,)))\n101:             if val is not None:\n102:                 facts[\"as_is_value\"] = val\n103:                 break\n104: \n105:     addr_m = re.search(\n106:         r\"located at (\\d+[-\\d]*\\s+[\\w\\s]+(?:Street|St|Road|Rd|Avenue|Ave|Boulevard|Blvd|Lane|Ln|Way|Drive|Dr))\",\n107:         text,\n108:         re.IGNORECASE,\n109:     )\n110:     if addr_m:\n111:         facts[\"property_address\"] = addr_m.group(1).strip()\n112: \n113:     purchase_m = re.search(\n114:         r\"acquired the subject[^\\$]{0,60}\\$([\\d,]+)\",\n115:         text,\n116:         re.IGNORECASE,\n117:     )\n118:     if purchase_m:\n119:         facts[\"purchase_price\"] = _parse_money(purchase_m.group(1))\n120: \n\n(Showing lines 1-120 of 798. Use offset=121 to continue.)\n</content>"
+          },
+          {
+            "source_call_id": "tooluse_9iyJ2StV15Cf5sh4L0FmDd",
+            "content": "3e3262c import codebase\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11138,
+        "completion_tokens": 740,
+        "cached_tokens": 11136,
+        "cost_usd": 0.10982175,
+        "extra": {
+          "cache_write_tokens": 13719
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-05T19:56:12.900000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_nEb8gtfrmalKt43s9z3RTC",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/cre_fields.py",
+            "offset": 240,
+            "limit": 120
+          }
+        },
+        {
+          "tool_call_id": "tooluse_vsYRotcT3oe4U2tMefeu5N",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/cre_fields.py",
+            "offset": 755,
+            "limit": 44
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_nEb8gtfrmalKt43s9z3RTC",
+            "content": "<path>/app/loangen-agent/agent/documents/extractors/cre_fields.py</path>\n<type>file</type>\n<content>\n240: \n241:     return facts\n242: \n243: \n244: def extract_rent_roll_fields(text: str) -> Dict[str, Any]:\n245:     facts: Dict[str, Any] = {}\n246:     unit_patterns = (\n247:         r\"(\\d+)\\s*(?:units|unit)\",\n248:         r\"total\\s+units[:\\s]*(\\d+)\",\n249:         r\"unit\\s+count[:\\s]*(\\d+)\",\n250:     )\n251:     for pat in unit_patterns:\n252:         m = re.search(pat, text, re.IGNORECASE)\n253:         if m:\n254:             facts[\"total_units\"] = int(m.group(1))\n255:             break\n256: \n257:     occ_m = re.search(\n258:         r\"(?:physical\\s+)?occupancy[:\\s]*(\\d{1,3}(?:\\.\\d+)?)\\s*%?\",\n259:         text,\n260:         re.IGNORECASE,\n261:     )\n262:     if occ_m:\n263:         occ = float(occ_m.group(1))\n264:         facts[\"physical_occupancy\"] = occ / 100 if occ > 1 else occ\n265: \n266:     occupied_m = re.search(r\"occupied[:\\s]*(\\d+)\", text, re.IGNORECASE)\n267:     if occupied_m and \"total_units\" in facts:\n268:         occupied = int(occupied_m.group(1))\n269:         facts[\"occupied_units\"] = occupied\n270:         if facts.get(\"total_units\"):\n271:             facts[\"physical_occupancy\"] = occupied / int(facts[\"total_units\"])\n272: \n273:     gpr = _find_labeled_amount(text, (\"gross potential rent\", \"gross rent\", \"total rent\", \"annual rent\"))\n274:     if gpr is None:\n275:         gpr = _sum_rent_amounts(text)\n276:     if gpr is not None:\n277:         facts[\"gross_potential_rent\"] = gpr\n278: \n279:     vac = _find_labeled_amount(text, (\"vacancy\", \"vacancy loss\"))\n280:     if vac is not None:\n281:         facts[\"vacancy\"] = vac\n282: \n283:     conc = re.search(\n284:         r\"(?:largest|top)\\s+tenant[:\\s]*(\\d{1,3}(?:\\.\\d+)?)\\s*%?\",\n285:         text,\n286:         re.IGNORECASE,\n287:     )\n288:     if conc:\n289:         v = float(conc.group(1))\n290:         facts[\"tenant_concentration\"] = v / 100 if v > 1 else v\n291: \n292:     tenant_count = len(re.findall(r\"\\b(?:tenant|lessee)\\b\", text, re.IGNORECASE))\n293:     if tenant_count:\n294:         facts[\"tenant_count\"] = tenant_count\n295:     return facts\n296: \n297: \n298: def extract_t12_fields(text: str) -> Dict[str, Any]:\n299:     facts: Dict[str, Any] = {}\n300:     egi = _find_labeled_amount(text, (\"effective gross income\", \"egi\", \"total income\"))\n301:     if egi is not None:\n302:         facts[\"effective_gross_income\"] = egi\n303:     gpr = _find_labeled_amount(text, (\"gross potential rent\", \"gross rent\", \"rental income\"))\n304:     if gpr is not None:\n305:         facts[\"gross_potential_rent\"] = gpr\n306:     opex = _find_labeled_amount(\n307:         text,\n308:         (\"operating expenses\", \"total operating expenses\", \"total expenses\", \"opex\"),\n309:     )\n310:     if opex is not None:\n311:         facts[\"operating_expenses\"] = opex\n312:     noi = _find_labeled_amount(text, (\"net operating income\", \"noi\"))\n313:     if noi is not None:\n314:         facts[\"noi\"] = noi\n315:     elif egi is not None and opex is not None:\n316:         facts[\"noi\"] = egi - opex\n317:     vac = _find_labeled_amount(text, (\"vacancy\", \"vacancy loss\"))\n318:     if vac is not None:\n319:         facts[\"vacancy\"] = vac\n320:     return facts\n321: \n322: \n323: _MIN_HUD_LOAN_AMOUNT = 10_000.0\n324: \n325: \n326: def extract_hud_fields(text: str) -> Dict[str, Any]:\n327:     facts: Dict[str, Any] = {}\n328:     mappings: Tuple[Tuple[str, Tuple[str, ...]], ...] = (\n329:         (\"hud_purchase_price\", (\"purchase price\", \"sales price\", \"contract price\")),\n330:         (\"hud_loan_amount\", (\"loan amount\", \"mortgage amount\", \"principal amount\")),\n331:         (\"hud_cash_to_close\", (\"cash to close\", \"cash from borrower\")),\n332:         (\"hud_settlement_credits\", (\"seller credits\", \"lender credits\")),\n333:         (\"annual_taxes\", (\"property taxes\", \"taxes\")),\n334:         (\"annual_insurance\", (\"hazard insurance\", \"insurance\")),\n335:     )\n336:     for key, patterns in mappings:\n337:         val = _find_labeled_amount(text, patterns)\n338:         if val is not None:\n339:             if key == \"hud_loan_amount\" and val <= _MIN_HUD_LOAN_AMOUNT:\n340:                 continue\n341:             facts[key] = val\n342:     if \"hud_loan_amount\" in facts:\n343:         facts[\"loan_amount_hud\"] = facts[\"hud_loan_amount\"]\n344:     return facts\n345: \n346: \n347: def extract_construction_fields(text: str, *, prefix: str = \"\") -> Dict[str, Any]:\n348:     facts: Dict[str, Any] = {}\n349:     p = f\"{prefix}_\" if prefix else \"\"\n350: \n351:     budget = _find_labeled_amount(\n352:         text,\n353:         (\"total budget\", \"total rehab budget\", \"total project cost\", \"total cost\", \"costs to complete\"),\n354:     )\n355:     if budget is not None:\n356:         facts[f\"{p}total_rehab_budget\"] = budget\n357:         facts[\"total_rehab_budget\"] = budget\n358: \n359:     spent = _find_labeled_amount(\n\n(Showing lines 240-359 of 798. Use offset=360 to continue.)\n</content>"
+          },
+          {
+            "source_call_id": "tooluse_vsYRotcT3oe4U2tMefeu5N",
+            "content": "<path>/app/loangen-agent/agent/documents/extractors/cre_fields.py</path>\n<type>file</type>\n<content>\n755:     if assets is not None and liabilities is not None:\n756:         facts[\"net_worth\"] = assets - liabilities\n757:     elif net_worth is not None:\n758:         facts[\"net_worth\"] = net_worth\n759: \n760:     return facts\n761: \n762: \n763: def extract_credit_report_fields(text: str) -> Dict[str, Any]:\n764:     \"\"\"Extract bureau FICO scores from merged tri-merge credit report PDFs.\"\"\"\n765:     facts: Dict[str, Any] = {}\n766:     bureau_scores: Dict[str, int] = {}\n767: \n768:     patterns: Tuple[Tuple[str, str], ...] = (\n769:         (\"transunion\", r\"FICO Risk Score, Classic \\(04\\)\\s*(\\d{3})\"),\n770:         (\"experian\", r\"Fair Isaac \\(v2\\)\\s*\\[\\s*(\\d{3})\\s*\\]\"),\n771:         (\"equifax\", r\"FICO Classic v5\\s+(\\d{3})\"),\n772:     )\n773:     for bureau, pat in patterns:\n774:         m = re.search(pat, text, re.IGNORECASE)\n775:         if m:\n776:             score = int(m.group(1))\n777:             if 300 <= score < 850:\n778:                 bureau_scores[bureau] = score\n779: \n780:     if not bureau_scores:\n781:         for m in re.finditer(r\"(\\d{3})\\s+Factors\\s*\u2022\", text):\n782:             score = int(m.group(1))\n783:             if 300 <= score <= 850:\n784:                 bureau_scores.setdefault(f\"bureau_{len(bureau_scores) + 1}\", score)\n785: \n786:     if bureau_scores:\n787:         facts[\"bureau_fico_scores\"] = bureau_scores\n788:         scores = sorted(bureau_scores.values())\n789:         mid = scores[len(scores) // 2]\n790:         facts[\"primary_fico_score\"] = mid\n791:         facts[\"credit_score_mention\"] = mid\n792:     return facts\n793: \n794: \n795: def merge_cre_facts(target: Dict[str, Any], extracted: Dict[str, Any]) -> None:\n796:     for key, value in extracted.items():\n797:         if value is not None and key not in target:\n798:             target[key] = value\n\n(End of file - total 798 lines)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 24857,
+        "completion_tokens": 297,
+        "cached_tokens": 24855,
+        "cost_usd": 0.03685,
+        "extra": {
+          "cache_write_tokens": 2718
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-05T19:56:17.584000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_mUzXeOavYjXF81xowW5uv5",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && ls tests | head -60 && echo \"--- fixtures ---\" && find . -path ./node_modules -prune -o -type d -name \"*fixture*\" -print -o -type f -name \"*.txt\" -print | head -30"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_Nf2p6oc02whBxgyUQoJpYg",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && grep -rn \"rent roll\\|Rent Roll\\|RENT ROLL\" --include=*.py tests | head -20; echo ---; grep -rln \"Unit 10\\|Unit 1 \" --include=*.py . | head"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_mUzXeOavYjXF81xowW5uv5",
+            "content": "test_bridge_broadway_extraction.py\ntest_bridge_broadway_qualification.py\ntest_call_session_cleanup.py\ntest_cartesia_twilio_sync.py\ntest_config_document_intelligence.py\ntest_cre_field_extraction.py\ntest_cre_qualification.py\ntest_credit_pdf_pipeline.py\ntest_credit_pdf_upload.py\ntest_direct_call_dtmf.py\ntest_direct_calls.py\ntest_direct_recording.py\ntest_document_ingestion_production.py\ntest_document_ingestion_readiness.py\ntest_document_intelligence.py\ntest_document_layout_extraction.py\ntest_document_qa_hybrid.py\ntest_document_report.py\ntest_inbound_calls.py\ntest_ingestion_stale_recovery.py\ntest_lender_product_match.py\ntest_logging_setup.py\ntest_oak_hill_extraction.py\ntest_oak_hill_qualification.py\ntest_pstn_inbound_queue.py\ntest_qualification_recommendation.py\ntest_qualification_report_pdf.py\ntest_required_docs.py\ntest_smb_contacts_csv_and_update.py\ntest_smb_invite_conversation.py\ntest_smb_invite_production.py\ntest_smb_invite_schemas.py\ntest_voice_llm_azure_config.py\n--- fixtures ---\n./requirements.txt\n./agent/prompts/cross_sell_prompt.txt\n./agent/prompts/gap_coaching_prompt.txt\n./agent/prompts/greeting_prompt.txt\n./agent/prompts/missing_data_prompt.txt\n./agent/prompts/qualification_prompt.txt\n./agent/prompts/system_prompt.txt\n"
+          },
+          {
+            "source_call_id": "tooluse_Nf2p6oc02whBxgyUQoJpYg",
+            "content": "tests/test_document_ingestion_production.py:17:            (\"Rent Roll\", \"rent_roll\"),\ntests/test_document_qa_hybrid.py:70:                excerpt=\"rent roll\",\n---\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 27575,
+        "completion_tokens": 2544,
+        "cached_tokens": 27573,
+        "cost_usd": 0.0984965,
+        "extra": {
+          "cache_write_tokens": 3376
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-05T19:56:51.098000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_l9hZgSnCc8tlJKrdBzuxje",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/generic.py"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_trFncjDqdSaI1twDIgGQya",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extraction/table_text.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_l9hZgSnCc8tlJKrdBzuxje",
+            "content": "<path>/app/loangen-agent/agent/documents/extractors/generic.py</path>\n<type>file</type>\n<content>\n1: \"\"\"Type-specific structured field extractors.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import re\n6: from typing import Any, Dict, Tuple\n7: \n8: from agent.documents.document_qa.retrieval import extract_labeled_amounts\n9: from agent.documents.extractors.cre_fields import (\n10:     extract_appraisal_fields,\n11:     extract_construction_fields,\n12:     extract_credit_report_fields,\n13:     extract_debt_schedule_fields,\n14:     extract_hud_fields,\n15:     extract_lease_fields,\n16:     extract_pfs_from_text,\n17:     extract_pfs_normalized,\n18:     extract_pl_fields,\n19:     extract_rent_roll_fields,\n20:     extract_t12_fields,\n21:     extract_tax_1040_fields,\n22:     merge_cre_facts,\n23: )\n24: from agent.documents.extraction.table_text import (\n25:     extract_bank_statement_fields,\n26:     extract_pfs_fields_from_rows,\n27:     extract_tax_schedule_fields,\n28: )\n29: from agent.documents.enums import DocumentType\n30: from agent.documents.extraction.base import ExtractionResult\n31: \n32: _MONEY = re.compile(\n33:     r\"\\$\\s?([\\d,]+(?:\\.\\d{2})?)|\\b([\\d,]+(?:\\.\\d{2})?)\\s*(?:USD|dollars?)\\b\",\n34:     re.IGNORECASE,\n35: )\n36: _PERCENT = re.compile(r\"(\\d{1,3}(?:\\.\\d+)?)\\s*%\")\n37: _DATE = re.compile(r\"\\b(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4})\\b\")\n38: _FICO = re.compile(r\"\\b(?:fico|credit score)[:\\s]*(\\d{3})\\b\", re.IGNORECASE)\n39: \n40: \n41: def extract_structured_fields(\n42:     document_type: DocumentType,\n43:     result: ExtractionResult,\n44: ) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:\n45:     \"\"\"\n46:     Return (facts, field_sources) from raw extraction text.\n47:     field_sources maps field_key -> {document_id placeholder handled upstream, page, excerpt}\n48:     \"\"\"\n49:     text = result.full_text or \"\"\n50:     facts: Dict[str, Any] = {}\n51:     sources: Dict[str, Dict[str, Any]] = {}\n52:     if not text.strip() and not result.structured_fields:\n53:         return facts, sources\n54: \n55:     excerpt = text[:240].replace(\"\\n\", \" \")\n56: \n57:     # Merge Azure layout table-derived fields first (highest confidence for tabular docs).\n58:     _merge_azure_structured_fields(facts, sources, result, excerpt)\n59: \n60:     table_rows = _table_rows_from_extraction(result)\n61:     if table_rows:\n62:         _merge_table_row_fields(facts, sources, document_type, table_rows, excerpt)\n63: \n64:     if document_type in {DocumentType.BANK_STATEMENT, DocumentType.EXISTING_LOAN_STATEMENT}:\n65:         amounts = _first_money_values(text, limit=3)\n66:         if amounts and \"amounts_found\" not in facts:\n67:             facts[\"amounts_found\"] = amounts\n68:             sources[\"amounts_found\"] = {\"page\": 1, \"excerpt\": excerpt}\n69: \n70:     if document_type in {DocumentType.PL_STATEMENT, DocumentType.BALANCE_SHEET, DocumentType.CASH_FLOW_STATEMENT}:\n71:         amounts = _first_money_values(text, limit=5)\n72:         if amounts and \"line_item_amounts\" not in facts:\n73:             facts[\"line_item_amounts\"] = amounts\n74:             sources[\"line_item_amounts\"] = {\"page\": 1, \"excerpt\": excerpt}\n75: \n76:     if document_type == DocumentType.RENT_ROLL:\n77:         merge_cre_facts(facts, extract_rent_roll_fields(text))\n78:         for k in facts:\n79:             if k not in sources and k != \"document_type\":\n80:                 sources[k] = {\"page\": 1, \"excerpt\": excerpt, \"source\": \"cre_extractor\"}\n81: \n82:     if document_type == DocumentType.CREDIT_REPORT:\n83:         merge_cre_facts(facts, extract_credit_report_fields(text))\n84:         m = _FICO.search(text)\n85:         if m and \"credit_score_mention\" not in facts:\n86:             facts[\"credit_score_mention\"] = int(m.group(1))\n87:             sources[\"credit_score_mention\"] = {\"page\": 1, \"excerpt\": excerpt}\n88: \n89:     if document_type == DocumentType.PERSONAL_FINANCIAL_STATEMENT:\n90:         merge_cre_facts(facts, extract_pfs_from_text(text))\n91:         line_items = extract_labeled_amounts(text)\n92:         if table_rows:\n93:             row_items = extract_pfs_fields_from_rows(table_rows)\n94:             line_items = {**row_items, **(line_items or {})}\n95:         if line_items:\n96:             existing = facts.get(\"pfs_line_items\") or {}\n97:             if isinstance(existing, dict):\n98:                 merged = {**line_items, **existing}\n99:             else:\n100:                 merged = line_items\n101:             merge_cre_facts(facts, extract_pfs_normalized(text, merged))\n102:             facts[\"pfs_line_items\"] = merged\n103:             sources[\"pfs_line_items\"] = {\"page\": 1, \"excerpt\": excerpt}\n104:             for label, amount in merged.items():\n105:                 safe_key = re.sub(r\"[^a-z0-9]+\", \"_\", label).strip(\"_\")\n106:                 if safe_key:\n107:                     facts[f\"pfs_{safe_key}\"] = amount\n108:                     sources[f\"pfs_{safe_key}\"] = {\"page\": 1, \"excerpt\": excerpt}\n109: \n110:     if document_type in {DocumentType.PERSONAL_TAX_RETURN, DocumentType.BUSINESS_TAX_RETURN}:\n111:         _merge_tax_text_fallbacks(facts, sources, text, excerpt)\n112:         merge_cre_facts(facts, extract_tax_1040_fields(text))\n113: \n114:     if document_type == DocumentType.PROPERTY_APPRAISAL:\n115:         merge_cre_facts(facts, extract_appraisal_fields(text))\n116:         sale_price = facts.get(\"as_is_value\") or _find_appraisal_sale_price(text)\n117:         if sale_price is not None:\n118:             facts[\"appraisal_sale_price\"] = sale_price\n119:             sources[\"appraisal_sale_price\"] = {\"page\": 1, \"excerpt\": excerpt}\n120: \n121:     if document_type == DocumentType.T12_OPERATING_STATEMENT:\n122:         merge_cre_facts(facts, extract_t12_fields(text))\n123: \n124:     if document_type in {DocumentType.PL_STATEMENT, DocumentType.CASH_FLOW_STATEMENT}:\n125:         merge_cre_facts(facts, extract_pl_fields(text))\n126:         merge_cre_facts(facts, extract_t12_fields(text))\n127: \n128:     if document_type == DocumentType.HUD_SETTLEMENT:\n129:         merge_cre_facts(facts, extract_hud_fields(text))\n130: \n131:     if document_type == DocumentType.LEASE_AGREEMENT:\n132:         merge_cre_facts(facts, extract_lease_fields(text))\n133: \n134:     if document_type == DocumentType.EXISTING_LOAN_STATEMENT:\n135:         merge_cre_facts(facts, extract_hud_fields(text))\n136: \n137:     if document_type in {\n138:         DocumentType.CONSTRUCTION_BUDGET,\n139:         DocumentType.COST_TO_COMPLETE,\n140:         DocumentType.REHAB_BUDGET,\n141:     }:\n142:         prefix = \"rehab\" if document_type == DocumentType.REHAB_BUDGET else \"\"\n143:         merge_cre_facts(facts, extract_construction_fields(text, prefix=prefix))\n144: \n145:     if document_type == DocumentType.DEBT_SCHEDULE:\n146:         merge_cre_facts(facts, extract_debt_schedule_fields(text))\n147: \n148:     for k in facts:\n149:         if k not in sources and not k.startswith(\"_\"):\n150:             sources.setdefault(k, {\"page\": 1, \"excerpt\": excerpt, \"source\": \"cre_extractor\"})\n151: \n152:     dates = _DATE.findall(text)\n153:     if dates:\n154:         facts[\"dates_found\"] = dates[:5]\n155:         sources[\"dates_found\"] = {\"page\": 1, \"excerpt\": excerpt}\n156: \n157:     percents = [float(p) for p in _PERCENT.findall(text)[:5]]\n158:     if percents:\n159:         facts[\"percentages_found\"] = percents\n160:         sources[\"percentages_found\"] = {\"page\": 1, \"excerpt\": excerpt}\n161: \n162:     facts[\"document_type\"] = document_type.value\n163:     facts[\"extraction_method\"] = result.method\n164:     sources[\"document_type\"] = {\"page\": 1, \"excerpt\": excerpt}\n165:     return facts, sources\n166: \n167: \n168: def _table_rows_from_extraction(result: ExtractionResult) -> list[list[str]]:\n169:     structured = result.structured_fields or {}\n170:     azure_rows = structured.get(\"azure_table_rows\")\n171:     if isinstance(azure_rows, list) and azure_rows:\n172:         return [azure_rows]\n173:     return []\n174: \n175: \n176: def _merge_azure_structured_fields(\n177:     facts: Dict[str, Any],\n178:     sources: Dict[str, Dict[str, Any]],\n179:     result: ExtractionResult,\n180:     excerpt: str,\n181: ) -> None:\n182:     structured = result.structured_fields or {}\n183:     skip_keys = {\"azure_table_count\", \"azure_table_rows\", \"tax_schedule\", \"bank_statement\"}\n184:     for key, value in structured.items():\n185:         if key in skip_keys or key.startswith(\"_\"):\n186:             continue\n187:         if key not in facts and value is not None:\n188:             facts[key] = value\n189:             sources[key] = {\"page\": 1, \"excerpt\": excerpt, \"source\": \"azure_layout\"}\n190: \n191:     for nested_key in (\"tax_schedule\", \"bank_statement\"):\n192:         nested = structured.get(nested_key)\n193:         if isinstance(nested, dict):\n194:             for key, value in nested.items():\n195:                 if key not in facts and value is not None:\n196:                     facts[key] = value\n197:                     sources[key] = {\"page\": 1, \"excerpt\": excerpt, \"source\": \"azure_layout\"}\n198: \n199:     pfs_items = structured.get(\"pfs_line_items\")\n200:     if isinstance(pfs_items, dict):\n201:         facts.setdefault(\"pfs_line_items\", {})\n202:         if isinstance(facts[\"pfs_line_items\"], dict):\n203:             facts[\"pfs_line_items\"].update(pfs_items)\n204:         for label, amount in pfs_items.items():\n205:             safe_key = re.sub(r\"[^a-z0-9]+\", \"_\", str(label)).strip(\"_\")\n206:             if safe_key and f\"pfs_{safe_key}\" not in facts:\n207:                 facts[f\"pfs_{safe_key}\"] = amount\n208:                 sources[f\"pfs_{safe_key}\"] = {\"page\": 1, \"excerpt\": excerpt, \"source\": \"azure_layout\"}\n209: \n210: \n211: def _merge_table_row_fields(\n212:     facts: Dict[str, Any],\n213:     sources: Dict[str, Dict[str, Any]],\n214:     document_type: DocumentType,\n215:     table_rows: list[list[str]],\n216:     excerpt: str,\n217: ) -> None:\n218:     if document_type in {DocumentType.PERSONAL_TAX_RETURN, DocumentType.BUSINESS_TAX_RETURN}:\n219:         tax_facts = extract_tax_schedule_fields(table_rows)\n220:         for key, value in tax_facts.items():\n221:             if key not in facts:\n222:                 facts[key] = value\n223:                 sources[key] = {\"page\": 1, \"excerpt\": excerpt, \"source\": \"table_rows\"}\n224: \n225:     if document_type == DocumentType.PERSONAL_FINANCIAL_STATEMENT:\n226:         pfs_items = extract_pfs_fields_from_rows(table_rows)\n227:         if pfs_items:\n228:             existing = facts.get(\"pfs_line_items\") or {}\n229:             merged = {**existing, **pfs_items} if isinstance(existing, dict) else pfs_items\n230:             facts[\"pfs_line_items\"] = merged\n231:             for label, amount in pfs_items.items():\n232:                 safe_key = re.sub(r\"[^a-z0-9]+\", \"_\", label).strip(\"_\")\n233:                 if safe_key and f\"pfs_{safe_key}\" not in facts:\n234:                     facts[f\"pfs_{safe_key}\"] = amount\n235:                     sources[f\"pfs_{safe_key}\"] = {\"page\": 1, \"excerpt\": excerpt, \"source\": \"table_rows\"}\n236: \n237:     if document_type == DocumentType.BANK_STATEMENT:\n238:         bank_facts = extract_bank_statement_fields(table_rows)\n239:         for key, value in bank_facts.items():\n240:             if key not in facts:\n241:                 facts[key] = value\n242:                 sources[key] = {\"page\": 1, \"excerpt\": excerpt, \"source\": \"table_rows\"}\n243: \n244: \n245: def _merge_tax_text_fallbacks(\n246:     facts: Dict[str, Any],\n247:     sources: Dict[str, Dict[str, Any]],\n248:     text: str,\n249:     excerpt: str,\n250: ) -> None:\n251:     \"\"\"Fallback when tables are sparse: search pipe-delimited or plain lines in full_text.\"\"\"\n252:     lines = text.splitlines()\n253:     flat_rows = [line for line in lines if \"|\" in line or \"gross\" in line.lower()]\n254:     if not flat_rows:\n255:         return\n256:     tax_facts = extract_tax_schedule_fields([flat_rows])\n257:     for key, value in tax_facts.items():\n258:         if key not in facts:\n259:             facts[key] = value\n260:             sources[key] = {\"page\": 1, \"excerpt\": excerpt, \"source\": \"text_fallback\"}\n261: \n262: \n263: def _first_money_values(text: str, limit: int) -> list[float]:\n264:     out: list[float] = []\n265:     for m in _MONEY.finditer(text):\n266:         raw = m.group(1) or m.group(2)\n267:         if not raw:\n268:             continue\n269:         try:\n270:             out.append(float(raw.replace(\",\", \"\")))\n271:         except ValueError:\n272:             continue\n273:         if len(out) >= limit:\n274:             break\n275:     return out\n276: \n277: \n278: def _find_appraisal_sale_price(text: str) -> float | None:\n279:     patterns = (\n280:         r\"(?:sale|selling|market)\\s+price[:\\s]*\\$?\\s*([\\d,]+(?:\\.\\d{2})?)\",\n281:         r\"value\\s+conclusion[:\\s]*\\$?\\s*([\\d,]+(?:\\.\\d{2})?)\",\n282:         r\"appraised\\s+value[:\\s]*\\$?\\s*([\\d,]+(?:\\.\\d{2})?)\",\n283:     )\n284:     for pattern in patterns:\n285:         match = re.search(pattern, text, re.IGNORECASE)\n286:         if match:\n287:             try:\n288:                 return float(match.group(1).replace(\",\", \"\"))\n289:             except ValueError:\n290:                 continue\n291:     return None\n\n(End of file - total 291 lines)\n</content>"
+          },
+          {
+            "source_call_id": "tooluse_trFncjDqdSaI1twDIgGQya",
+            "content": "<path>/app/loangen-agent/agent/documents/extraction/table_text.py</path>\n<type>file</type>\n<content>\n1: \"\"\"Serialize Azure DI tables into row-oriented text and structured field hints.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import re\n6: from typing import Any, Dict, List, Optional, Sequence, Tuple\n7: \n8: _MONEY = re.compile(r\"\\$?\\s*([\\d,]+(?:\\.\\d{2})?)\")\n9: \n10: \n11: def build_table_grid(\n12:     row_count: int,\n13:     column_count: int,\n14:     cells: Sequence[Any],\n15: ) -> List[List[str]]:\n16:     \"\"\"Build a sparse grid from Azure DI table cells.\"\"\"\n17:     grid: List[List[str]] = [\n18:         [\"\" for _ in range(column_count)] for _ in range(row_count)\n19:     ]\n20:     for cell in cells:\n21:         row_idx = int(getattr(cell, \"row_index\", 0) or 0)\n22:         col_idx = int(getattr(cell, \"column_index\", 0) or 0)\n23:         content = str(getattr(cell, \"content\", \"\") or \"\").strip()\n24:         if 0 <= row_idx < row_count and 0 <= col_idx < column_count and content:\n25:             if grid[row_idx][col_idx]:\n26:                 grid[row_idx][col_idx] = f\"{grid[row_idx][col_idx]} {content}\"\n27:             else:\n28:                 grid[row_idx][col_idx] = content\n29:     return grid\n30: \n31: \n32: def grid_to_row_lines(grid: List[List[str]]) -> List[str]:\n33:     \"\"\"Join each table row into a single pipe-delimited line.\"\"\"\n34:     lines: List[str] = []\n35:     for row in grid:\n36:         cleaned = [c.strip() for c in row if c and c.strip()]\n37:         if cleaned:\n38:             lines.append(\" | \".join(cleaned))\n39:     return lines\n40: \n41: \n42: def serialize_tables_from_result(tables: Sequence[Any]) -> Tuple[str, List[List[str]]]:\n43:     \"\"\"\n44:     Return (text block for full_text, all row lines across tables).\n45:     \"\"\"\n46:     if not tables:\n47:         return \"\", []\n48: \n49:     blocks: List[str] = []\n50:     all_rows: List[List[str]] = []\n51: \n52:     for table_idx, table in enumerate(tables, start=1):\n53:         row_count = int(getattr(table, \"row_count\", 0) or 0)\n54:         column_count = int(getattr(table, \"column_count\", 0) or 0)\n55:         cells = getattr(table, \"cells\", None) or []\n56:         if row_count <= 0 or column_count <= 0 or not cells:\n57:             continue\n58: \n59:         grid = build_table_grid(row_count, column_count, cells)\n60:         row_lines = grid_to_row_lines(grid)\n61:         if not row_lines:\n62:             continue\n63: \n64:         page_hint = \"\"\n65:         regions = getattr(table, \"bounding_regions\", None) or []\n66:         if regions:\n67:             page_num = getattr(regions[0], \"page_number\", None)\n68:             if page_num:\n69:                 page_hint = f\" page {page_num}\"\n70: \n71:         blocks.append(f\"[Table {table_idx}{page_hint}]\")\n72:         blocks.extend(row_lines)\n73:         blocks.append(\"\")\n74:         all_rows.append(row_lines)\n75: \n76:     return \"\\n\".join(blocks).strip(), all_rows\n77: \n78: \n79: def last_amount_in_text(text: str) -> Optional[float]:\n80:     \"\"\"Return the last plausible monetary amount in a string (IRS forms: amount in last column).\"\"\"\n81:     if not text:\n82:         return None\n83:     candidates: List[float] = []\n84:     for match in _MONEY.finditer(text):\n85:         raw = match.group(1)\n86:         if not raw:\n87:             continue\n88:         try:\n89:             value = float(raw.replace(\",\", \"\"))\n90:         except ValueError:\n91:             continue\n92:         if value >= 0:\n93:             candidates.append(value)\n94:     return candidates[-1] if candidates else None\n95: \n96: \n97: def find_row_amount(rows: Sequence[str], label_patterns: Sequence[str]) -> Optional[float]:\n98:     \"\"\"Find amount in a table row whose text matches any label pattern.\"\"\"\n99:     for row in rows:\n100:         row_lower = row.lower()\n101:         for pattern in label_patterns:\n102:             if pattern in row_lower:\n103:                 # Avoid \"gross income\" matching \"gross profit\" queries \u2014 handled by caller patterns\n104:                 amount = last_amount_in_text(row)\n105:                 if amount is not None:\n106:                     return amount\n107:     return None\n108: \n109: \n110: def extract_tax_schedule_fields(all_row_lines: Sequence[Sequence[str]]) -> Dict[str, Any]:\n111:     \"\"\"Extract common Schedule C / tax line items from table rows.\"\"\"\n112:     flat_rows: List[str] = []\n113:     for table_rows in all_row_lines:\n114:         flat_rows.extend(table_rows)\n115: \n116:     facts: Dict[str, Any] = {}\n117:     mappings: Tuple[Tuple[str, Tuple[str, ...]], ...] = (\n118:         (\"schedule_c_gross_profit\", (\"gross profit\",)),\n119:         (\"schedule_c_gross_income\", (\"gross income\",)),\n120:         (\"schedule_c_net_profit\", (\"net profit\", \"net profit or (loss)\", \"net profit or loss\")),\n121:         (\"schedule_c_total_expenses\", (\"total expenses\",)),\n122:         (\"schedule_c_cost_of_goods_sold\", (\"cost of goods sold\",)),\n123:     )\n124:     for field_key, patterns in mappings:\n125:         amount = find_row_amount(flat_rows, patterns)\n126:         if amount is not None:\n127:             facts[field_key] = amount\n128: \n129:     if \"schedule_c_gross_profit\" in facts:\n130:         facts[\"gross_profit\"] = facts[\"schedule_c_gross_profit\"]\n131:     if \"schedule_c_gross_income\" in facts:\n132:         facts[\"gross_income\"] = facts[\"schedule_c_gross_income\"]\n133: \n134:     # Fallback: search full text style rows in flat list for line 5 gross profit\n135:     if \"schedule_c_gross_profit\" not in facts:\n136:         for row in flat_rows:\n137:             if re.search(r\"\\b5\\b\", row) and \"gross profit\" in row.lower():\n138:                 amount = last_amount_in_text(row)\n139:                 if amount is not None:\n140:                     facts[\"schedule_c_gross_profit\"] = amount\n141:                     break\n142: \n143:     return facts\n144: \n145: \n146: def extract_pfs_fields_from_rows(all_row_lines: Sequence[Sequence[str]]) -> Dict[str, float]:\n147:     \"\"\"Extract label \u2192 amount from PFS-style table rows.\"\"\"\n148:     line_items: Dict[str, float] = {}\n149:     for table_rows in all_row_lines:\n150:         for row in table_rows:\n151:             parts = [p.strip() for p in row.split(\"|\")]\n152:             if len(parts) < 2:\n153:                 continue\n154:             label = parts[0].lower()\n155:             if len(label) < 3:\n156:                 continue\n157:             amount = last_amount_in_text(\" | \".join(parts[1:]))\n158:             if amount is None:\n159:                 continue\n160:             if label not in line_items:\n161:                 line_items[label] = amount\n162:     return line_items\n163: \n164: \n165: def extract_bank_statement_fields(all_row_lines: Sequence[Sequence[str]]) -> Dict[str, Any]:\n166:     facts: Dict[str, Any] = {}\n167:     flat_rows: List[str] = []\n168:     for table_rows in all_row_lines:\n169:         flat_rows.extend(table_rows)\n170: \n171:     for row in flat_rows:\n172:         row_lower = row.lower()\n173:         amount = last_amount_in_text(row)\n174:         if amount is None:\n175:             continue\n176:         if \"ending balance\" in row_lower or \"closing balance\" in row_lower:\n177:             facts[\"closing_balance\"] = amount\n178:         elif \"beginning balance\" in row_lower or \"opening balance\" in row_lower:\n179:             facts[\"opening_balance\"] = amount\n180: \n181:     amounts = [last_amount_in_text(r) for r in flat_rows]\n182:     amounts = [a for a in amounts if a is not None]\n183:     if amounts and \"amounts_found\" not in facts:\n184:         facts[\"amounts_found\"] = amounts[:10]\n185:     return facts\n\n(End of file - total 185 lines)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 30951,
+        "completion_tokens": 3940,
+        "cached_tokens": 30949,
+        "cost_usd": 0.13422825,
+        "extra": {
+          "cache_write_tokens": 3239
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-05T19:57:43.411000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "Now let me write a repro script to confirm the four failure modes.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_73o7RNQ6Dhu75nfGWbOfVe",
+          "function_name": "write",
+          "arguments": {
+            "filePath": "/tmp/opencode/repro.py",
+            "content": "import sys\nsys.path.insert(0, \"/app/loangen-agent\")\n\nfrom agent.documents.extractors.cre_fields import (\n    extract_appraisal_fields,\n    extract_credit_report_fields,\n    extract_hud_fields,\n    extract_rent_roll_fields,\n)\n\n# 1. appraisal at the floor vs just above\nsmall = \"Appraised Value: $100,000\\nlocated at 12 Main Street\"\nbig = \"Appraised Value: $100,500\\nlocated at 12 Main Street\"\nprint(\"appraisal small:\", extract_appraisal_fields(small).get(\"as_is_value\"))\nprint(\"appraisal big  :\", extract_appraisal_fields(big).get(\"as_is_value\"))\n\n# 2. lean rent roll (1 and 2 rent rows) vs 3 rows\nroll1 = \"RENT ROLL\\nUnit 101 | Tenant A | Monthly Rent | $2,400\\n\"\nroll2 = roll1 + \"Unit 102 | Tenant B | Monthly Rent | $2,600\\n\"\nroll3 = roll2 + \"Unit 103 | Tenant C | Monthly Rent | $2,800\\n\"\nfor name, r in ((\"1 row\", roll1), (\"2 rows\", roll2), (\"3 rows\", roll3)):\n    print(\"rent roll\", name, \":\", extract_rent_roll_fields(r).get(\"gross_potential_rent\"))\n# rent row exactly at band edge\nroll_edge = \"RENT ROLL\\nUnit 1 | Monthly Rent | $100\\nUnit 2 | Monthly Rent | $2,600\\nUnit 3 | Monthly Rent | $2,800\\n\"\nprint(\"rent roll band edge:\", extract_rent_roll_fields(roll_edge).get(\"gross_potential_rent\"))\n\n# 3. HUD loan amount at the floor vs above\nhud_small = \"SETTLEMENT STATEMENT\\nLoan Amount: $10,000\\nPurchase Price: $60,000\\n\"\nhud_big = \"SETTLEMENT STATEMENT\\nLoan Amount: $10,500\\nPurchase Price: $60,000\\n\"\nprint(\"hud small:\", extract_hud_fields(hud_small).get(\"hud_loan_amount\"))\nprint(\"hud big  :\", extract_hud_fields(hud_big).get(\"hud_loan_amount\"))\n\n# 4. credit scores incl. perfect 850\nperfect = \"FICO Risk Score, Classic (04) 850\\nFair Isaac (v2) [ 850 ]\\nFICO Classic v5 850\\n\"\nmixed = \"FICO Risk Score, Classic (04) 850\\nFair Isaac (v2) [ 810 ]\\nFICO Classic v5 805\\n\"\nweak = \"FICO Risk Score, Classic (04) 662\\nFair Isaac (v2) [ 665 ]\\nFICO Classic v5 675\\n\"\nfor name, t in ((\"perfect\", perfect), (\"mixed\", mixed), (\"weak\", weak)):\n    print(\"credit\", name, \":\", extract_credit_report_fields(t))\n"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_73o7RNQ6Dhu75nfGWbOfVe",
+            "content": "Wrote file successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 34190,
+        "completion_tokens": 1637,
+        "cached_tokens": 34188,
+        "cost_usd": 0.13781025,
+        "extra": {
+          "cache_write_tokens": 12765
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-05T19:58:03.238000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_PzOW625fWDdiXtfgyVNXNJ",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python /tmp/opencode/repro.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_PzOW625fWDdiXtfgyVNXNJ",
+            "content": "appraisal small: None\nappraisal big  : 100500.0\nrent roll 1 row : None\nrent roll 2 rows : None\nrent roll 3 rows : 7800.0\nrent roll band edge: None\nhud small: None\nhud big  : 10500.0\ncredit perfect : {}\ncredit mixed : {'bureau_fico_scores': {'experian': 810, 'equifax': 805}, 'primary_fico_score': 810, 'credit_score_mention': 810}\ncredit weak : {'bureau_fico_scores': {'transunion': 662, 'experian': 665, 'equifax': 675}, 'primary_fico_score': 665, 'credit_score_mention': 665}\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 46955,
+        "completion_tokens": 71,
+        "cached_tokens": 46953,
+        "cost_usd": 0.03558025,
+        "extra": {
+          "cache_write_tokens": 1651
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-05T19:58:06.362000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_nGSFOoJ0q998YEjgY891Jp",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/tests/test_cre_field_extraction.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_nGSFOoJ0q998YEjgY891Jp",
+            "content": "<path>/app/loangen-agent/tests/test_cre_field_extraction.py</path>\n<type>file</type>\n<content>\n1: \"\"\"Tests for CRE field extraction.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import unittest\n6: \n7: from agent.documents.extractors.cre_fields import (\n8:     extract_appraisal_fields,\n9:     extract_hud_fields,\n10:     extract_rent_roll_fields,\n11:     extract_t12_fields,\n12: )\n13: \n14: \n15: class TestCreFieldExtraction(unittest.TestCase):\n16:     def test_appraisal_extracts_as_is_value(self):\n17:         text = \"As-Is Value: $1,250,000\\nMarket conditions stable.\"\n18:         facts = extract_appraisal_fields(text)\n19:         self.assertEqual(facts.get(\"as_is_value\"), 1_250_000.0)\n20: \n21:     def test_rent_roll_occupancy(self):\n22:         text = \"Total Units: 20\\nOccupied: 18\\nGross Potential Rent: $240,000\"\n23:         facts = extract_rent_roll_fields(text)\n24:         self.assertEqual(facts.get(\"total_units\"), 20)\n25:         self.assertAlmostEqual(float(facts.get(\"physical_occupancy\", 0)), 0.9, places=2)\n26: \n27:     def test_t12_noi(self):\n28:         text = \"Effective Gross Income $500,000\\nOperating Expenses $200,000\\nNOI $300,000\"\n29:         facts = extract_t12_fields(text)\n30:         self.assertEqual(facts.get(\"noi\"), 300_000.0)\n31: \n32:     def test_hud_loan_amount(self):\n33:         text = \"Loan Amount: $800,000\\nPurchase Price: $1,000,000\"\n34:         facts = extract_hud_fields(text)\n35:         self.assertEqual(facts.get(\"hud_loan_amount\"), 800_000.0)\n36: \n37: \n38: if __name__ == \"__main__\":\n39:     unittest.main()\n\n(End of file - total 39 lines)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 48606,
+        "completion_tokens": 1317,
+        "cached_tokens": 48604,
+        "cost_usd": 0.0591495,
+        "extra": {
+          "cache_write_tokens": 306
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-08-05T19:58:26.364000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "Now applying the four boundary fixes.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_S1swE9coV5SvTBmTAgwj8A",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/cre_fields.py",
+            "oldString": "def _sum_rent_amounts(text: str) -> Optional[float]:\n    \"\"\"Sum monthly rent figures from rent-roll style lines.\"\"\"\n    total = 0.0\n    count = 0\n    for line in text.splitlines():\n        low = line.lower()\n        if \"rent\" in low or \"monthly\" in low:\n            amt = _money(line)\n            if amt is not None and 100 < amt < 5_000_000:\n                total += amt\n                count += 1\n    return total if count >= 3 else None",
+            "newString": "_MIN_RENT_LINE_AMOUNT = 100.0\n_MAX_RENT_LINE_AMOUNT = 5_000_000.0\n\n\ndef _sum_rent_amounts(text: str) -> Optional[float]:\n    \"\"\"Sum monthly rent figures from rent-roll style lines.\n\n    The amount band is inclusive of its endpoints, and a single rent line is\n    enough to produce a total: single-tenant / very small rolls are legitimate\n    rent rolls and must not be discarded.\n    \"\"\"\n    total = 0.0\n    count = 0\n    for line in text.splitlines():\n        low = line.lower()\n        if \"rent\" in low or \"monthly\" in low:\n            amt = _money(line)\n            if amt is not None and _MIN_RENT_LINE_AMOUNT <= amt <= _MAX_RENT_LINE_AMOUNT:\n                total += amt\n                count += 1\n    return total if count >= 1 else None"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_p0PXCLQ9CJ1eqsInzhfLkd",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/cre_fields.py",
+            "oldString": "    return f if f > min_amount else None",
+            "newString": "    # Inclusive floor: a value sitting exactly on the minimum is valid and is\n    # accepted downstream (see cre_qualification.facts.resolve_appraisal_value).\n    return f if f >= min_amount else None"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_S1swE9coV5SvTBmTAgwj8A",
+            "content": "Edit applied successfully."
+          },
+          {
+            "source_call_id": "tooluse_p0PXCLQ9CJ1eqsInzhfLkd",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 48912,
+        "completion_tokens": 804,
+        "cached_tokens": 48910,
+        "cost_usd": 0.05739625,
+        "extra": {
+          "cache_write_tokens": 2053
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-08-05T19:58:35.850000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_Zwz7ekAaNkQY7fz0C1vQ82",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/cre_fields.py",
+            "newString": "            # Inclusive floor: a loan amount exactly at the minimum is a real\n            # loan amount (cross_checks gates on hud_loan_amount >= the minimum).\n            if key == \"hud_loan_amount\" and val < _MIN_HUD_LOAN_AMOUNT:",
+            "oldString": "            if key == \"hud_loan_amount\" and val <= _MIN_HUD_LOAN_AMOUNT:"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_RxpDRf7wMsO0eRY3fvybHu",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/cre_fields.py",
+            "newString": "    for bureau, pat in patterns:\n        m = re.search(pat, text, re.IGNORECASE)\n        if m:\n            score = int(m.group(1))\n            if _FICO_MIN <= score <= _FICO_MAX:\n                bureau_scores[bureau] = score\n\n    if not bureau_scores:\n        for m in re.finditer(r\"(\\d{3})\\s+Factors\\s*\u2022\", text):\n            score = int(m.group(1))\n            if _FICO_MIN <= score <= _FICO_MAX:\n                bureau_scores.setdefault(f\"bureau_{len(bureau_scores) + 1}\", score)",
+            "oldString": "    for bureau, pat in patterns:\n        m = re.search(pat, text, re.IGNORECASE)\n        if m:\n            score = int(m.group(1))\n            if 300 <= score < 850:\n                bureau_scores[bureau] = score\n\n    if not bureau_scores:\n        for m in re.finditer(r\"(\\d{3})\\s+Factors\\s*\u2022\", text):\n            score = int(m.group(1))\n            if 300 <= score <= 850:\n                bureau_scores.setdefault(f\"bureau_{len(bureau_scores) + 1}\", score)"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_Zwz7ekAaNkQY7fz0C1vQ82",
+            "content": "Edit applied successfully."
+          },
+          {
+            "source_call_id": "tooluse_RxpDRf7wMsO0eRY3fvybHu",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 50965,
+        "completion_tokens": 763,
+        "cached_tokens": 50963,
+        "cost_usd": 0.0500415,
+        "extra": {
+          "cache_write_tokens": 876
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-08-05T19:58:43.819000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_BmVqE7YTsTcMeKKyeoF4Bs",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/cre_fields.py",
+            "newString": "_FICO_MIN = 300\n_FICO_MAX = 850  # inclusive: 850 is a valid (perfect) FICO score\n\n\ndef extract_credit_report_fields(text: str) -> Dict[str, Any]:",
+            "oldString": "def extract_credit_report_fields(text: str) -> Dict[str, Any]:"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_BmVqE7YTsTcMeKKyeoF4Bs",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 51841,
+        "completion_tokens": 313,
+        "cached_tokens": 51839,
+        "cost_usd": 0.03897325,
+        "extra": {
+          "cache_write_tokens": 835
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-08-05T19:58:48.824000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_zCnkWFiH90UCt29HAuMdxS",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python /tmp/opencode/repro.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_zCnkWFiH90UCt29HAuMdxS",
+            "content": "appraisal small: 100000.0\nappraisal big  : 100500.0\nrent roll 1 row : 2400.0\nrent roll 2 rows : 5000.0\nrent roll 3 rows : 7800.0\nrent roll band edge: 5500.0\nhud small: 10000.0\nhud big  : 10500.0\ncredit perfect : {'bureau_fico_scores': {'transunion': 850, 'experian': 850, 'equifax': 850}, 'primary_fico_score': 850, 'credit_score_mention': 850}\ncredit mixed : {'bureau_fico_scores': {'transunion': 850, 'experian': 810, 'equifax': 805}, 'primary_fico_score': 810, 'credit_score_mention': 810}\ncredit weak : {'bureau_fico_scores': {'transunion': 662, 'experian': 665, 'equifax': 675}, 'primary_fico_score': 665, 'credit_score_mention': 665}\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 52676,
+        "completion_tokens": 71,
+        "cached_tokens": 52674,
+        "cost_usd": 0.03016575,
+        "extra": {
+          "cache_write_tokens": 327
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 14,
+      "timestamp": "2026-08-05T19:58:52.112000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_lQT6zzr92RBpNbUi4ro6fM",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -m pytest tests -q 2>&1 | tail -20"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_lQT6zzr92RBpNbUi4ro6fM",
+            "content": "                        new=AsyncMock(return_value=[\"doc-stale\"]),\n                    ):\n                        recovered = await recover_stale_documents_for_application(\n                            \"app-1\",\n                            service=mock_svc,\n                        )\n    \n>       self.assertEqual(recovered, 1)\nE       AssertionError: 0 != 1\n\ntests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n7 failed, 166 passed, 24 skipped in 2.31s\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 53003,
+        "completion_tokens": 262,
+        "cached_tokens": 53001,
+        "cost_usd": 0.035548,
+        "extra": {
+          "cache_write_tokens": 398
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 15,
+      "timestamp": "2026-08-05T19:59:00.646000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_ZqhJ4UKyyyJ45L9SFFN2OV",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && git stash && python -m pytest tests -q 2>&1 | tail -10; git stash pop"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_ZqhJ4UKyyyJ45L9SFFN2OV",
+            "content": "Saved working directory and index state WIP on main: 3e3262c import codebase\ntests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n7 failed, 166 passed, 24 skipped in 2.05s\nOn branch main\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git restore <file>...\" to discard changes in working directory)\n\tmodified:   agent/documents/extractors/cre_fields.py\n\nno changes added to commit (use \"git add\" and/or \"git commit -a\")\nDropped refs/stash@{0} (98686f9102a435e6c482ebfbc47a2c25b6f3d6d4)\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 53401,
+        "completion_tokens": 138,
+        "cached_tokens": 53399,
+        "cost_usd": 0.03517825,
+        "extra": {
+          "cache_write_tokens": 803
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 16,
+      "timestamp": "2026-08-05T19:59:07.013000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_XYCSEIe5tlLHaQ3vPHUTit",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -m pytest tests/test_inbound_calls.py tests/test_ingestion_stale_recovery.py tests/test_document_report.py tests/test_document_ingestion_readiness.py -q 2>&1 | tail -5"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_XYCSEIe5tlLHaQ3vPHUTit",
+            "content": "FAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\n7 failed, 29 passed in 0.79s\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 54204,
+        "completion_tokens": 350,
+        "cached_tokens": 54202,
+        "cost_usd": 0.04052975,
+        "extra": {
+          "cache_write_tokens": 747
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 17,
+      "timestamp": "2026-08-05T19:59:14.200000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_tE71fDrvMUKcGkZoinc44N",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -m pytest tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded -q 2>&1 | head -40"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_tE71fDrvMUKcGkZoinc44N",
+            "content": "/usr/local/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option \"asyncio_default_fixture_loop_scope\" is unset.\nThe event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\nF                                                                        [100%]\n=================================== FAILURES ===================================\n_______________ TestReportSupport.test_credit_and_bank_excluded ________________\n\nself = <test_document_report.TestReportSupport testMethod=test_credit_and_bank_excluded>\n\n    def test_credit_and_bank_excluded(self) -> None:\n        self.assertIn(DocumentType.CREDIT_REPORT, REPORT_EXCLUDED_DOCUMENT_TYPES)\n        self.assertIn(DocumentType.BANK_STATEMENT, REPORT_EXCLUDED_DOCUMENT_TYPES)\n        self.assertFalse(is_report_supported(DocumentType.CREDIT_REPORT))\n>       self.assertTrue(is_report_supported(DocumentType.PERSONAL_TAX_RETURN))\nE       AssertionError: False is not true\n\ntests/test_document_report.py:22: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\n1 failed in 0.27s\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 54951,
+        "completion_tokens": 364,
+        "cached_tokens": 54949,
+        "cost_usd": 0.04027825,
+        "extra": {
+          "cache_write_tokens": 591
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 18,
+      "timestamp": "2026-08-05T19:59:21.947000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_hhsASMOC0qgSqAGeKpXCSD",
+          "function_name": "write",
+          "arguments": {
+            "content": "import sys\nsys.path.insert(0, \"/app/loangen-agent\")\n\nfrom agent.documents.enums import DocumentType\nfrom agent.documents.extraction.base import ExtractionResult\nfrom agent.documents.extractors.generic import extract_structured_fields\n\n\ndef facts_for(dtype, text):\n    res = ExtractionResult(full_text=text, pages=[], method=\"test\")\n    facts, _ = extract_structured_fields(dtype, res)\n    return facts\n\n\nappraisal = \"\"\"APPRAISAL REPORT\nThe subject property is located at 44 Elm Street, Springfield MA.\nMarket Value - As Is                 $100,000\nAppraised Value: $100,000\n\"\"\"\nprint(\"appraisal:\", {k: v for k, v in facts_for(DocumentType.PROPERTY_APPRAISAL, appraisal).items()\n                     if k in (\"as_is_value\", \"appraisal_sale_price\")})\n\nrent_roll = \"\"\"RENT ROLL - as of 01/01/2026\nUnit | Tenant | Monthly Rent\n101 | Acme LLC | $3,150\nTotal Units: 1\nOccupancy: 100%\n\"\"\"\nprint(\"rent_roll:\", facts_for(DocumentType.RENT_ROLL, rent_roll).get(\"gross_potential_rent\"))\n\nhud = \"\"\"SETTLEMENT STATEMENT\nSales Price: $14,000\nLoan Amount: $10,000\nCash to Close: $4,300\n\"\"\"\nf = facts_for(DocumentType.HUD_SETTLEMENT, hud)\nprint(\"hud:\", f.get(\"hud_loan_amount\"), f.get(\"loan_amount_hud\"))\n\ncredit = \"\"\"TRI-MERGE CREDIT REPORT\nTransUnion FICO Risk Score, Classic (04) 850\nExperian Fair Isaac (v2) [ 850 ]\nEquifax FICO Classic v5 850\n\"\"\"\nf = facts_for(DocumentType.CREDIT_REPORT, credit)\nprint(\"credit:\", f.get(\"primary_fico_score\"), f.get(\"bureau_fico_scores\"))\n\n# downstream resolvers\nfrom agent.services.cre_qualification.facts import (\n    resolve_appraisal_value, resolve_document_fico, resolve_hud_loan_amount,\n)\nprint(\"resolvers:\", resolve_appraisal_value({\"as_is_value\": 100_000.0}),\n      resolve_hud_loan_amount({\"hud_loan_amount\": 10_000.0}),\n      resolve_document_fico({\"primary_fico_score\": 850}))\n",
+            "filePath": "/tmp/opencode/e2e.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_hhsASMOC0qgSqAGeKpXCSD",
+            "content": "Wrote file successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 55542,
+        "completion_tokens": 1140,
+        "cached_tokens": 55540,
+        "cost_usd": 0.06256125,
+        "extra": {
+          "cache_write_tokens": 1005
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 19,
+      "timestamp": "2026-08-05T19:59:36.590000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_QyokovBuX7cC3uOIzv7ulU",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python /tmp/opencode/e2e.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_QyokovBuX7cC3uOIzv7ulU",
+            "content": "appraisal: {'as_is_value': 100000.0, 'appraisal_sale_price': 100000.0}\nrent_roll: 2026.0\nhud: 10000.0 10000.0\ncredit: 850 {'transunion': 850, 'experian': 850, 'equifax': 850}\nresolvers: 100000.0 10000.0 850\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 56547,
+        "completion_tokens": 72,
+        "cached_tokens": 56545,
+        "cost_usd": 0.037295,
+        "extra": {
+          "cache_write_tokens": 1154
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 20,
+      "timestamp": "2026-08-05T19:59:40.441000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_TI45jKEx0sGjkjGlry0HB5",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && grep -rn \"_sum_rent_amounts\" --include=*.py ."
+          }
+        },
+        {
+          "tool_call_id": "tooluse_5JzyxjvYDsyXQ7z4WaV5nS",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/cre_fields.py",
+            "offset": 120,
+            "limit": 130
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_TI45jKEx0sGjkjGlry0HB5",
+            "content": "./agent/documents/extractors/cre_fields.py:47:def _sum_rent_amounts(text: str) -> Optional[float]:\n./agent/documents/extractors/cre_fields.py:286:        gpr = _sum_rent_amounts(text)\n"
+          },
+          {
+            "source_call_id": "tooluse_5JzyxjvYDsyXQ7z4WaV5nS",
+            "content": "<path>/app/loangen-agent/agent/documents/extractors/cre_fields.py</path>\n<type>file</type>\n<content>\n120:     )\n121:     if addr_m:\n122:         facts[\"property_address\"] = addr_m.group(1).strip()\n123: \n124:     purchase_m = re.search(\n125:         r\"acquired the subject[^\\$]{0,60}\\$([\\d,]+)\",\n126:         text,\n127:         re.IGNORECASE,\n128:     )\n129:     if purchase_m:\n130:         facts[\"purchase_price\"] = _parse_money(purchase_m.group(1))\n131: \n132:     invested_m = re.search(\n133:         r\"invested\\s+approximately\\s*\\$([\\d,]+)\",\n134:         text,\n135:         re.IGNORECASE,\n136:     )\n137:     if invested_m:\n138:         facts[\"spent_to_date\"] = _parse_money(invested_m.group(1))\n139:         facts[\"rehab_invested\"] = facts[\"spent_to_date\"]\n140: \n141:     remaining_m = re.search(\n142:         r\"remaining budget[^\\$]{0,40}\\$([\\d,]+)\",\n143:         text,\n144:         re.IGNORECASE,\n145:     )\n146:     if remaining_m:\n147:         facts[\"remaining_budget_appraisal\"] = _parse_money(remaining_m.group(1))\n148: \n149:     sf_m = re.search(\n150:         r\"(\\d{1,3}(?:,\\d{3})*)\\s+total square feet\",\n151:         text,\n152:         re.IGNORECASE,\n153:     )\n154:     if sf_m:\n155:         facts[\"building_sf\"] = _parse_money(sf_m.group(1))\n156: \n157:     if re.search(r\"100%\\s+pre-?leased\", text, re.IGNORECASE) or re.search(\n158:         r\"100%\\s+occupied\", text, re.IGNORECASE\n159:     ):\n160:         facts[\"physical_occupancy\"] = 1.0\n161:         facts[\"economic_occupancy\"] = 1.0\n162:         if \"pre-leased\" in text.lower():\n163:             facts[\"pre_leased\"] = True\n164: \n165:     tenant_count_m = re.search(\n166:         r\"100%\\s+occupied by (\\w+)\\s+(?:professional\\s+)?tenants\",\n167:         text,\n168:         re.IGNORECASE,\n169:     )\n170:     if tenant_count_m:\n171:         word = tenant_count_m.group(1).lower()\n172:         word_map = {\n173:             \"eight\": 8,\n174:             \"nine\": 9,\n175:             \"ten\": 10,\n176:             \"eleven\": 11,\n177:             \"twelve\": 12,\n178:             \"seventeen\": 17,\n179:             \"sixteen\": 16,\n180:             \"fifteen\": 15,\n181:             \"fourteen\": 14,\n182:             \"thirteen\": 13,\n183:         }\n184:         if word in word_map:\n185:             facts[\"tenant_count\"] = word_map[word]\n186: \n187:     rent_psf = re.search(r\"\\$([\\d.]+)\\s+per square foot\", text, re.IGNORECASE)\n188:     if rent_psf and facts.get(\"building_sf\"):\n189:         annual_rent = float(rent_psf.group(1)) * float(facts[\"building_sf\"])\n190:         facts[\"gross_potential_rent\"] = annual_rent\n191:         facts[\"rent_per_sf\"] = float(rent_psf.group(1))\n192: \n193:     ext_rent = re.search(\n194:         r\"lease exterior laydown space[^\\$]{0,40}\\$([\\d,]+)\\s+annually\",\n195:         text,\n196:         re.IGNORECASE,\n197:     )\n198:     if ext_rent:\n199:         facts[\"ancillary_rent_annual\"] = _parse_money(ext_rent.group(1))\n200:         if facts.get(\"gross_potential_rent\"):\n201:             facts[\"gross_potential_rent\"] = float(facts[\"gross_potential_rent\"]) + float(\n202:                 facts[\"ancillary_rent_annual\"]\n203:             )\n204: \n205:     completion_m = re.search(\n206:         r\"(?:expected\\s+)?completion date in (\\w+\\s+\\d{4})\",\n207:         text,\n208:         re.IGNORECASE,\n209:     )\n210:     if completion_m:\n211:         facts[\"projected_stabilization\"] = completion_m.group(1)\n212: \n213:     condition_m = re.search(\n214:         r\"present in (\\w+)\\s+overall condition\",\n215:         text,\n216:         re.IGNORECASE,\n217:     )\n218:     if condition_m:\n219:         facts[\"building_condition\"] = condition_m.group(1).lower()\n220: \n221:     tenant_m = re.search(\n222:         r\"(\\d+)\\s+to\\s+(\\d+)\\s+year terms?\",\n223:         text,\n224:         re.IGNORECASE,\n225:     )\n226:     if tenant_m:\n227:         low, high = int(tenant_m.group(1)), int(tenant_m.group(2))\n228:         facts[\"wale_years\"] = (low + high) / 2.0\n229: \n230:     cap = _find_labeled_amount(text, (\"cap rate\", \"capitalization rate\"))\n231:     if cap is not None and cap > 1:\n232:         facts[\"cap_rate\"] = cap / 100\n233:     elif cap is not None and 0.01 < cap < 1:\n234:         facts[\"cap_rate\"] = cap\n235:     noi = _find_labeled_amount(text, (\"net operating income\", \"noi\"))\n236:     if noi is not None:\n237:         facts[\"noi\"] = noi\n238:     elif facts.get(\"as_complete_value\") and facts.get(\"cap_rate\"):\n239:         try:\n240:             facts[\"noi\"] = float(facts[\"as_complete_value\"]) * float(facts[\"cap_rate\"])\n241:             facts[\"noi_source\"] = \"appraisal_cap_rate\"\n242:         except (TypeError, ValueError):\n243:             pass\n244: \n245:     state_m = re.search(\n246:         r\",\\s*([A-Z]{2})\\s+\\d{5}\",\n247:         text,\n248:     )\n249:     if state_m:\n\n(Showing lines 120-249 of 815. Use offset=250 to continue.)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 57701,
+        "completion_tokens": 1641,
+        "cached_tokens": 57699,
+        "cost_usd": 0.0710845,
+        "extra": {
+          "cache_write_tokens": 192
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 21,
+      "timestamp": "2026-08-05T20:00:03.497000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "Let me harden the rent-roll summation so relaxing the row gate can't pick up dates as rent.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_yVmfjgPEBNr7Z7CSeaQrwy",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/cre_fields.py",
+            "limit": 30,
+            "offset": 43
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_yVmfjgPEBNr7Z7CSeaQrwy",
+            "content": "<path>/app/loangen-agent/agent/documents/extractors/cre_fields.py</path>\n<type>file</type>\n<content>\n43: _MIN_RENT_LINE_AMOUNT = 100.0\n44: _MAX_RENT_LINE_AMOUNT = 5_000_000.0\n45: \n46: \n47: def _sum_rent_amounts(text: str) -> Optional[float]:\n48:     \"\"\"Sum monthly rent figures from rent-roll style lines.\n49: \n50:     The amount band is inclusive of its endpoints, and a single rent line is\n51:     enough to produce a total: single-tenant / very small rolls are legitimate\n52:     rent rolls and must not be discarded.\n53:     \"\"\"\n54:     total = 0.0\n55:     count = 0\n56:     for line in text.splitlines():\n57:         low = line.lower()\n58:         if \"rent\" in low or \"monthly\" in low:\n59:             amt = _money(line)\n60:             if amt is not None and _MIN_RENT_LINE_AMOUNT <= amt <= _MAX_RENT_LINE_AMOUNT:\n61:                 total += amt\n62:                 count += 1\n63:     return total if count >= 1 else None\n64: \n65: \n66: def _parse_money(s: str) -> Optional[float]:\n67:     try:\n68:         return float(s.replace(\",\", \"\"))\n69:     except ValueError:\n70:         return None\n71: \n72: \n\n(Showing lines 43-72 of 815. Use offset=73 to continue.)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 57893,
+        "completion_tokens": 4833,
+        "cached_tokens": 57891,
+        "cost_usd": 0.1741805,
+        "extra": {
+          "cache_write_tokens": 3904
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 22,
+      "timestamp": "2026-08-05T20:01:13.084000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_hRiSYHTU3KprYnRHHNIEyN",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/extractors/cre_fields.py",
+            "newString": "_MIN_RENT_LINE_AMOUNT = 100.0\n_MAX_RENT_LINE_AMOUNT = 5_000_000.0\n\n# Calendar dates on rent-roll lines (\"as of 01/01/2026\", \"March 1, 2026\") are not\n# rent figures; drop them before looking for the line's amount.\n_DATE_ON_LINE = re.compile(\n    r\"\\b\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}\\b\"\n    r\"|\\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?\\s+\\d{1,2},?\\s*\\d{4}\\b\"\n    r\"|\\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?\\s+\\d{4}\\b\",\n    re.IGNORECASE,\n)\n\n\ndef _sum_rent_amounts(text: str) -> Optional[float]:\n    \"\"\"Sum monthly rent figures from rent-roll style lines.\n\n    The plausibility band is inclusive of its endpoints, and a single rent line\n    is enough to produce a total: single-tenant and other very small rolls are\n    legitimate rent rolls, so their rent must not be discarded for being lean.\n    \"\"\"\n    total = 0.0\n    count = 0\n    for line in text.splitlines():\n        low = line.lower()\n        if \"rent\" in low or \"monthly\" in low:\n            amt = _money(_DATE_ON_LINE.sub(\" \", line))\n            if amt is not None and _MIN_RENT_LINE_AMOUNT <= amt <= _MAX_RENT_LINE_AMOUNT:\n                total += amt\n                count += 1\n    return total if count >= 1 else None",
+            "oldString": "_MIN_RENT_LINE_AMOUNT = 100.0\n_MAX_RENT_LINE_AMOUNT = 5_000_000.0\n\n\ndef _sum_rent_amounts(text: str) -> Optional[float]:\n    \"\"\"Sum monthly rent figures from rent-roll style lines.\n\n    The amount band is inclusive of its endpoints, and a single rent line is\n    enough to produce a total: single-tenant / very small rolls are legitimate\n    rent rolls and must not be discarded.\n    \"\"\"\n    total = 0.0\n    count = 0\n    for line in text.splitlines():\n        low = line.lower()\n        if \"rent\" in low or \"monthly\" in low:\n            amt = _money(line)\n            if amt is not None and _MIN_RENT_LINE_AMOUNT <= amt <= _MAX_RENT_LINE_AMOUNT:\n                total += amt\n                count += 1\n    return total if count >= 1 else None"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_hRiSYHTU3KprYnRHHNIEyN",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 61797,
+        "completion_tokens": 1042,
+        "cached_tokens": 61795,
+        "cost_usd": 0.09043875,
+        "extra": {
+          "cache_write_tokens": 5357
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 23,
+      "timestamp": "2026-08-05T20:01:23.696000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_S4gL3RUBn5IhwCsssAZdM2",
+          "function_name": "write",
+          "arguments": {
+            "content": "import sys\nsys.path.insert(0, \"/app/loangen-agent\")\nfrom agent.documents.extractors.cre_fields import extract_rent_roll_fields as f\n\ncases = {\n    \"1 row w/ dated header\": \"RENT ROLL - as of 01/01/2026\\nUnit 101 | Acme | Monthly Rent $3,150\\n\",\n    \"2 rows\": \"RENT ROLL\\n1A | Smith | Monthly Rent $1,850\\n1B | Jones | Monthly Rent $1,900\\n\",\n    \"2 rows dated header\": \"Rent Roll as of March 1, 2026\\n1A | Monthly Rent $1,850\\n1B | Monthly Rent $1,900\\n\",\n    \"3 rows (regression)\": \"Rent Roll\\n1 | Monthly Rent $1,000\\n2 | Monthly Rent $2,000\\n3 | Monthly Rent $3,000\\n\",\n    \"lease end after rent\": \"Rent Roll\\n1A | Rent $1,850 | lease thru 12/31/2027\\n1B | Rent $1,900 | lease thru 06/30/2028\\n\",\n    \"labeled total wins\": \"Rent Roll\\nTotal Rent: $12,000\\n1A | Monthly Rent $1,850\\n\",\n    \"bare 4-digit rent\": \"Rent Roll\\n1A | Monthly Rent 1995\\n\",\n    \"no rent lines\": \"Rent Roll\\nUnit | Tenant | Amount\\n1A | Smith | $1,850\\n\",\n}\nfor name, text in cases.items():\n    print(f\"{name:24s} -> {f(text).get('gross_potential_rent')}\")\n",
+            "filePath": "/tmp/opencode/rent.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_S4gL3RUBn5IhwCsssAZdM2",
+            "content": "Wrote file successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 67154,
+        "completion_tokens": 638,
+        "cached_tokens": 67152,
+        "cost_usd": 0.056136,
+        "extra": {
+          "cache_write_tokens": 1056
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 24,
+      "timestamp": "2026-08-05T20:01:32.133000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_m6fhi2dyqSMwiqjNzF92cm",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python /tmp/opencode/rent.py && python /tmp/opencode/repro.py && python /tmp/opencode/e2e.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_m6fhi2dyqSMwiqjNzF92cm",
+            "content": "1 row w/ dated header    -> 3150.0\n2 rows                   -> 3750.0\n2 rows dated header      -> 3750.0\n3 rows (regression)      -> 6000.0\nlease end after rent     -> 3750.0\nlabeled total wins       -> 12000.0\nbare 4-digit rent        -> 1995.0\nno rent lines            -> None\nappraisal small: 100000.0\nappraisal big  : 100500.0\nrent roll 1 row : 2400.0\nrent roll 2 rows : 5000.0\nrent roll 3 rows : 7800.0\nrent roll band edge: 5500.0\nhud small: 10000.0\nhud big  : 10500.0\ncredit perfect : {'bureau_fico_scores': {'transunion': 850, 'experian': 850, 'equifax': 850}, 'primary_fico_score': 850, 'credit_score_mention': 850}\ncredit mixed : {'bureau_fico_scores': {'transunion': 850, 'experian': 810, 'equifax': 805}, 'primary_fico_score': 810, 'credit_score_mention': 810}\ncredit weak : {'bureau_fico_scores': {'transunion': 662, 'experian': 665, 'equifax': 675}, 'primary_fico_score': 665, 'credit_score_mention': 665}\nappraisal: {'as_is_value': 100000.0, 'appraisal_sale_price': 100000.0}\nrent_roll: None\nhud: 10000.0 10000.0\ncredit: 850 {'transunion': 850, 'experian': 850, 'equifax': 850}\nresolvers: 100000.0 10000.0 850\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 68210,
+        "completion_tokens": 102,
+        "cached_tokens": 68208,
+        "cost_usd": 0.040739,
+        "extra": {
+          "cache_write_tokens": 652
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 25,
+      "timestamp": "2026-08-05T20:01:36.177000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_YuXt2qpnaNETGvO9DGTkOo",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -m pytest tests -q 2>&1 | tail -10 && git diff"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_YuXt2qpnaNETGvO9DGTkOo",
+            "content": "tests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n7 failed, 166 passed, 24 skipped in 2.12s\ndiff --git a/loangen-agent/agent/documents/extractors/cre_fields.py b/loangen-agent/agent/documents/extractors/cre_fields.py\nindex 3bac463..04285bd 100644\n--- a/loangen-agent/agent/documents/extractors/cre_fields.py\n+++ b/loangen-agent/agent/documents/extractors/cre_fields.py\n@@ -40,18 +40,36 @@ def _find_labeled_amount(text: str, patterns: Sequence[str]) -> Optional[float]:\n     return find_row_amount(flat, patterns)\n \n \n+_MIN_RENT_LINE_AMOUNT = 100.0\n+_MAX_RENT_LINE_AMOUNT = 5_000_000.0\n+\n+# Calendar dates on rent-roll lines (\"as of 01/01/2026\", \"March 1, 2026\") are not\n+# rent figures; drop them before looking for the line's amount.\n+_DATE_ON_LINE = re.compile(\n+    r\"\\b\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}\\b\"\n+    r\"|\\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?\\s+\\d{1,2},?\\s*\\d{4}\\b\"\n+    r\"|\\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?\\s+\\d{4}\\b\",\n+    re.IGNORECASE,\n+)\n+\n+\n def _sum_rent_amounts(text: str) -> Optional[float]:\n-    \"\"\"Sum monthly rent figures from rent-roll style lines.\"\"\"\n+    \"\"\"Sum monthly rent figures from rent-roll style lines.\n+\n+    The plausibility band is inclusive of its endpoints, and a single rent line\n+    is enough to produce a total: single-tenant and other very small rolls are\n+    legitimate rent rolls, so their rent must not be discarded for being lean.\n+    \"\"\"\n     total = 0.0\n     count = 0\n     for line in text.splitlines():\n         low = line.lower()\n         if \"rent\" in low or \"monthly\" in low:\n-            amt = _money(line)\n-            if amt is not None and 100 < amt < 5_000_000:\n+            amt = _money(_DATE_ON_LINE.sub(\" \", line))\n+            if amt is not None and _MIN_RENT_LINE_AMOUNT <= amt <= _MAX_RENT_LINE_AMOUNT:\n                 total += amt\n                 count += 1\n-    return total if count >= 3 else None\n+    return total if count >= 1 else None\n \n \n def _parse_money(s: str) -> Optional[float]:\n@@ -68,7 +86,9 @@ def _sanitize_value_amount(val: Optional[float], *, min_amount: float = 100_000)\n         f = float(val)\n     except (TypeError, ValueError):\n         return None\n-    return f if f > min_amount else None\n+    # Inclusive floor: a value sitting exactly on the minimum is valid and is\n+    # accepted downstream (see cre_qualification.facts.resolve_appraisal_value).\n+    return f if f >= min_amount else None\n \n \n def extract_appraisal_fields(text: str) -> Dict[str, Any]:\n@@ -336,7 +356,9 @@ def extract_hud_fields(text: str) -> Dict[str, Any]:\n     for key, patterns in mappings:\n         val = _find_labeled_amount(text, patterns)\n         if val is not None:\n-            if key == \"hud_loan_amount\" and val <= _MIN_HUD_LOAN_AMOUNT:\n+            # Inclusive floor: a loan amount exactly at the minimum is a real\n+            # loan amount (cross_checks gates on hud_loan_amount >= the minimum).\n+            if key == \"hud_loan_amount\" and val < _MIN_HUD_LOAN_AMOUNT:\n                 continue\n             facts[key] = val\n     if \"hud_loan_amount\" in facts:\n@@ -760,6 +782,10 @@ def extract_pfs_from_text(text: str) -> Dict[str, Any]:\n     return facts\n \n \n+_FICO_MIN = 300\n+_FICO_MAX = 850  # inclusive: 850 is a valid (perfect) FICO score\n+\n+\n def extract_credit_report_fields(text: str) -> Dict[str, Any]:\n     \"\"\"Extract bureau FICO scores from merged tri-merge credit report PDFs.\"\"\"\n     facts: Dict[str, Any] = {}\n@@ -774,13 +800,13 @@ def extract_credit_report_fields(text: str) -> Dict[str, Any]:\n         m = re.search(pat, text, re.IGNORECASE)\n         if m:\n             score = int(m.group(1))\n-            if 300 <= score < 850:\n+            if _FICO_MIN <= score <= _FICO_MAX:\n                 bureau_scores[bureau] = score\n \n     if not bureau_scores:\n         for m in re.finditer(r\"(\\d{3})\\s+Factors\\s*\u2022\", text):\n             score = int(m.group(1))\n-            if 300 <= score <= 850:\n+            if _FICO_MIN <= score <= _FICO_MAX:\n                 bureau_scores.setdefault(f\"bureau_{len(bureau_scores) + 1}\", score)\n \n     if bureau_scores:\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 68862,
+        "completion_tokens": 260,
+        "cached_tokens": 68860,
+        "cost_usd": 0.04508375,
+        "extra": {
+          "cache_write_tokens": 663
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 26,
+      "timestamp": "2026-08-05T20:01:45.112000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_4dGDCgbg4CMbuFouYB58Ub",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && git status --short && python -m pytest tests/test_cre_field_extraction.py tests/test_document_intelligence.py tests/test_required_docs.py tests/test_cre_qualification.py tests/test_document_qa_hybrid.py tests/test_credit_pdf_pipeline.py tests/test_document_layout_extraction.py -q 2>&1 | tail -3"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_4dGDCgbg4CMbuFouYB58Ub",
+            "content": " M agent/documents/extractors/cre_fields.py\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n.....................................                                    [100%]\n37 passed in 0.72s\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 69525,
+        "completion_tokens": 442,
+        "cached_tokens": 69523,
+        "cost_usd": 0.0618965,
+        "extra": {
+          "cache_write_tokens": 2572
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 27,
+      "timestamp": "2026-08-05T20:01:52.976000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "Root cause: four boundary guards in `agent/documents/extractors/cre_fields.py` were rejecting values that sit exactly on their own limit (or, for the rent roll, rejecting a legitimately lean roll). One file changed.\n\n## Fixes\n\n1. **Appraised value** \u2014 `_sanitize_value_amount` (`cre_fields.py:86`): `f > min_amount` \u2192 `f >= min_amount`. A value of exactly the $100,000 floor was dropped; the downstream consumer `cre_qualification/facts.py:149` already accepts `>= 100_000`, so the extractor was the outlier.\n\n2. **Rent roll total rent** \u2014 `_sum_rent_amounts` (`cre_fields.py:47-72`): the fallback summation required `count >= 3` rent lines, so the leanest legitimate rolls (1-2 rows) yielded nothing; now `count >= 1`. The plausibility band is also inclusive (`100 <= amt <= 5_000_000`) so a row sitting on an endpoint no longer silently drops out of the sum. To keep the relaxed row gate safe, calendar dates (\"as of 01/01/2026\", \"March 1, 2026\") are stripped from a line before its amount is read \u2014 previously a header date could have been summed as rent once the count gate was loosened.\n\n3. **Settlement statement loan amount** \u2014 `extract_hud_fields` (`cre_fields.py:359`): `val <= _MIN_HUD_LOAN_AMOUNT` \u2192 `val < _MIN_HUD_LOAN_AMOUNT`. A loan of exactly $10,000 was discarded, while `cross_checks.py:192` treats `>= 10_000` as valid.\n\n4. **Credit score** \u2014 `extract_credit_report_fields` (`cre_fields.py:800`): the per-bureau check used `300 <= score < 850`, the only exclusive upper bound in the repo (`FICO_MAX = 850`, and 11+ other sites use `<= 850`). A perfect 850 was dropped, and because the generic fallback only runs when *no* bureau scored, an 850 alongside other bureaus also skewed the `primary_fico_score` median. Both bands now use shared `_FICO_MIN`/`_FICO_MAX = 850` inclusive.\n\n## Verification\n\nAll four cases now extract, with the previously-working \"sister\" documents unchanged:\n\n| case | before | after |\n|---|---|---|\n| appraised value $100,000 / $100,500 | `None` / 100500 | 100000 / 100500 |\n| rent roll 1 row / 2 rows / 3 rows | `None` / `None` / 7800 | 2400 / 5000 / 7800 |\n| HUD loan $10,000 / $10,500 | `None` / 10500 | 10000 / 10500 |\n| credit 850s / mixed / weak | `{}` / 810 / 665 | 850 / 810 / 665 |\n\nChecked both directly and end-to-end through `extract_structured_fields` plus the `resolve_*` resolvers. `python -m pytest tests -v`: 166 passed, 24 skipped, 7 failed \u2014 byte-for-byte the same result as the pre-change baseline (verified via `git stash`). Those 7 failures are pre-existing and unrelated to extraction (`test_inbound_calls`, `test_ingestion_stale_recovery`, `test_document_ingestion_readiness`, `test_document_report::test_credit_and_bank_excluded` \u2014 e.g. that last one asserts `is_report_supported(PERSONAL_TAX_RETURN)`, a report-config concern); contrary to the ticket's claim, they do not pass today, and I left them alone as out of scope. Nothing under `tests/` was modified.",
+      "metrics": {
+        "prompt_tokens": 72097,
+        "completion_tokens": 1250,
+        "cached_tokens": 72095,
+        "cost_usd": 0.070695,
+        "extra": {
+          "cache_write_tokens": 542
+        }
+      },
+      "llm_call_count": 1
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 1289954,
+    "total_completion_tokens": 25518,
+    "total_cached_tokens": 1289902,
+    "total_cost_usd": 1.6721485,
+    "total_steps": 27
+  }
+}

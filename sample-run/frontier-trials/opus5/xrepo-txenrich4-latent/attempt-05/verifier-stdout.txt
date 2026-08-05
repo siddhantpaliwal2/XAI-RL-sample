@@ -1,0 +1,179 @@
+============================= test session starts ==============================
+collecting ... collected 19 items
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid PASSED [  5%]
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name PASSED [ 10%]
+tests/test_txenrich4_boundaries.py::TestChequePaidPayeeSegment::test_chq_paid_payee_is_final_segment PASSED [ 15%]
+tests/test_txenrich4_boundaries.py::TestAccountVerificationSentinel::test_rupee_one_validation_is_verification PASSED [ 21%]
+tests/test_txenrich4_boundaries.py::TestUpiPayeeSegment::test_upi_credit_payee_name FAILED [ 26%]
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid PASSED [ 31%]
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid PASSED [ 36%]
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit PASSED [ 42%]
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft PASSED [ 47%]
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected PASSED [ 52%]
+tests/test_txenrich4_boundaries.py::TestChequePaidPayeePins::test_chq_paid_category_still_cheque_paid PASSED [ 57%]
+tests/test_txenrich4_boundaries.py::TestChequePaidPayeePins::test_chq_paid_home_clearing_sibling_payee PASSED [ 63%]
+tests/test_txenrich4_boundaries.py::TestVerificationPins::test_high_amount_validation_not_verification PASSED [ 68%]
+tests/test_txenrich4_boundaries.py::TestVerificationPins::test_rupee_one_without_validation_not_verification PASSED [ 73%]
+tests/test_txenrich4_boundaries.py::TestUpiPayeePins::test_upi_credit_category_still_upi PASSED [ 78%]
+tests/test_txenrich4_boundaries.py::TestUpiPayeePins::test_upv_dr_sibling_payee_unaffected PASSED [ 84%]
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_canara_atm_withdrawal_category PASSED [ 89%]
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category PASSED [ 94%]
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category PASSED [100%]
+
+=================================== FAILURES ===================================
+________________ TestUpiPayeeSegment.test_upi_credit_payee_name ________________
+tests/test_txenrich4_boundaries.py:77: in test_upi_credit_payee_name
+    self.assertEqual(out["partyName"].iloc[0], "John Doe")
+E   AssertionError: 'Ref123456' != 'John Doe'
+E   - Ref123456
+E   + John Doe
+=============================== warnings summary ===============================
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:121: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.description.str.contains(PNB_RTGS_1, na=False, case=False) & transactions.transactionCategory.eq("RTGS") , py_extract(transactions.description, pat=PNB_RTGS_1, index=0).replace(to_replace=PNB_RTGS_KEYWORDS, value="", regex=True)],
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:125: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.description.str.contains(PNB_CHQ_1, na=False, case=False) & transactions.transactionCategory.isin(["CHEQUE_PAID","CHEQUE_DEPOSIT","TRANSFER"])  , py_extract(transactions.description, pat=PNB_CHQ_1, index=0)],
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:126: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.description.str.contains(PNB_CHQ_2, na=False, case=False) & transactions.transactionCategory.isin(["CHEQUE_PAID","CHEQUE_DEPOSIT","TRANSFER"])  , py_extract(transactions.description, pat=PNB_CHQ_2, index=0)],
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:127: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.description.str.contains(PNB_CHQ_3, na=False, case=False) & transactions.transactionCategory.isin(["CHEQUE_PAID","CHEQUE_DEPOSIT","TRANSFER"])  , py_extract(transactions.description, pat=PNB_CHQ_3, index=0)],
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:128: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.description.str.contains(PNB_CHQ_4, na=False, case=False) & transactions.transactionCategory.isin(["CHEQUE_PAID","CHEQUE_DEPOSIT","TRANSFER"])  , py_extract(transactions.description, pat=PNB_CHQ_4, index=0)],
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:129: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.description.str.contains(PNB_CHQ_5, na=False, case=False) & transactions.transactionCategory.isin(["CHEQUE_PAID","CHEQUE_DEPOSIT","TRANSFER"])  , py_extract(transactions.description, pat=PNB_CHQ_5, index=0)],
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:130: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.description.str.contains(PNB_CHQ_6, na=False, case=False) & transactions.transactionCategory.isin(["CHEQUE_PAID","CHEQUE_DEPOSIT","TRANSFER"])  , py_extract(transactions.description, pat=PNB_CHQ_6, index=0)],
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:131: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.description.str.contains(PNB_CHQ_7, na=False, case=False) & transactions.transactionCategory.isin(["CHEQUE_PAID","CHEQUE_DEPOSIT"])             , py_extract(transactions.description, pat=PNB_CHQ_7, index=0)],
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:132: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.description.str.contains(PNB_CHQ_8, na=False, case=False) & transactions.transactionCategory.isin(["CHEQUE_PAID","CHEQUE_DEPOSIT"]), py_extract(transactions.description, pat=PNB_CHQ_8, index=0)],
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:140: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.transactionCategory.eq("TRANSFER") & transactions.type.eq("CREDIT") & transactions.description.str.contains(PNB_TRF_1, na=False, case=False) , py_extract(transactions.description, pat=PNB_TRF_1, index=0)],
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:141: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.transactionCategory.eq("TRANSFER") & transactions.type.eq("CREDIT") & transactions.description.str.contains(PNB_TRF_2, na=False, case=False) , py_extract(transactions.description, pat=PNB_TRF_2, index=0)],
+
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkWidth::test_six_digit_remark_debit_is_cheque_paid
+tests/test_txenrich4_boundaries.py::TestNeftPayeeExtraction::test_neft_credit_payee_name
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_five_digit_remark_still_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_seven_digit_remark_not_cheque_paid
+tests/test_txenrich4_boundaries.py::TestChequePaidRemarkPins::test_six_digit_credit_remark_is_cheque_deposit
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_credit_category_still_neft
+tests/test_txenrich4_boundaries.py::TestNeftPayeePins::test_neft_ib_ow_payee_unaffected
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_imps_category
+tests/test_txenrich4_boundaries.py::TestGeneralCategoryPins::test_pnb_rtgs_category
+  /app/categorizationapp/categorizationapp/BankScripts/PNB.py:145: UserWarning: This pattern is interpreted as a regular expression, and has match groups. To actually get the groups, use str.extract.
+    [transactions.description.str.contains(PNB_AUTO_1, na=False, case=False), py_extract(transactions.description, pat=PNB_AUTO_1, index=0)],
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_txenrich4_boundaries.py::TestUpiPayeeSegment::test_upi_credit_payee_name
+================== 1 failed, 18 passed, 108 warnings in 1.39s ==================

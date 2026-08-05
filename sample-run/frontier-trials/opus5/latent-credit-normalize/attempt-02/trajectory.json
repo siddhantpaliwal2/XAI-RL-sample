@@ -1,0 +1,1002 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "ses_02d12d4f4ffe0Y2Z3vmk76zFXk",
+  "agent": {
+    "name": "opencode",
+    "version": "1.18.13",
+    "model_name": "amazon-bedrock/global.anthropic.claude-opus-5"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "source": "user",
+      "message": "<uploaded_files>/app</uploaded_files>\n\n# Data-integrity audit memo: parsed credit reports vs. source PDFs\n\n**Scope:** quarterly sample audit, 40 borrower files. For each file we compared\nthe tradelines, inquiries and bureau sections produced by the credit-report PDF\nparser against a human reading of the same source PDF.\n**Result:** 34 of 40 files reconcile exactly. The remaining six show the\ndiscrepancy classes below. Every discrepancy reproduces on re-parse, so none of\nthis is OCR noise or a transient.\n\n## Findings\n\n**A.** A row whose creditor is one of the recognised filler tokens survives\ninto the report as if it were a real account - but only when the token's\nletter-case differs from its usual form. The usual form is still filtered\ncorrectly, so the screen exists; it just doesn't catch every spelling the\nbureaus emit.\n\n**B.** The same account appears twice. Two rows that are genuinely one\ntradeline - same account, creditor spelled with different capitalisation - are\nboth kept, inflating the account count. Exact-duplicate rows do collapse\ncorrectly.\n\n**C.** A genuine creditor line vanishes because it merely *begins* the way a\ndifferent kind of line begins. Lines of the other kind are rightly discarded;\nthe discard is grabbing real creditor lines along with them.\n\n**D.** A tradeline tagged for a bureau lands in no bureau section at all. The\ntag is one of the accepted spelling variants of that bureau's abbreviation;\nthe other variants we sampled attribute correctly, and untagged rows still\nbroadcast to all scored bureaus as designed.\n\n## Note for engineering\n\nThe affected stage is the deterministic line-classification and text\nnormalization logic under `loangen-agent/agent/documents/credit_pdf/` - the\ncreditor-line, bureau-tag and address/contact helpers in `normalize.py`, and\nthe artifact-rejection and de-duplication helpers in `junk_filter.py`. Same\nPDF in, same rows out, so each finding above replays from a single line of\ninput. The existing test suite is green and none of these cases move it, which\nis presumably how they shipped. Fix the classification so the findings above\nreconcile, without disturbing any file that already parses correctly.\n\nDo not modify anything under `loangen-agent/tests/`.\n\nVerify with:\n\n    cd /app/loangen-agent && python -m pytest tests -v\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-05T17:16:30.187000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "I'll start by exploring the affected code.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_PUM4RXGm6xTKi5YlOa5Vqu",
+          "function_name": "bash",
+          "arguments": {
+            "command": "ls -la /app/loangen-agent/agent/documents/credit_pdf/"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_TF34mGxT7T0VdQDCqykZqE",
+          "function_name": "todowrite",
+          "arguments": {
+            "todos": [
+              {
+                "content": "Read normalize.py and junk_filter.py to understand current logic",
+                "status": "in_progress",
+                "priority": "high"
+              },
+              {
+                "content": "Fix finding A: case-insensitive filler/junk creditor token filtering",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Fix finding B: de-duplication must be case-insensitive on creditor",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Fix finding C: creditor line discarded due to prefix-match with other line kind",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Fix finding D: bureau tag spelling variant not attributed to any section",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "content": "Run pytest tests -v to verify green",
+                "status": "pending",
+                "priority": "high"
+              }
+            ]
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_PUM4RXGm6xTKi5YlOa5Vqu",
+            "content": "total 84\ndrwxr-xr-x 1 root root   60 Jul 14 20:56 .\ndrwxr-xr-x 1 root root   32 Jul 14 20:56 ..\n-rw-r--r-- 1 root root  224 Jul 14 20:56 __init__.py\ndrwxr-xr-x 2 root root  120 Jul 13 23:36 __pycache__\ndrwxr-xr-x 1 root root   60 Jul 14 20:56 adapters\n-rw-r--r-- 1 root root 4791 Jul 14 20:56 bureau_router.py\n-rw-r--r-- 1 root root 1207 Jul 14 20:56 detect.py\n-rw-r--r-- 1 root root 1865 Jul 14 20:56 extract.py\n-rw-r--r-- 1 root root 2679 Jul 14 20:56 junk_filter.py\n-rw-r--r-- 1 root root 3941 Jul 14 20:56 llm_fallback.py\n-rw-r--r-- 1 root root 9540 Jul 14 20:56 mismo_builder.py\n-rw-r--r-- 1 root root 5543 Jul 14 20:56 models.py\n-rw-r--r-- 1 root root 4782 Jul 14 20:56 normalize.py\n-rw-r--r-- 1 root root 7191 Jul 14 20:56 parser.py\n-rw-r--r-- 1 root root 2536 Jul 14 20:56 reconcile.py\n-rw-r--r-- 1 root root 6113 Jul 14 20:56 rules_parser.py\n-rw-r--r-- 1 root root 1898 Jul 14 20:56 segment.py\n-rw-r--r-- 1 root root 2087 Jul 14 20:56 validation.py\n"
+          },
+          {
+            "source_call_id": "tooluse_TF34mGxT7T0VdQDCqykZqE",
+            "content": "[\n  {\n    \"content\": \"Read normalize.py and junk_filter.py to understand current logic\",\n    \"status\": \"in_progress\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix finding A: case-insensitive filler/junk creditor token filtering\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix finding B: de-duplication must be case-insensitive on creditor\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix finding C: creditor line discarded due to prefix-match with other line kind\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix finding D: bureau tag spelling variant not attributed to any section\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Run pytest tests -v to verify green\",\n    \"status\": \"pending\",\n    \"priority\": \"high\"\n  }\n]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 2,
+        "completion_tokens": 382,
+        "cost_usd": 0.080035,
+        "extra": {
+          "cache_write_tokens": 11276
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-05T17:16:34.984000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_RcO4I5TsJGKc2tNEwMbF03",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/normalize.py"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_jso6QKCVyA6F2yQW6ZQo4i",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/junk_filter.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_RcO4I5TsJGKc2tNEwMbF03",
+            "content": "<path>/app/loangen-agent/agent/documents/credit_pdf/normalize.py</path>\n<type>file</type>\n<content>\n1: \"\"\"Normalization helpers for credit PDF parsing.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import re\n6: from datetime import datetime\n7: from typing import List, Optional, Set\n8: \n9: _BUREAU_TAG_MAP = {\n10:     \"TUC\": \"transunion\",\n11:     \"TU\": \"transunion\",\n12:     \"TRANSUNION\": \"transunion\",\n13:     \"EXP\": \"experian\",\n14:     \"EXPERIAN\": \"experian\",\n15:     \"EQX\": \"equifax\",\n16:     \"EFX\": \"equifax\",\n17:     \"EQUIFAX\": \"equifax\",\n18: }\n19: \n20: _MONEY_RE = re.compile(r\"\\$?\\s*([\\d,]+(?:\\.\\d{2})?)\")\n21: _DATE_MDY = re.compile(r\"\\b(\\d{1,2}/\\d{1,2}/\\d{2,4})\\b\")\n22: _PAGE_BREAK = re.compile(r\"--\\s*\\d+\\s+of\\s+\\d+\\s*--\", re.IGNORECASE)\n23: \n24: _SKIP_CREDITOR_LINES = re.compile(\n25:     r\"^(account number|ecoa|opened|credit history|current accounts|derogatory|disputed|\"\n26:     r\"page \\d|report id|order verifications|borrower|credit summary|file summary|\"\n27:     r\"past due payment|account type|months reviewed|comment|summary)$\",\n28:     re.IGNORECASE,\n29: )\n30: \n31: \n32: def strip_page_breaks(text: str) -> str:\n33:     return _PAGE_BREAK.sub(\"\\n\", text or \"\")\n34: \n35: \n36: def parse_money(value: str) -> Optional[float]:\n37:     if not value:\n38:         return None\n39:     match = _MONEY_RE.search(value)\n40:     if not match:\n41:         return None\n42:     try:\n43:         return float(match.group(1).replace(\",\", \"\"))\n44:     except ValueError:\n45:         return None\n46: \n47: \n48: def parse_money_all(value: str) -> List[float]:\n49:     return [v for v in (_parse_money_token(m) for m in _MONEY_RE.findall(value or \"\")) if v is not None]\n50: \n51: \n52: def _parse_money_token(token: str) -> Optional[float]:\n53:     try:\n54:         return float(token.replace(\",\", \"\"))\n55:     except ValueError:\n56:         return None\n57: \n58: \n59: def normalize_date(value: str) -> str:\n60:     \"\"\"Return YYYY-MM-DD when possible.\"\"\"\n61:     raw = (value or \"\").strip()\n62:     if not raw:\n63:         return \"\"\n64:     for fmt in (\"%m/%d/%Y\", \"%m/%d/%y\", \"%Y-%m-%d\", \"%m/%Y\"):\n65:         try:\n66:             return datetime.strptime(raw[:10], fmt).strftime(\"%Y-%m-%d\")\n67:         except ValueError:\n68:             continue\n69:     return raw\n70: \n71: \n72: def split_borrower_name(full_name: str) -> tuple[str, str]:\n73:     parts = [p for p in full_name.strip().split() if p]\n74:     if not parts:\n75:         return \"\", \"\"\n76:     if len(parts) == 1:\n77:         return parts[0], \"\"\n78:     return parts[0], \" \".join(parts[1:])\n79: \n80: \n81: def bureau_tags_from_text(text: str) -> Set[str]:\n82:     \"\"\"Map TUC-B1 / EXP-B1 / EQX-B1 (and comma-separated) to bureau keys.\"\"\"\n83:     found: Set[str] = set()\n84:     upper = (text or \"\").upper()\n85:     for token in re.findall(r\"\\b(TUC|EXP|EQX|TU)-B\\d*\\b\", upper):\n86:         prefix = token.split(\"-\")[0]\n87:         bureau = _BUREAU_TAG_MAP.get(prefix)\n88:         if bureau:\n89:             found.add(bureau)\n90:     if \"TRANSUNION\" in upper or \"TRANS UNION\" in upper:\n91:         found.add(\"transunion\")\n92:     if \"EXPERIAN\" in upper:\n93:         found.add(\"experian\")\n94:     if \"EQUIFAX\" in upper:\n95:         found.add(\"equifax\")\n96:     return found\n97: \n98: \n99: def filter_for_bureau(items: List, bureau: str, attr: str = \"reported_bureaus\") -> List:\n100:     out = []\n101:     for item in items:\n102:         tags = set(getattr(item, attr, None) or [])\n103:         if not tags or bureau in tags:\n104:             out.append(item)\n105:     return out\n106: \n107: \n108: def is_plausible_creditor_line(line: str) -> bool:\n109:     line = line.strip()\n110:     if len(line) < 2 or len(line) > 80:\n111:         return False\n112:     if _SKIP_CREDITOR_LINES.match(line):\n113:         return False\n114:     if is_city_state_line(line):\n115:         return False\n116:     if re.match(r\"^\\d{3}[-\\s]?\\d{2}[-\\s]?\\d{4}$\", line):\n117:         return False\n118:     if re.match(r\"^[\\d\\$\\.,\\s%]+\", line):\n119:         return False\n120:     if line.lower().startswith(\"http\"):\n121:         return False\n122:     return bool(re.search(r\"[A-Za-z]\", line))\n123: \n124: \n125: _CITY_STATE_RE = re.compile(\n126:     r\"^[A-Za-z][A-Za-z\\s\\.\\'-]+,\\s*[A-Z]{2}(?:\\s+\\d{5}(?:-\\d{4})?)?$\"\n127: )\n128: _ZIP_ONLY_RE = re.compile(r\"^\\d{5}(?:-\\d{4})?$\")\n129: _PHONE_RE = re.compile(r\"^\\d{3}[-.\\s]?\\d{3}[-.\\s]?\\d{4}$\")\n130: \n131: \n132: def is_city_state_line(line: str) -> bool:\n133:     return bool(_CITY_STATE_RE.match((line or \"\").strip()))\n134: \n135: \n136: def is_address_or_contact_line(line: str) -> bool:\n137:     text = (line or \"\").strip()\n138:     if not text:\n139:         return True\n140:     if is_city_state_line(text):\n141:         return True\n142:     if _ZIP_ONLY_RE.match(text):\n143:         return True\n144:     if _PHONE_RE.match(text):\n145:         return True\n146:     if re.match(r\"^PO Box\\b\", text, re.I):\n147:         return True\n148:     if re.match(r\"^P\\.?\\s*O\\.?\\s*Box\", text, re.I):\n149:         return True\n150:     if re.match(r\"^\\d+\\s+\\w\", text):  # street address\n151:         return True\n152:     if re.match(\n153:         r\"^(blvd|st|street|ave|avenue|dr|drive|rd|road|way|lane|ln|ct|court|ste|suite)\\.?\",\n154:         text,\n155:         re.I,\n156:     ):\n157:         return True\n158:     return False\n159: \n160: \n161: _CREDITOR_STOP_LINE_RE = re.compile(\n162:     r\"^(credit dispute|research team|comment|past due|payment|balance|released:|loan number:|\\$\\d)\",\n163:     re.I,\n164: )\n165: \n166: \n167: def is_creditor_boilerplate_line(line: str) -> bool:\n168:     return bool(_CREDITOR_STOP_LINE_RE.match((line or \"\").strip()))\n\n(End of file - total 168 lines)\n</content>"
+          },
+          {
+            "source_call_id": "tooluse_jso6QKCVyA6F2yQW6ZQo4i",
+            "content": "<path>/app/loangen-agent/agent/documents/credit_pdf/junk_filter.py</path>\n<type>file</type>\n<content>\n1: \"\"\"Reject tradelines/inquiries that are OCR or table-extraction artifacts.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import re\n6: from typing import List\n7: \n8: from agent.documents.credit_pdf.models import ParsedInquiry, ParsedTradeline\n9: from agent.documents.credit_pdf.normalize import is_city_state_line, is_plausible_creditor_line\n10: \n11: _JUNK_CREDITOR_PATTERNS = (\n12:     re.compile(r\"^\\[Table\\s+\\d+\", re.I),\n13:     re.compile(r\"^past\\s+due\\b\", re.I),\n14:     re.compile(r\"days\\s+late\", re.I),\n15:     re.compile(r\"months\\s+reviewed\", re.I),\n16:     re.compile(r\"^account\\s+number\\b\", re.I),\n17:     re.compile(r\"^ecoa\\b\", re.I),\n18:     re.compile(r\"^credit\\s+limit\\b\", re.I),\n19:     re.compile(r\"^payment\\s+history\\b\", re.I),\n20:     re.compile(r\"^comment\\b\", re.I),\n21:     re.compile(r\"^subscriber\\b\", re.I),\n22:     re.compile(r\"^reported\\s+on\\b\", re.I),\n23:     re.compile(r\"^page\\s+\\d+\", re.I),\n24:     re.compile(r\"^manner of payment\\b\", re.I),\n25:     re.compile(r\"^maximum\\b\", re.I),\n26:     re.compile(r\"^collateral\\b\", re.I),\n27:     re.compile(r\"^terms\\b\", re.I),\n28: )\n29: \n30: _UNKNOWN_CREDITOR = frozenset({\"unknown\", \"unknown creditor\", \"n/a\", \"na\"})\n31: \n32: \n33: def is_junk_creditor_name(creditor: str) -> bool:\n34:     name = (creditor or \"\").strip()\n35:     if not name:\n36:         return True\n37:     if not is_plausible_creditor_line(name):\n38:         return True\n39:     if name in _UNKNOWN_CREDITOR:\n40:         return True\n41:     for pattern in _JUNK_CREDITOR_PATTERNS:\n42:         if pattern.search(name):\n43:             return True\n44:     if is_city_state_line(name):\n45:         return True\n46:     if re.match(r\"^PO\\s+Box\\s+\\d+$\", name, re.I):\n47:         return True\n48:     return False\n49: \n50: \n51: def is_junk_tradeline(tradeline: ParsedTradeline) -> bool:\n52:     if is_junk_creditor_name(tradeline.creditor):\n53:         return True\n54:     balance = tradeline.balance\n55:     if balance == 1.0 and not tradeline.credit_limit and not tradeline.high_credit:\n56:         return True\n57:     return False\n58: \n59: \n60: def filter_tradelines(tradelines: List[ParsedTradeline]) -> List[ParsedTradeline]:\n61:     return [tl for tl in tradelines if not is_junk_tradeline(tl)]\n62: \n63: \n64: def dedupe_tradelines(tradelines: List[ParsedTradeline]) -> List[ParsedTradeline]:\n65:     seen: set[str] = set()\n66:     out: List[ParsedTradeline] = []\n67:     for tl in tradelines:\n68:         key = f\"{(tl.creditor or '')}|{tl.account_number or ''}\"\n69:         if key in seen:\n70:             continue\n71:         seen.add(key)\n72:         out.append(tl)\n73:     return out\n74: \n75: \n76: def dedupe_inquiries(inquiries: List[ParsedInquiry]) -> List[ParsedInquiry]:\n77:     seen: set[str] = set()\n78:     out: List[ParsedInquiry] = []\n79:     for inq in inquiries:\n80:         key = f\"{(inq.name or '').lower()}|{inq.date or ''}\"\n81:         if key in seen:\n82:             continue\n83:         seen.add(key)\n84:         out.append(inq)\n85:     return out\n\n(End of file - total 85 lines)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 11278,
+        "completion_tokens": 147,
+        "cached_tokens": 11276,
+        "cost_usd": 0.01799175,
+        "extra": {
+          "cache_write_tokens": 1387
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-05T17:16:37.723000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_cQkCuXJZ1TNoCRjbIFO31e",
+          "function_name": "bash",
+          "arguments": {
+            "command": "ls -R /app/loangen-agent/tests | head -50; echo ---; grep -rn \"is_address_or_contact_line\\|is_creditor_boilerplate_line\\|bureau_tags_from_text\\|is_junk_creditor_name\\|dedupe_tradelines\" /app/loangen-agent --include=*.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_cQkCuXJZ1TNoCRjbIFO31e",
+            "content": "/app/loangen-agent/tests:\ntest_bridge_broadway_extraction.py\ntest_bridge_broadway_qualification.py\ntest_call_session_cleanup.py\ntest_cartesia_twilio_sync.py\ntest_config_document_intelligence.py\ntest_cre_field_extraction.py\ntest_cre_qualification.py\ntest_credit_pdf_pipeline.py\ntest_credit_pdf_upload.py\ntest_direct_call_dtmf.py\ntest_direct_calls.py\ntest_direct_recording.py\ntest_document_ingestion_production.py\ntest_document_ingestion_readiness.py\ntest_document_intelligence.py\ntest_document_layout_extraction.py\ntest_document_qa_hybrid.py\ntest_document_report.py\ntest_inbound_calls.py\ntest_ingestion_stale_recovery.py\ntest_lender_product_match.py\ntest_logging_setup.py\ntest_oak_hill_extraction.py\ntest_oak_hill_qualification.py\ntest_pstn_inbound_queue.py\ntest_qualification_recommendation.py\ntest_qualification_report_pdf.py\ntest_required_docs.py\ntest_smb_contacts_csv_and_update.py\ntest_smb_invite_conversation.py\ntest_smb_invite_production.py\ntest_smb_invite_schemas.py\ntest_voice_llm_azure_config.py\n---\n/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py:16:from agent.documents.credit_pdf.junk_filter import is_junk_creditor_name, is_junk_tradeline\n/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py:18:    bureau_tags_from_text,\n/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py:19:    is_address_or_contact_line,\n/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py:20:    is_creditor_boilerplate_line,\n/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py:495:        if is_address_or_contact_line(line):\n/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py:509:        if is_creditor_boilerplate_line(line):\n/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py:512:        if is_address_or_contact_line(line):\n/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py:516:        if is_junk_creditor_name(line):\n/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py:576:    reported_bureaus = sorted(bureau_tags_from_text(block_text))\n/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py:794:            tags = bureau_tags_from_text(nxt)\n/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py:807:                        and not bureau_tags_from_text(type_line)\n/app/loangen-agent/agent/documents/credit_pdf/bureau_router.py:9:    dedupe_tradelines,\n/app/loangen-agent/agent/documents/credit_pdf/bureau_router.py:68:    return dedupe_tradelines(assigned)\n/app/loangen-agent/agent/documents/credit_pdf/junk_filter.py:33:def is_junk_creditor_name(creditor: str) -> bool:\n/app/loangen-agent/agent/documents/credit_pdf/junk_filter.py:52:    if is_junk_creditor_name(tradeline.creditor):\n/app/loangen-agent/agent/documents/credit_pdf/junk_filter.py:64:def dedupe_tradelines(tradelines: List[ParsedTradeline]) -> List[ParsedTradeline]:\n/app/loangen-agent/agent/documents/credit_pdf/normalize.py:81:def bureau_tags_from_text(text: str) -> Set[str]:\n/app/loangen-agent/agent/documents/credit_pdf/normalize.py:136:def is_address_or_contact_line(line: str) -> bool:\n/app/loangen-agent/agent/documents/credit_pdf/normalize.py:167:def is_creditor_boilerplate_line(line: str) -> bool:\n/app/loangen-agent/tests/test_credit_pdf_pipeline.py:8:from agent.documents.credit_pdf.junk_filter import is_junk_creditor_name, is_junk_tradeline\n/app/loangen-agent/tests/test_credit_pdf_pipeline.py:19:        self.assertTrue(is_junk_creditor_name(\"[Table 35]\"))\n/app/loangen-agent/tests/test_credit_pdf_pipeline.py:22:        self.assertTrue(is_junk_creditor_name(\"Past Due\"))\n/app/loangen-agent/tests/test_credit_pdf_pipeline.py:25:        self.assertFalse(is_junk_creditor_name(\"JPMCB CARD SERVICES\"))\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 12665,
+        "completion_tokens": 1336,
+        "cached_tokens": 12663,
+        "cost_usd": 0.06689775,
+        "extra": {
+          "cache_write_tokens": 4345
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-05T17:16:55+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_3OqFs9oHt0fvKCMDQ7M6Pf",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/tests/test_credit_pdf_pipeline.py"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_04qPqgDs1ShdWO8YWqjqPX",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py",
+            "offset": 460,
+            "limit": 140
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_3OqFs9oHt0fvKCMDQ7M6Pf",
+            "content": "<path>/app/loangen-agent/tests/test_credit_pdf_pipeline.py</path>\n<type>file</type>\n<content>\n1: \"\"\"Tests for credit PDF junk filter, bureau router, and extract helpers.\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: import unittest\n6: \n7: from agent.documents.credit_pdf.bureau_router import finalize_parsed_report\n8: from agent.documents.credit_pdf.junk_filter import is_junk_creditor_name, is_junk_tradeline\n9: from agent.documents.credit_pdf.models import (\n10:     ParsedBureauReport,\n11:     ParsedCreditReport,\n12:     ParsedInquiry,\n13:     ParsedTradeline,\n14: )\n15: \n16: \n17: class JunkFilterTests(unittest.TestCase):\n18:     def test_rejects_table_artifact_creditor(self) -> None:\n19:         self.assertTrue(is_junk_creditor_name(\"[Table 35]\"))\n20: \n21:     def test_rejects_past_due_label(self) -> None:\n22:         self.assertTrue(is_junk_creditor_name(\"Past Due\"))\n23: \n24:     def test_accepts_real_creditor(self) -> None:\n25:         self.assertFalse(is_junk_creditor_name(\"JPMCB CARD SERVICES\"))\n26: \n27:     def test_rejects_one_dollar_artifact_tradeline(self) -> None:\n28:         tl = ParsedTradeline(creditor=\"Past Due\", balance=1.0)\n29:         self.assertTrue(is_junk_tradeline(tl))\n30: \n31: \n32: class BureauRouterTests(unittest.TestCase):\n33:     def test_broadcasts_untagged_tradelines_to_all_scored_bureaus(self) -> None:\n34:         tl = ParsedTradeline(creditor=\"CHASE\", balance=500.0, reported_bureaus=[])\n35:         parsed = ParsedCreditReport(\n36:             format_id=\"test\",\n37:             bureaus={\n38:                 \"transunion\": ParsedBureauReport(bureau=\"transunion\", score=662, tradelines=[tl]),\n39:                 \"experian\": ParsedBureauReport(bureau=\"experian\", score=665, tradelines=[tl]),\n40:                 \"equifax\": ParsedBureauReport(bureau=\"equifax\", score=675, tradelines=[tl]),\n41:             },\n42:         )\n43:         result = finalize_parsed_report(parsed)\n44:         self.assertEqual(len(result.bureaus[\"transunion\"].tradelines), 1)\n45:         self.assertEqual(len(result.bureaus[\"experian\"].tradelines), 1)\n46: \n47:     def test_assigns_tagged_tradeline_to_one_bureau(self) -> None:\n48:         tl = ParsedTradeline(\n49:             creditor=\"BEST EGG\",\n50:             balance=1000.0,\n51:             reported_bureaus=[\"experian\"],\n52:         )\n53:         parsed = ParsedCreditReport(\n54:             format_id=\"test\",\n55:             bureaus={\n56:                 \"transunion\": ParsedBureauReport(bureau=\"transunion\", score=662, tradelines=[tl]),\n57:                 \"experian\": ParsedBureauReport(bureau=\"experian\", score=665, tradelines=[tl]),\n58:                 \"equifax\": ParsedBureauReport(bureau=\"equifax\", score=675, tradelines=[tl]),\n59:             },\n60:         )\n61:         result = finalize_parsed_report(parsed)\n62:         self.assertEqual(len(result.bureaus[\"experian\"].tradelines), 1)\n63:         self.assertEqual(len(result.bureaus[\"transunion\"].tradelines), 0)\n64: \n65:     def test_filters_junk_before_assignment(self) -> None:\n66:         junk = ParsedTradeline(creditor=\"[Table 35]\", balance=1.0)\n67:         good = ParsedTradeline(creditor=\"CAPITAL ONE\", balance=200.0)\n68:         parsed = ParsedCreditReport(\n69:             format_id=\"test\",\n70:             bureaus={\n71:                 \"experian\": ParsedBureauReport(\n72:                     bureau=\"experian\",\n73:                     score=665,\n74:                     tradelines=[junk, good],\n75:                 ),\n76:             },\n77:         )\n78:         result = finalize_parsed_report(parsed)\n79:         self.assertEqual(len(result.bureaus[\"experian\"].tradelines), 1)\n80:         self.assertEqual(result.bureaus[\"experian\"].tradelines[0].creditor, \"CAPITAL ONE\")\n81: \n82: \n83: if __name__ == \"__main__\":\n84:     unittest.main()\n\n(End of file - total 84 lines)\n</content>"
+          },
+          {
+            "source_call_id": "tooluse_04qPqgDs1ShdWO8YWqjqPX",
+            "content": "<path>/app/loangen-agent/agent/documents/credit_pdf/adapters/xactus.py</path>\n<type>file</type>\n<content>\n460:     for match in re.finditer(r\"Account Number\\s*\\n\\s*([^\\n]+)\", source, re.I):\n461:         account_number = match.group(1).strip()\n462:         if not account_number or account_number.lower() == \"account number\":\n463:             continue\n464:         if not re.search(r\"\\d\", account_number):\n465:             continue\n466: \n467:         start = match.start()\n468:         before = source[max(0, start - 1200) : start]\n469:         after = source[match.end() : match.end() + 4500]\n470: \n471:         creditor = _creditor_from_before(before)\n472:         block = _parse_account_block(after, creditor, account_number)\n473: \n474:         key = f\"{block.creditor}|{block.account_number}\"\n475:         if key in seen_keys:\n476:             continue\n477:         if is_junk_tradeline(block):\n478:             continue\n479:         seen_keys.add(key)\n480:         tradelines.append(block)\n481: \n482:     return tradelines\n483: \n484: \n485: def _creditor_from_before(before: str) -> str:\n486:     lines = [ln.strip() for ln in before.splitlines() if ln.strip()]\n487:     relevant = lines[-25:]\n488: \n489:     idx = len(relevant) - 1\n490:     while idx >= 0:\n491:         line = relevant[idx]\n492:         if line.lower() == \"account number\":\n493:             idx -= 1\n494:             continue\n495:         if is_address_or_contact_line(line):\n496:             idx -= 1\n497:             continue\n498:         break\n499: \n500:     name_parts: List[str] = []\n501:     while idx >= 0:\n502:         line = relevant[idx]\n503:         if line.lower() == \"account number\":\n504:             break\n505:         if re.match(r\"^(Current Accounts|Credit History|\\d+ Times)\", line, re.I):\n506:             break\n507:         if re.match(r\"^(Past Due|Payment|Balance|\\$)\", line, re.I):\n508:             break\n509:         if is_creditor_boilerplate_line(line):\n510:             idx -= 1\n511:             continue\n512:         if is_address_or_contact_line(line):\n513:             break\n514:         if not is_plausible_creditor_line(line):\n515:             break\n516:         if is_junk_creditor_name(line):\n517:             break\n518:         name_parts.append(line)\n519:         idx -= 1\n520:         if len(name_parts) >= 3:\n521:             break\n522: \n523:     if not name_parts:\n524:         return \"Unknown Creditor\"\n525:     creditor = \" \".join(reversed(name_parts))\n526:     creditor = re.sub(r\"\\s+P\\.?\\s*O\\.?\\s*Box.*$\", \"\", creditor, flags=re.I).strip()\n527:     return creditor or \"Unknown Creditor\"\n528: \n529: \n530: def _account_block_text(after: str) -> str:\n531:     block_text = after\n532:     for pattern in (\n533:         r\"\\nAccount Number\\s*\\n\",\n534:         r\"\\nCurrent Accounts\\s*\\n\",\n535:         r\"\\nCredit History \\(continued\\)\\s*\\n\",\n536:         r\"\\nPUBLIC RECORDS:\",\n537:     ):\n538:         match = re.search(pattern, block_text, re.I)\n539:         if match:\n540:             block_text = block_text[: match.start()]\n541:     return block_text[:4000]\n542: \n543: \n544: def _assign_limit_and_high_credit(\n545:     money_vals: List[float],\n546:     account_type: str,\n547: ) -> tuple[Optional[float], Optional[float]]:\n548:     if not money_vals:\n549:         return None, None\n550:     if len(money_vals) >= 2:\n551:         return money_vals[0], money_vals[1]\n552: \n553:     value = money_vals[0]\n554:     acct = (account_type or \"\").lower()\n555:     if acct in {\"installment\", \"mortgage\"} or \"install\" in acct:\n556:         return None, value\n557:     if acct == \"revolving\":\n558:         return value, None\n559:     # Default single amount to high credit (common when credit limit column is blank).\n560:     return None, value\n561: \n562: \n563: def _line_ownership(line: str) -> str:\n564:     token = (line.split() or [\"\"])[0].lower()\n565:     if token in _OWNERSHIP_VALUES:\n566:         return line.split()[0]\n567:     if token == \"authorized\" and len(line.split()) >= 2 and line.split()[1].lower() == \"user\":\n568:         return \"Authorized User\"\n569:     return \"\"\n570: \n571: \n572: def _parse_account_block(after: str, creditor: str, account_number: str) -> ParsedTradeline:\n573:     block_text = _account_block_text(after)\n574:     lines = [ln.strip() for ln in block_text.splitlines() if ln.strip()]\n575: \n576:     reported_bureaus = sorted(bureau_tags_from_text(block_text))\n577: \n578:     ownership = \"\"\n579:     own_idx = -1\n580:     for idx, line in enumerate(lines):\n581:         own = _line_ownership(line)\n582:         if own:\n583:             ownership = own\n584:             own_idx = idx\n585:             break\n586: \n587:     opened = last_activity = closed = reported = \"\"\n588:     credit_limit = high_credit = None\n589:     if own_idx >= 0:\n590:         dates: List[str] = []\n591:         for line in lines[own_idx + 1 : own_idx + 14]:\n592:             if re.match(r\"^\\d{2}/\\d{2}/\\d{4}$\", line):\n593:                 dates.append(normalize_date(line))\n594:                 continue\n595:             if re.match(r\"^\\d{2}/\\d{4}$\", line):\n596:                 dates.append(normalize_date(line))\n597:                 continue\n598:             if line.startswith(\"$\"):\n599:                 continue\n\n(Showing lines 460-599 of 854. Use offset=600 to continue.)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 17010,
+        "completion_tokens": 193,
+        "cached_tokens": 17008,
+        "cost_usd": 0.03273275,
+        "extra": {
+          "cache_write_tokens": 3103
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-05T17:16:58.239000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_7wPtXEAWymsz333LTb7NYt",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -c \"\nfrom agent.documents.credit_pdf.junk_filter import is_junk_creditor_name, dedupe_tradelines\nfrom agent.documents.credit_pdf.normalize import is_address_or_contact_line, bureau_tags_from_text, is_creditor_boilerplate_line\nfrom agent.documents.credit_pdf.models import ParsedTradeline\nprint('A', [(n, is_junk_creditor_name(n)) for n in ['unknown','Unknown','Unknown Creditor','unknown creditor','N/A','n/a','NA','na']])\nprint('B', [t.creditor for t in dedupe_tradelines([ParsedTradeline(creditor='Chase Bank',account_number='123'),ParsedTradeline(creditor='CHASE BANK',account_number='123')])])\nprint('C', [(l, is_address_or_contact_line(l)) for l in ['STATE FARM BANK','Wayne Bank','LANE BRYANT/CBNA','Court Financial','Streamline Lending','Drive Financial','Suite 100','Ste 200','PO Box 15298','123 Main St','Blvd Federal Credit Union']])\nprint('C2', [(l, is_creditor_boilerplate_line(l)) for l in ['Balance Credit','Payment One Financial','Commenity Bank','Comment']])\nprint('D', [(t, sorted(bureau_tags_from_text(t))) for t in ['TUC-B1','EXP-B1','EQX-B1','EFX-B1','TU-B1','TRANSUNION-B1']])\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_7wPtXEAWymsz333LTb7NYt",
+            "content": "A [('unknown', True), ('Unknown', False), ('Unknown Creditor', False), ('unknown creditor', True), ('N/A', False), ('n/a', True), ('NA', False), ('na', True)]\nB ['Chase Bank', 'CHASE BANK']\nC [('STATE FARM BANK', True), ('Wayne Bank', True), ('LANE BRYANT/CBNA', True), ('Court Financial', True), ('Streamline Lending', True), ('Drive Financial', True), ('Suite 100', True), ('Ste 200', True), ('PO Box 15298', True), ('123 Main St', True), ('Blvd Federal Credit Union', True)]\nC2 [('Balance Credit', True), ('Payment One Financial', True), ('Commenity Bank', False), ('Comment', True)]\nD [('TUC-B1', ['transunion']), ('EXP-B1', ['experian']), ('EQX-B1', ['equifax']), ('EFX-B1', []), ('TU-B1', ['transunion']), ('TRANSUNION-B1', ['transunion'])]\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 20113,
+        "completion_tokens": 2123,
+        "cached_tokens": 20111,
+        "cost_usd": 0.0878905,
+        "extra": {
+          "cache_write_tokens": 3960
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-05T17:17:27.628000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_nxRcXqo5QQzXEBbv6satWZ",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -c \"\nfrom agent.documents.credit_pdf.normalize import is_plausible_creditor_line as f\nfor l in ['21ST MORTGAGE CORPORATION','1ST FRANKLIN FINANCIAL','5/3 BANK','7-ELEVEN','JPMCB CARD SERVICES','\\$1,234.00','123.45','Account Number','Comment','Comments:','Summary','Summary of Accounts']:\n    print(repr(l), f(l))\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_nxRcXqo5QQzXEBbv6satWZ",
+            "content": "'21ST MORTGAGE CORPORATION' False\n'1ST FRANKLIN FINANCIAL' False\n'5/3 BANK' False\n'7-ELEVEN' False\n'JPMCB CARD SERVICES' True\n'$1,234.00' False\n'123.45' False\n'Account Number' False\n'Comment' False\n'Comments:' True\n'Summary' False\n'Summary of Accounts' True\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 24073,
+        "completion_tokens": 1706,
+        "cached_tokens": 24071,
+        "cost_usd": 0.07035175,
+        "extra": {
+          "cache_write_tokens": 2505
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-05T17:17:51.440000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "All four findings reproduce. Now let me fix them.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_Pymphp6Y7WMdSQ4FIELl4g",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/normalize.py",
+            "oldString": "_MONEY_RE = re.compile(r\"\\$?\\s*([\\d,]+(?:\\.\\d{2})?)\")",
+            "newString": "# Longest-first so that e.g. \"TRANSUNION-B1\" is not matched as \"TU\" and\n# \"EXPERIAN-B1\" is not matched as \"EXP\".\n_BUREAU_TAG_ALTERNATION = \"|\".join(sorted(_BUREAU_TAG_MAP, key=len, reverse=True))\n_BUREAU_TAG_RE = re.compile(rf\"\\b({_BUREAU_TAG_ALTERNATION})-B\\d*\\b\")\n\n_MONEY_RE = re.compile(r\"\\$?\\s*([\\d,]+(?:\\.\\d{2})?)\")"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_Pymphp6Y7WMdSQ4FIELl4g",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 26578,
+        "completion_tokens": 6310,
+        "cached_tokens": 26576,
+        "cost_usd": 0.18261675,
+        "extra": {
+          "cache_write_tokens": 1851
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-05T17:19:14.386000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_f7RwWGYBX2qDwt1MzZgAsZ",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/normalize.py",
+            "newString": "def bureau_tags_from_text(text: str) -> Set[str]:\n    \"\"\"Map TUC-B1 / EXP-B1 / EQX-B1 / EFX-B1 (and comma-separated) to bureau keys.\"\"\"\n    found: Set[str] = set()\n    upper = (text or \"\").upper()\n    for token in _BUREAU_TAG_RE.findall(upper):\n        bureau = _BUREAU_TAG_MAP.get(token)\n        if bureau:\n            found.add(bureau)",
+            "oldString": "def bureau_tags_from_text(text: str) -> Set[str]:\n    \"\"\"Map TUC-B1 / EXP-B1 / EQX-B1 (and comma-separated) to bureau keys.\"\"\"\n    found: Set[str] = set()\n    upper = (text or \"\").upper()\n    for token in re.findall(r\"\\b(TUC|EXP|EQX|TU)-B\\d*\\b\", upper):\n        prefix = token.split(\"-\")[0]\n        bureau = _BUREAU_TAG_MAP.get(prefix)\n        if bureau:\n            found.add(bureau)"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_f7RwWGYBX2qDwt1MzZgAsZ",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 28429,
+        "completion_tokens": 479,
+        "cached_tokens": 28427,
+        "cost_usd": 0.0657235,
+        "extra": {
+          "cache_write_tokens": 6324
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-08-05T17:19:19.605000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "Now finding C \u2014 the two prefix-match bugs in the creditor-line and address helpers:",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_hqCfhRPInSVRvUJA9hDUI7",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/normalize.py",
+            "newString": "def is_plausible_creditor_line(line: str) -> bool:\n    line = line.strip()\n    if len(line) < 2 or len(line) > 80:\n        return False\n    if _SKIP_CREDITOR_LINES.match(line):\n        return False\n    if is_city_state_line(line):\n        return False\n    if re.match(r\"^\\d{3}[-\\s]?\\d{2}[-\\s]?\\d{4}$\", line):\n        return False\n    # Amount / numeric table rows are not creditor names. Only reject when the\n    # leading token really is a bare number or currency amount: creditor names\n    # such as \"21ST MORTGAGE\" or \"7-ELEVEN\" fuse digits with letters and must\n    # not be discarded just because they *start* with a digit.\n    first_token = line.split()[0]\n    if re.search(r\"[\\d\\$%]\", first_token) and not re.search(r\"[A-Za-z]\", first_token):\n        return False\n    if line.lower().startswith(\"http\"):\n        return False\n    return bool(re.search(r\"[A-Za-z]\", line))\n",
+            "oldString": "def is_plausible_creditor_line(line: str) -> bool:\n    line = line.strip()\n    if len(line) < 2 or len(line) > 80:\n        return False\n    if _SKIP_CREDITOR_LINES.match(line):\n        return False\n    if is_city_state_line(line):\n        return False\n    if re.match(r\"^\\d{3}[-\\s]?\\d{2}[-\\s]?\\d{4}$\", line):\n        return False\n    if re.match(r\"^[\\d\\$\\.,\\s%]+\", line):\n        return False\n    if line.lower().startswith(\"http\"):\n        return False\n    return bool(re.search(r\"[A-Za-z]\", line))\n"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_hqCfhRPInSVRvUJA9hDUI7",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 34753,
+        "completion_tokens": 718,
+        "cached_tokens": 34751,
+        "cost_usd": 0.03841675,
+        "extra": {
+          "cache_write_tokens": 493
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-08-05T17:19:28.337000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_2dU47TYBCW43NoSZZiUkph",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/normalize.py",
+            "newString": "_PHONE_RE = re.compile(r\"^\\d{3}[-.\\s]?\\d{3}[-.\\s]?\\d{4}$\")\n\n# A wrapped address fragment that leads with a street-suffix / unit token, e.g.\n# \"Ste 200\", \"Suite 100\", \"St.\", \"Blvd\". The suffix has to be a whole token and\n# the line must not continue into a name, otherwise real creditors such as\n# \"STATE FARM BANK\", \"LANE BRYANT/CBNA\" or \"Court Financial\" would be swallowed\n# because they merely *begin* like an address fragment.\n_STREET_SUFFIX_LINE_RE = re.compile(\n    r\"^(?:boulevard|blvd|street|avenue|drive|road|lane|court|suite|st|ave|dr|rd|way|ln|ct|ste)\\.?\"\n    r\"(?:\\s+(?:#\\s*)?(?:\\d+[\\w-]*|apt|apartment|unit|suite|ste|fl|floor|bldg|building|rm|room))*\"\n    r\"[.,]?$\",\n    re.IGNORECASE,\n)\n",
+            "oldString": "_PHONE_RE = re.compile(r\"^\\d{3}[-.\\s]?\\d{3}[-.\\s]?\\d{4}$\")\n"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_2dU47TYBCW43NoSZZiUkph",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 35246,
+        "completion_tokens": 559,
+        "cached_tokens": 35244,
+        "cost_usd": 0.036182,
+        "extra": {
+          "cache_write_tokens": 732
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-08-05T17:19:36.220000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_bUVzl7SMV5kCeGPhXt6yto",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/normalize.py",
+            "newString": "    if re.match(r\"^\\d+\\s+\\w\", text):  # street address\n        return True\n    if _STREET_SUFFIX_LINE_RE.match(text):\n        return True\n    return False\n",
+            "oldString": "    if re.match(r\"^\\d+\\s+\\w\", text):  # street address\n        return True\n    if re.match(\n        r\"^(blvd|st|street|ave|avenue|dr|drive|rd|road|way|lane|ln|ct|court|ste|suite)\\.?\",\n        text,\n        re.I,\n    ):\n        return True\n    return False\n"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_bUVzl7SMV5kCeGPhXt6yto",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 35978,
+        "completion_tokens": 294,
+        "cached_tokens": 35976,
+        "cost_usd": 0.02892925,
+        "extra": {
+          "cache_write_tokens": 573
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-08-05T17:19:40.260000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "Now findings A and B in `junk_filter.py`:",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_UwijVJPSnFDTajLA27p3uS",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/junk_filter.py",
+            "newString": "_UNKNOWN_CREDITOR = frozenset({\"unknown\", \"unknown creditor\", \"n/a\", \"na\"})\n\n\ndef _canonical_creditor(creditor: str) -> str:\n    \"\"\"Case- and whitespace-insensitive form used for filler tokens and de-duplication.\"\"\"\n    return re.sub(r\"\\s+\", \" \", (creditor or \"\").strip()).casefold()\n\n\ndef is_junk_creditor_name(creditor: str) -> bool:\n    name = (creditor or \"\").strip()\n    if not name:\n        return True\n    if not is_plausible_creditor_line(name):\n        return True\n    # Bureaus emit these placeholders in any casing (\"Unknown\", \"N/A\", ...).\n    if _canonical_creditor(name) in _UNKNOWN_CREDITOR:\n        return True",
+            "oldString": "_UNKNOWN_CREDITOR = frozenset({\"unknown\", \"unknown creditor\", \"n/a\", \"na\"})\n\n\ndef is_junk_creditor_name(creditor: str) -> bool:\n    name = (creditor or \"\").strip()\n    if not name:\n        return True\n    if not is_plausible_creditor_line(name):\n        return True\n    if name in _UNKNOWN_CREDITOR:\n        return True"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_UwijVJPSnFDTajLA27p3uS",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 36551,
+        "completion_tokens": 544,
+        "cached_tokens": 36549,
+        "cost_usd": 0.0338095,
+        "extra": {
+          "cache_write_tokens": 308
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 14,
+      "timestamp": "2026-08-05T17:19:47.077000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_cm4SkucR62xmMMI0s1ROYy",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/junk_filter.py",
+            "newString": "def dedupe_tradelines(tradelines: List[ParsedTradeline]) -> List[ParsedTradeline]:\n    seen: set[str] = set()\n    out: List[ParsedTradeline] = []\n    for tl in tradelines:\n        # The same tradeline can arrive with the creditor capitalised differently\n        # in each bureau section; those are one account, not two.\n        key = f\"{_canonical_creditor(tl.creditor)}|{(tl.account_number or '').strip()}\"\n        if key in seen:\n            continue\n        seen.add(key)\n        out.append(tl)\n    return out",
+            "oldString": "def dedupe_tradelines(tradelines: List[ParsedTradeline]) -> List[ParsedTradeline]:\n    seen: set[str] = set()\n    out: List[ParsedTradeline] = []\n    for tl in tradelines:\n        key = f\"{(tl.creditor or '')}|{tl.account_number or ''}\"\n        if key in seen:\n            continue\n        seen.add(key)\n        out.append(tl)\n    return out"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_cm4SkucR62xmMMI0s1ROYy",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 36859,
+        "completion_tokens": 466,
+        "cached_tokens": 36857,
+        "cost_usd": 0.033576,
+        "extra": {
+          "cache_write_tokens": 558
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 15,
+      "timestamp": "2026-08-05T17:19:52.953000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_lbfBFTNUw8DVReBMZoLFoV",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -c \"\nfrom agent.documents.credit_pdf.junk_filter import is_junk_creditor_name, dedupe_tradelines\nfrom agent.documents.credit_pdf.normalize import is_address_or_contact_line as addr, bureau_tags_from_text as tags, is_plausible_creditor_line as plaus\nfrom agent.documents.credit_pdf.models import ParsedTradeline\nprint('A', [(n, is_junk_creditor_name(n)) for n in ['unknown','Unknown','Unknown Creditor','UNKNOWN CREDITOR','N/A','n/a','NA','Na','JPMCB CARD SERVICES','[Table 35]','Past Due']])\nprint('B', [t.creditor for t in dedupe_tradelines([ParsedTradeline(creditor='Chase Bank',account_number='123'),ParsedTradeline(creditor='CHASE BANK',account_number='123'),ParsedTradeline(creditor='CHASE BANK',account_number='999')])])\nprint('C-addr keep:', [(l, addr(l)) for l in ['STATE FARM BANK','Wayne Bank','LANE BRYANT/CBNA','Court Financial','Streamline Lending','Drive Financial Services','Avenue Stores','RD Financial']])\nprint('C-addr drop:', [(l, addr(l)) for l in ['Ste 200','Suite 100','St.','Blvd','PO Box 15298','123 Main St','Chicago, IL 60601','60601','312-555-1212','Ste 200 Floor 3','']])\nprint('C-plaus keep:', [(l, plaus(l)) for l in ['21ST MORTGAGE CORPORATION','1ST FRANKLIN FINANCIAL','7-ELEVEN','5/3 BANK','JPMCB CARD SERVICES']])\nprint('C-plaus drop:', [(l, plaus(l)) for l in ['\\$1,234.00','123.45','0 0 0 Current','\\$0 \\$500 12/2020','100%','Account Number','12/2020 Current','  ']])\nprint('D', [(t, sorted(tags(t))) for t in ['TUC-B1','EXP-B1','EQX-B1','EFX-B1','TU-B1','TRANSUNION-B1','EQUIFAX-B2','EXPERIAN-B1','TUC-B1, EFX-B1','no tags here']])\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_lbfBFTNUw8DVReBMZoLFoV",
+            "content": "A [('unknown', True), ('Unknown', True), ('Unknown Creditor', True), ('UNKNOWN CREDITOR', True), ('N/A', True), ('n/a', True), ('NA', True), ('Na', True), ('JPMCB CARD SERVICES', False), ('[Table 35]', True), ('Past Due', True)]\nB ['Chase Bank', 'CHASE BANK']\nC-addr keep: [('STATE FARM BANK', False), ('Wayne Bank', False), ('LANE BRYANT/CBNA', False), ('Court Financial', False), ('Streamline Lending', False), ('Drive Financial Services', False), ('Avenue Stores', False), ('RD Financial', False)]\nC-addr drop: [('Ste 200', True), ('Suite 100', True), ('St.', True), ('Blvd', True), ('PO Box 15298', True), ('123 Main St', True), ('Chicago, IL 60601', True), ('60601', True), ('312-555-1212', True), ('Ste 200 Floor 3', True), ('', True)]\nC-plaus keep: [('21ST MORTGAGE CORPORATION', True), ('1ST FRANKLIN FINANCIAL', True), ('7-ELEVEN', True), ('5/3 BANK', False), ('JPMCB CARD SERVICES', True)]\nC-plaus drop: [('$1,234.00', False), ('123.45', False), ('0 0 0 Current', False), ('$0 $500 12/2020', False), ('100%', False), ('Account Number', False), ('12/2020 Current', False), ('  ', False)]\nD [('TUC-B1', ['transunion']), ('EXP-B1', ['experian']), ('EQX-B1', ['equifax']), ('EFX-B1', ['equifax']), ('TU-B1', ['transunion']), ('TRANSUNION-B1', ['transunion']), ('EQUIFAX-B2', ['equifax']), ('EXPERIAN-B1', ['experian']), ('TUC-B1, EFX-B1', ['equifax', 'transunion']), ('no tags here', [])]\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 37417,
+        "completion_tokens": 879,
+        "cached_tokens": 37415,
+        "cost_usd": 0.0436925,
+        "extra": {
+          "cache_write_tokens": 480
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 16,
+      "timestamp": "2026-08-05T17:20:04.207000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_A4ycZ9SKEFwNEgZXtprVHi",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/bureau_router.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_A4ycZ9SKEFwNEgZXtprVHi",
+            "content": "<path>/app/loangen-agent/agent/documents/credit_pdf/bureau_router.py</path>\n<type>file</type>\n<content>\n1: \"\"\"Assign parsed records to credit bureaus (tagged vs broadcast).\"\"\"\n2: \n3: from __future__ import annotations\n4: \n5: from typing import Dict, List, Set\n6: \n7: from agent.documents.credit_pdf.junk_filter import (\n8:     dedupe_inquiries,\n9:     dedupe_tradelines,\n10:     filter_tradelines,\n11: )\n12: from agent.documents.credit_pdf.models import (\n13:     ParsedBureauReport,\n14:     ParsedCreditReport,\n15:     ParsedInquiry,\n16:     ParsedSummary,\n17:     ParsedTradeline,\n18: )\n19: \n20: BUREAU_ORDER = (\"transunion\", \"experian\", \"equifax\")\n21: \n22: \n23: def _active_bureaus(parsed: ParsedCreditReport) -> Set[str]:\n24:     active: Set[str] = set()\n25:     for bureau, report in parsed.bureaus.items():\n26:         if report.score and 300 <= report.score <= 850:\n27:             active.add(bureau)\n28:         elif report.tradelines or report.inquiries:\n29:             active.add(bureau)\n30:     if not active:\n31:         active = set(parsed.bureaus.keys())\n32:     return active\n33: \n34: \n35: def _pool_tradelines(bureaus: Dict[str, ParsedBureauReport]) -> List[ParsedTradeline]:\n36:     pooled: Dict[str, ParsedTradeline] = {}\n37:     for report in bureaus.values():\n38:         for tl in filter_tradelines(report.tradelines):\n39:             key = f\"{(tl.creditor or '').lower()}|{tl.account_number or ''}\"\n40:             if key not in pooled:\n41:                 pooled[key] = tl\n42:     return list(pooled.values())\n43: \n44: \n45: def _pool_inquiries(bureaus: Dict[str, ParsedBureauReport]) -> List[ParsedInquiry]:\n46:     pooled: Dict[str, ParsedInquiry] = {}\n47:     for report in bureaus.values():\n48:         for inq in report.inquiries:\n49:             key = f\"{(inq.name or '').lower()}|{inq.date or ''}\"\n50:             if key not in pooled:\n51:                 pooled[key] = inq\n52:     return list(pooled.values())\n53: \n54: \n55: def _assign_tradelines(\n56:     tradelines: List[ParsedTradeline],\n57:     bureau: str,\n58:     active: Set[str],\n59: ) -> List[ParsedTradeline]:\n60:     assigned: List[ParsedTradeline] = []\n61:     for tl in tradelines:\n62:         tags = set(tl.reported_bureaus or [])\n63:         if tags:\n64:             if bureau in tags:\n65:                 assigned.append(tl)\n66:         elif bureau in active:\n67:             assigned.append(tl)\n68:     return dedupe_tradelines(assigned)\n69: \n70: \n71: def _assign_inquiries(\n72:     inquiries: List[ParsedInquiry],\n73:     bureau: str,\n74:     active: Set[str],\n75: ) -> List[ParsedInquiry]:\n76:     assigned: List[ParsedInquiry] = []\n77:     for inq in inquiries:\n78:         tags = set(inq.reported_bureaus or [])\n79:         if tags:\n80:             if bureau in tags:\n81:                 assigned.append(inq)\n82:         elif bureau in active:\n83:             assigned.append(inq)\n84:     return dedupe_inquiries(assigned)\n85: \n86: \n87: def _copy_summary(summary: ParsedSummary | None) -> ParsedSummary | None:\n88:     if summary is None:\n89:         return None\n90:     return ParsedSummary(**summary.__dict__)\n91: \n92: \n93: def finalize_parsed_report(parsed: ParsedCreditReport) -> ParsedCreditReport:\n94:     \"\"\"\n95:     Normalize bureau assignment: pool deduped records, re-assign by tags or broadcast.\n96: \n97:     Scores and factors remain per-bureau; they are never broadcast.\n98:     \"\"\"\n99:     if not parsed.bureaus:\n100:         return parsed\n101: \n102:     active = _active_bureaus(parsed)\n103:     pooled_tradelines = _pool_tradelines(parsed.bureaus)\n104:     pooled_inquiries = _pool_inquiries(parsed.bureaus)\n105:     merged_summary = parsed.merged_summary\n106: \n107:     new_bureaus: Dict[str, ParsedBureauReport] = {}\n108:     for bureau in BUREAU_ORDER:\n109:         if bureau not in parsed.bureaus:\n110:             continue\n111:         original = parsed.bureaus[bureau]\n112:         bureau_tradelines = _assign_tradelines(pooled_tradelines, bureau, active)\n113:         bureau_inquiries = _assign_inquiries(pooled_inquiries, bureau, active)\n114: \n115:         summary = _copy_summary(original.summary) or _copy_summary(merged_summary)\n116:         if summary is None:\n117:             summary = ParsedSummary()\n118:         if bureau_inquiries:\n119:             summary.hard_inquiries = len(bureau_inquiries)\n120: \n121:         has_score = original.score is not None and 300 <= (original.score or 0) <= 850\n122:         if not has_score and not bureau_tradelines and not bureau_inquiries:\n123:             continue\n124: \n125:         new_bureaus[bureau] = ParsedBureauReport(\n126:             bureau=bureau,\n127:             score=original.score,\n128:             score_model=original.score_model,\n129:             factors=list(original.factors),\n130:             tradelines=bureau_tradelines,\n131:             inquiries=bureau_inquiries,\n132:             summary=summary,\n133:         )\n134: \n135:     if not new_bureaus:\n136:         for bureau, original in parsed.bureaus.items():\n137:             new_bureaus[bureau] = ParsedBureauReport(\n138:                 bureau=bureau,\n139:                 score=original.score,\n140:                 score_model=original.score_model,\n141:                 factors=list(original.factors),\n142:                 tradelines=filter_tradelines(original.tradelines),\n143:                 inquiries=dedupe_inquiries(original.inquiries),\n144:                 summary=original.summary,\n145:             )\n146: \n147:     parsed.bureaus = new_bureaus\n148:     return parsed\n\n(End of file - total 148 lines)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 37897,
+        "completion_tokens": 280,
+        "cached_tokens": 37895,
+        "cost_usd": 0.03608875,
+        "extra": {
+          "cache_write_tokens": 1621
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 17,
+      "timestamp": "2026-08-05T17:20:09.556000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_0sLCmL7bGbVnrFxNnxdnn2",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && grep -rn \"Unknown Creditor\\|unknown creditor\" --include=*.py . | grep -v __pycache__"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_0sLCmL7bGbVnrFxNnxdnn2",
+            "content": "./agent/documents/credit_pdf/adapters/xactus.py:524:        return \"Unknown Creditor\"\n./agent/documents/credit_pdf/adapters/xactus.py:527:    return creditor or \"Unknown Creditor\"\n./agent/documents/credit_pdf/junk_filter.py:30:_UNKNOWN_CREDITOR = frozenset({\"unknown\", \"unknown creditor\", \"n/a\", \"na\"})\n./agent/documents/credit_pdf/mismo_builder.py:86:    creditor_name = str(tl.get(\"creditor\") or tl.get(\"creditor_name\") or \"Unknown Creditor\")\r\r\n./agent/pipeline.py:469:                                creditor = tl.get(\"creditor_name\") or \"Unknown Creditor\"\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 39518,
+        "completion_tokens": 1645,
+        "cached_tokens": 39516,
+        "cost_usd": 0.07729925,
+        "extra": {
+          "cache_write_tokens": 2625
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 18,
+      "timestamp": "2026-08-05T17:20:33.615000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_kJ49XV4NfWMJ8iKLqALS5j",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -m pytest tests -v 2>&1 | tail -60"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_kJ49XV4NfWMJ8iKLqALS5j",
+            "content": "tests/test_inbound_calls.py:195: AssertionError\n_ RecoverStaleDocumentsTests.test_recovers_stale_queued_document_for_application _\n\nself = <test_ingestion_stale_recovery.RecoverStaleDocumentsTests testMethod=test_recovers_stale_queued_document_for_application>\n\n    async def test_recovers_stale_queued_document_for_application(self) -> None:\n        from agent.documents.ingestion.stale_recovery import recover_stale_documents_for_application\n    \n        app = MagicMock()\n        app.user_id = \"user-1\"\n    \n        stale_doc = MagicMock()\n        stale_doc.id = \"doc-stale\"\n        stale_doc.is_deleted = False\n        stale_doc.ingestion_status = IngestionStatus.QUEUED\n        stale_doc.ingestion_updated_at = datetime.now(timezone.utc) - timedelta(minutes=30)\n    \n        async def fake_get(doc_id: str):\n            if doc_id == \"app-1\":\n                return app\n            if doc_id == \"doc-stale\":\n                return stale_doc\n            return None\n    \n        mock_svc = MagicMock()\n        mock_svc.re_enqueue_stale_document = AsyncMock(return_value=True)\n    \n        with patch(\"agent.core.config.settings\") as mock_settings:\n            mock_settings.document_ingestion_enabled = True\n            mock_settings.ingestion_stale_job_minutes = 15\n            with patch(\n                \"agent.services.smbapplications.models.SMBApplication.get\",\n                new=AsyncMock(side_effect=fake_get),\n            ):\n                with patch(\n                    \"agent.documents.ingestion.stale_recovery.UserDocument.get\",\n                    new=AsyncMock(side_effect=fake_get),\n                ):\n                    with patch(\n                        \"agent.documents.ingestion.readiness.get_application_document_ids\",\n                        new=AsyncMock(return_value=[\"doc-stale\"]),\n                    ):\n                        recovered = await recover_stale_documents_for_application(\n                            \"app-1\",\n                            service=mock_svc,\n                        )\n    \n>       self.assertEqual(recovered, 1)\nE       AssertionError: 0 != 1\n\ntests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n================== 7 failed, 166 passed, 24 skipped in 2.51s ===================\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 42143,
+        "completion_tokens": 111,
+        "cached_tokens": 42141,
+        "cost_usd": 0.03578675,
+        "extra": {
+          "cache_write_tokens": 1909
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 19,
+      "timestamp": "2026-08-05T17:20:40.035000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_YpWND8cXGwxGfwgv2z4naj",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && git stash && python -m pytest tests 2>&1 | tail -12 && git stash pop"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_YpWND8cXGwxGfwgv2z4naj",
+            "content": "Saved working directory and index state WIP on main: 574c6f0 import codebase\nE       AssertionError: 0 != 1\n\ntests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n================== 7 failed, 166 passed, 24 skipped in 2.20s ===================\nOn branch main\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git restore <file>...\" to discard changes in working directory)\n\tmodified:   agent/documents/credit_pdf/junk_filter.py\n\tmodified:   agent/documents/credit_pdf/normalize.py\n\nno changes added to commit (use \"git add\" and/or \"git commit -a\")\nDropped refs/stash@{0} (ac45c8616348c34965719e53b4d20d18618adb3c)\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 44052,
+        "completion_tokens": 127,
+        "cached_tokens": 44050,
+        "cost_usd": 0.03339125,
+        "extra": {
+          "cache_write_tokens": 1309
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 20,
+      "timestamp": "2026-08-05T17:20:46.921000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_2Sz0ICQXHAFqfRrK6d7H01",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -m pytest tests/test_credit_pdf_pipeline.py tests/test_credit_pdf_upload.py -q 2>&1 | tail -5"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_2Sz0ICQXHAFqfRrK6d7H01",
+            "content": "The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: \"function\", \"class\", \"module\", \"package\", \"session\"\n\n  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))\n.........ssssssssssss                                                    [100%]\n9 passed, 12 skipped in 0.38s\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 45361,
+        "completion_tokens": 242,
+        "cached_tokens": 45359,
+        "cost_usd": 0.0336145,
+        "extra": {
+          "cache_write_tokens": 780
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 21,
+      "timestamp": "2026-08-05T17:20:52.446000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_Er6Tr3maKQDFeQ3bIvOSbX",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -c \"\nfrom agent.documents.credit_pdf.adapters.xactus import _creditor_from_before as f\ncases = {\n 'street-suffix continuation': 'Current Accounts\\nSTATE FARM BANK\\n123 MAIN STREET\\nSte 400\\nBLOOMINGTON, IL 61710\\n800-555-1212\\nAccount Number\\n',\n 'lane bryant': 'Credit History\\nLANE BRYANT/CBNA\\nPO Box 6497\\nSIOUX FALLS, SD 57117\\nAccount Number\\n',\n '21st mortgage': 'Current Accounts\\n21ST MORTGAGE CORPORATION\\n620 MARKET ST\\nKNOXVILLE, TN 37902\\nAccount Number\\n',\n 'plain': 'Current Accounts\\nJPMCB CARD SERVICES\\nP.O. Box 15298\\nWILMINGTON, DE 19850\\nAccount Number\\n',\n 'wrapped name': 'Current Accounts\\nCAPITAL ONE\\nBANK USA NA\\n15000 Capital One Dr\\nRICHMOND, VA 23238\\nAccount Number\\n',\n}\nfor k,v in cases.items(): print(f'{k:28} -> {f(v)!r}')\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_Er6Tr3maKQDFeQ3bIvOSbX",
+            "content": "street-suffix continuation   -> 'STATE FARM BANK'\nlane bryant                  -> 'LANE BRYANT/CBNA'\n21st mortgage                -> '21ST MORTGAGE CORPORATION'\nplain                        -> 'JPMCB CARD SERVICES'\nwrapped name                 -> 'CAPITAL ONE BANK USA NA'\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 46141,
+        "completion_tokens": 589,
+        "cached_tokens": 46139,
+        "cost_usd": 0.04067325,
+        "extra": {
+          "cache_write_tokens": 459
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 22,
+      "timestamp": "2026-08-05T17:21:02.746000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_LWJxO5HN7XquiDGWXvqk57",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && git stash -q && python -c \"\nfrom agent.documents.credit_pdf.adapters.xactus import _creditor_from_before as f\ncases = {\n 'STATE FARM': 'Current Accounts\\nSTATE FARM BANK\\n123 MAIN STREET\\nSte 400\\nBLOOMINGTON, IL 61710\\nAccount Number\\n',\n 'LANE BRYANT': 'Credit History\\nLANE BRYANT/CBNA\\nPO Box 6497\\nSIOUX FALLS, SD 57117\\nAccount Number\\n',\n '21ST MORTGAGE': 'Current Accounts\\n21ST MORTGAGE CORPORATION\\n620 MARKET ST\\nKNOXVILLE, TN 37902\\nAccount Number\\n',\n}\nfor k,v in cases.items(): print(f'{k:15} -> {f(v)!r}')\n\"; git stash pop -q"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_LWJxO5HN7XquiDGWXvqk57",
+            "content": "STATE FARM      -> 'Unknown Creditor'\nLANE BRYANT     -> 'Unknown Creditor'\n21ST MORTGAGE   -> 'Unknown Creditor'\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 46600,
+        "completion_tokens": 458,
+        "cached_tokens": 46598,
+        "cost_usd": 0.039284,
+        "extra": {
+          "cache_write_tokens": 724
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 23,
+      "timestamp": "2026-08-05T17:21:09.284000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_nyZvjR2rRBXYgxuWUrI9xQ",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && git diff"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_nyZvjR2rRBXYgxuWUrI9xQ",
+            "content": "diff --git a/loangen-agent/agent/documents/credit_pdf/junk_filter.py b/loangen-agent/agent/documents/credit_pdf/junk_filter.py\nindex c7202fb..b1bedfb 100644\n--- a/loangen-agent/agent/documents/credit_pdf/junk_filter.py\n+++ b/loangen-agent/agent/documents/credit_pdf/junk_filter.py\n@@ -30,13 +30,19 @@ _JUNK_CREDITOR_PATTERNS = (\n _UNKNOWN_CREDITOR = frozenset({\"unknown\", \"unknown creditor\", \"n/a\", \"na\"})\n \n \n+def _canonical_creditor(creditor: str) -> str:\n+    \"\"\"Case- and whitespace-insensitive form used for filler tokens and de-duplication.\"\"\"\n+    return re.sub(r\"\\s+\", \" \", (creditor or \"\").strip()).casefold()\n+\n+\n def is_junk_creditor_name(creditor: str) -> bool:\n     name = (creditor or \"\").strip()\n     if not name:\n         return True\n     if not is_plausible_creditor_line(name):\n         return True\n-    if name in _UNKNOWN_CREDITOR:\n+    # Bureaus emit these placeholders in any casing (\"Unknown\", \"N/A\", ...).\n+    if _canonical_creditor(name) in _UNKNOWN_CREDITOR:\n         return True\n     for pattern in _JUNK_CREDITOR_PATTERNS:\n         if pattern.search(name):\n@@ -65,7 +71,9 @@ def dedupe_tradelines(tradelines: List[ParsedTradeline]) -> List[ParsedTradeline\n     seen: set[str] = set()\n     out: List[ParsedTradeline] = []\n     for tl in tradelines:\n-        key = f\"{(tl.creditor or '')}|{tl.account_number or ''}\"\n+        # The same tradeline can arrive with the creditor capitalised differently\n+        # in each bureau section; those are one account, not two.\n+        key = f\"{_canonical_creditor(tl.creditor)}|{(tl.account_number or '').strip()}\"\n         if key in seen:\n             continue\n         seen.add(key)\ndiff --git a/loangen-agent/agent/documents/credit_pdf/normalize.py b/loangen-agent/agent/documents/credit_pdf/normalize.py\nindex fbfc459..c133272 100644\n--- a/loangen-agent/agent/documents/credit_pdf/normalize.py\n+++ b/loangen-agent/agent/documents/credit_pdf/normalize.py\n@@ -17,6 +17,11 @@ _BUREAU_TAG_MAP = {\n     \"EQUIFAX\": \"equifax\",\n }\n \n+# Longest-first so that e.g. \"TRANSUNION-B1\" is not matched as \"TU\" and\n+# \"EXPERIAN-B1\" is not matched as \"EXP\".\n+_BUREAU_TAG_ALTERNATION = \"|\".join(sorted(_BUREAU_TAG_MAP, key=len, reverse=True))\n+_BUREAU_TAG_RE = re.compile(rf\"\\b({_BUREAU_TAG_ALTERNATION})-B\\d*\\b\")\n+\n _MONEY_RE = re.compile(r\"\\$?\\s*([\\d,]+(?:\\.\\d{2})?)\")\n _DATE_MDY = re.compile(r\"\\b(\\d{1,2}/\\d{1,2}/\\d{2,4})\\b\")\n _PAGE_BREAK = re.compile(r\"--\\s*\\d+\\s+of\\s+\\d+\\s*--\", re.IGNORECASE)\n@@ -79,12 +84,11 @@ def split_borrower_name(full_name: str) -> tuple[str, str]:\n \n \n def bureau_tags_from_text(text: str) -> Set[str]:\n-    \"\"\"Map TUC-B1 / EXP-B1 / EQX-B1 (and comma-separated) to bureau keys.\"\"\"\n+    \"\"\"Map TUC-B1 / EXP-B1 / EQX-B1 / EFX-B1 (and comma-separated) to bureau keys.\"\"\"\n     found: Set[str] = set()\n     upper = (text or \"\").upper()\n-    for token in re.findall(r\"\\b(TUC|EXP|EQX|TU)-B\\d*\\b\", upper):\n-        prefix = token.split(\"-\")[0]\n-        bureau = _BUREAU_TAG_MAP.get(prefix)\n+    for token in _BUREAU_TAG_RE.findall(upper):\n+        bureau = _BUREAU_TAG_MAP.get(token)\n         if bureau:\n             found.add(bureau)\n     if \"TRANSUNION\" in upper or \"TRANS UNION\" in upper:\n@@ -115,7 +119,12 @@ def is_plausible_creditor_line(line: str) -> bool:\n         return False\n     if re.match(r\"^\\d{3}[-\\s]?\\d{2}[-\\s]?\\d{4}$\", line):\n         return False\n-    if re.match(r\"^[\\d\\$\\.,\\s%]+\", line):\n+    # Amount / numeric table rows are not creditor names. Only reject when the\n+    # leading token really is a bare number or currency amount: creditor names\n+    # such as \"21ST MORTGAGE\" or \"7-ELEVEN\" fuse digits with letters and must\n+    # not be discarded just because they *start* with a digit.\n+    first_token = line.split()[0]\n+    if re.search(r\"[\\d\\$%]\", first_token) and not re.search(r\"[A-Za-z]\", first_token):\n         return False\n     if line.lower().startswith(\"http\"):\n         return False\n@@ -128,6 +137,18 @@ _CITY_STATE_RE = re.compile(\n _ZIP_ONLY_RE = re.compile(r\"^\\d{5}(?:-\\d{4})?$\")\n _PHONE_RE = re.compile(r\"^\\d{3}[-.\\s]?\\d{3}[-.\\s]?\\d{4}$\")\n \n+# A wrapped address fragment that leads with a street-suffix / unit token, e.g.\n+# \"Ste 200\", \"Suite 100\", \"St.\", \"Blvd\". The suffix has to be a whole token and\n+# the line must not continue into a name, otherwise real creditors such as\n+# \"STATE FARM BANK\", \"LANE BRYANT/CBNA\" or \"Court Financial\" would be swallowed\n+# because they merely *begin* like an address fragment.\n+_STREET_SUFFIX_LINE_RE = re.compile(\n+    r\"^(?:boulevard|blvd|street|avenue|drive|road|lane|court|suite|st|ave|dr|rd|way|ln|ct|ste)\\.?\"\n+    r\"(?:\\s+(?:#\\s*)?(?:\\d+[\\w-]*|apt|apartment|unit|suite|ste|fl|floor|bldg|building|rm|room))*\"\n+    r\"[.,]?$\",\n+    re.IGNORECASE,\n+)\n+\n \n def is_city_state_line(line: str) -> bool:\n     return bool(_CITY_STATE_RE.match((line or \"\").strip()))\n@@ -149,11 +170,7 @@ def is_address_or_contact_line(line: str) -> bool:\n         return True\n     if re.match(r\"^\\d+\\s+\\w\", text):  # street address\n         return True\n-    if re.match(\n-        r\"^(blvd|st|street|ave|avenue|dr|drive|rd|road|way|lane|ln|ct|court|ste|suite)\\.?\",\n-        text,\n-        re.I,\n-    ):\n+    if _STREET_SUFFIX_LINE_RE.match(text):\n         return True\n     return False\n \n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 47324,
+        "completion_tokens": 126,
+        "cached_tokens": 47322,
+        "cost_usd": 0.030146,
+        "extra": {
+          "cache_write_tokens": 532
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 24,
+      "timestamp": "2026-08-05T17:21:12.970000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_YSBWHbXaodoQcTsIa7MoHk",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/documents/credit_pdf/normalize.py",
+            "oldString": "    r\"^(?:boulevard|blvd|street|avenue|drive|road|lane|court|suite|st|ave|dr|rd|way|ln|ct|ste)\\.?\"",
+            "newString": "    r\"^(?:blvd|street|avenue|drive|road|lane|court|suite|st|ave|dr|rd|way|ln|ct|ste)\\.?\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_YSBWHbXaodoQcTsIa7MoHk",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 47856,
+        "completion_tokens": 882,
+        "cached_tokens": 47854,
+        "cost_usd": 0.0633995,
+        "extra": {
+          "cache_write_tokens": 2786
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 25,
+      "timestamp": "2026-08-05T17:21:24.382000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_s9nJTONKVsODs1cXKOBIuT",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -m pytest tests -v 2>&1 | tail -12"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_s9nJTONKVsODs1cXKOBIuT",
+            "content": "E       AssertionError: 0 != 1\n\ntests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n================== 7 failed, 166 passed, 24 skipped in 2.26s ===================\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 50642,
+        "completion_tokens": 78,
+        "cached_tokens": 50640,
+        "cost_usd": 0.03288,
+        "extra": {
+          "cache_write_tokens": 896
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 26,
+      "timestamp": "2026-08-05T17:21:30.227000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_t8A4Wm8IzZzqD7GoBLxLte",
+          "function_name": "todowrite",
+          "arguments": {
+            "todos": [
+              {
+                "content": "Read normalize.py and junk_filter.py to understand current logic",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Fix finding A: case-insensitive filler/junk creditor token filtering",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Fix finding B: de-duplication must be case-insensitive on creditor",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Fix finding C: creditor line discarded due to prefix-match with other line kind",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Fix finding D: bureau tag spelling variant not attributed to any section",
+                "priority": "high",
+                "status": "completed"
+              },
+              {
+                "content": "Run pytest tests -v to verify green",
+                "priority": "high",
+                "status": "completed"
+              }
+            ]
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_t8A4Wm8IzZzqD7GoBLxLte",
+            "content": "[\n  {\n    \"content\": \"Read normalize.py and junk_filter.py to understand current logic\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix finding A: case-insensitive filler/junk creditor token filtering\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix finding B: de-duplication must be case-insensitive on creditor\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix finding C: creditor line discarded due to prefix-match with other line kind\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Fix finding D: bureau tag spelling variant not attributed to any section\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Run pytest tests -v to verify green\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  }\n]"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 51538,
+        "completion_tokens": 314,
+        "cached_tokens": 51536,
+        "cost_usd": 0.03694675,
+        "extra": {
+          "cache_write_tokens": 531
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 27,
+      "timestamp": "2026-08-05T17:21:34.822000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "All four discrepancy classes traced to root causes and fixed. Two files touched, nothing under `tests/`.\n\n## Findings \u2192 root causes\n\n**A. Filler creditor survives when case differs** \u2014 `junk_filter.py:39` compared the raw name against a lowercase-only frozenset (`name in _UNKNOWN_CREDITOR`). `\"unknown creditor\"` filtered, `\"Unknown Creditor\"`/`\"N/A\"`/`\"NA\"` did not. Now compared through `_canonical_creditor()` (casefold + whitespace collapse). This matters directly: `xactus._creditor_from_before` emits the literal `\"Unknown Creditor\"` placeholder, which was shipping as a real account.\n\n**B. Same account kept twice** \u2014 `dedupe_tradelines` (junk_filter.py:68) built its key from the raw creditor, so `Chase Bank|123` and `CHASE BANK|123` were distinct, while `bureau_router._pool_tradelines` already lowercased its key. The two dedupe paths now share `_canonical_creditor`, so per-bureau dedupe agrees with pooling.\n\n**C. Real creditor line discarded on prefix match** \u2014 two unanchored prefix regexes:\n- `is_address_or_contact_line` matched `^(blvd|st|street|ave|...)` with no token boundary, so `STATE FARM BANK` (\"st\"), `LANE BRYANT/CBNA` (\"lane\"), `Court Financial`, `Streamline Lending` all classified as address fragments and terminated creditor collection. Replaced with `_STREET_SUFFIX_LINE_RE`, which requires the suffix to be a whole token and the line to end (optionally followed by a unit/number, e.g. `Ste 200`, `Suite 100`, `St.`).\n- `is_plausible_creditor_line` rejected anything matching `^[\\d\\$\\.,\\s%]+` \u2014 a prefix match, so `21ST MORTGAGE CORPORATION`, `1ST FRANKLIN FINANCIAL`, `7-ELEVEN` were rejected as amount rows. Now rejects only when the leading token is a bare number/currency (contains digits/`$`/`%` and no letters), preserving every previous rejection of true amount rows (`$1,234.00`, `0 0 0 Current`, `100%`).\n\nEnd-to-end proof on synthetic Xactus blocks: `STATE FARM BANK`, `LANE BRYANT/CBNA`, `21ST MORTGAGE CORPORATION` all previously resolved to `\"Unknown Creditor\"` (findings A+C compounding \u2014 a vanished creditor became a phantom account); they now resolve correctly.\n\n**D. Tagged tradeline lands in no bureau** \u2014 `bureau_tags_from_text` hardcoded `\\b(TUC|EXP|EQX|TU)-B\\d*\\b`, omitting `EFX`, which is present in `_BUREAU_TAG_MAP` and emitted by Equifax. `EFX-B1` produced an empty tag set, and `filter_for_bureau`/`_assign_tradelines` only broadcast on *no* tags, so the row was excluded from all three sections. The regex is now generated from `_BUREAU_TAG_MAP` keys, longest-first (so `TRANSUNION-B1` isn't clipped to `TU`, `EXPERIAN-B1` not to `EXP`). All variants now attribute; untagged rows still broadcast.\n\n## Verification\n\n`python -m pytest tests -v` \u2192 **166 passed, 7 failed, 24 skipped**. The 7 failures are pre-existing and unrelated (inbound calls, ingestion readiness/stale recovery, document report); I confirmed the identical 7 fail on stashed `HEAD`. Credit-PDF suites (`test_credit_pdf_pipeline.py`, `test_credit_pdf_upload.py`) are green.\n\nOne caveat worth flagging: I deliberately left `xactus.py:474`'s case-sensitive `seen_keys` alone. Making that one case-insensitive would collapse per-bureau blocks *before* their `reported_bureaus` tags are read, silently dropping bureau attribution \u2014 the opposite of finding D. Dedupe belongs after assignment, which is where B was fixed.",
+      "metrics": {
+        "prompt_tokens": 52069,
+        "completion_tokens": 1448,
+        "cached_tokens": 52067,
+        "cost_usd": 0.06624975,
+        "extra": {
+          "cache_write_tokens": 641
+        }
+      },
+      "llm_call_count": 1
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 908093,
+    "total_completion_tokens": 22436,
+    "total_cached_tokens": 908041,
+    "total_cost_usd": 1.3446055000000006,
+    "total_steps": 27
+  }
+}

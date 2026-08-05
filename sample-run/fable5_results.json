@@ -1,40 +1,64 @@
 {
-  "model": "openrouter/anthropic/claude-fable-5",
+  "model": "claude-fable-5",
+  "routes": [
+    "openrouter/anthropic/claude-fable-5",
+    "amazon-bedrock/global.anthropic.claude-fable-5",
+    "amazon-bedrock/us.anthropic.claude-fable-5"
+  ],
   "harness": "opencode-1.18.13",
   "environment": "daytona-2cpu-4gb-amd64",
-  "attempts_per_task": 1,
+  "target_attempts_per_available_task": 10,
+  "methodology": "Original OpenRouter attempt plus validated completion attempts, primarily on Bedrock; only trials with real verifier verdicts enter n. Fable/FIU remains excluded after consistent OpenRouter and Bedrock content filters; Fable/doc remains provider-limited at n=3 after a bounded exact-harness retry sweep across both providers.",
   "tasks": [
     {
       "task": "latent-credit-normalize",
-      "n": 1,
-      "c": 0,
-      "pass@1": 0.0,
-      "pass@3": null,
-      "pass@10": null
+      "n": 10,
+      "c": 4,
+      "pass@1": 0.4,
+      "pass@3": 0.8333,
+      "pass@10": 1.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "latent-doc-extractors",
-      "n": 1,
-      "c": 0,
-      "pass@1": 0.0,
-      "pass@3": null,
-      "pass@10": null
+      "n": 3,
+      "c": 1,
+      "pass@1": 0.3333,
+      "pass@3": 1.0,
+      "pass@10": null,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 2
+      },
+      "provider_limited": true,
+      "provider_limitation_reason": "provider_content_filter_after_n3"
     },
     {
       "task": "latent-financial-tools",
-      "n": 1,
+      "n": 10,
       "c": 0,
       "pass@1": 0.0,
-      "pass@3": null,
-      "pass@10": null
+      "pass@3": 0.0,
+      "pass@10": 0.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "latent-phone-invites",
-      "n": 1,
-      "c": 0,
-      "pass@1": 0.0,
-      "pass@3": null,
-      "pass@10": null
+      "n": 10,
+      "c": 3,
+      "pass@1": 0.3,
+      "pass@3": 0.7083,
+      "pass@10": 1.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "xrepo-fiu-latent",
@@ -42,46 +66,76 @@
       "c": 0,
       "pass@1": null,
       "pass@3": null,
-      "pass@10": null
+      "pass@10": null,
+      "provider_attempts": {},
+      "excluded": true,
+      "exclusion_reason": "provider_content_filter"
     },
     {
       "task": "xrepo-txenrich-latent",
-      "n": 1,
-      "c": 1,
-      "pass@1": 1.0,
-      "pass@3": null,
-      "pass@10": null
+      "n": 10,
+      "c": 8,
+      "pass@1": 0.8,
+      "pass@3": 1.0,
+      "pass@10": 1.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "xrepo-txenrich3-latent",
-      "n": 1,
-      "c": 0,
-      "pass@1": 0.0,
-      "pass@3": null,
-      "pass@10": null
+      "n": 10,
+      "c": 2,
+      "pass@1": 0.2,
+      "pass@3": 0.5333,
+      "pass@10": 1.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     },
     {
       "task": "xrepo-txenrich4-latent",
-      "n": 1,
+      "n": 10,
       "c": 0,
       "pass@1": 0.0,
-      "pass@3": null,
-      "pass@10": null
+      "pass@3": 0.0,
+      "pass@10": 0.0,
+      "provider_attempts": {
+        "openrouter": 1,
+        "amazon-bedrock": 9
+      }
     }
   ],
   "totals": {
-    "attempts": 7,
-    "solves": 1,
-    "mean_pass@1": 0.1429,
-    "cost_usd": 41.1584,
-    "model_turns": 161,
-    "tool_calls": 210,
+    "attempts": 63,
+    "solves": 18,
+    "macro_pass@1": 0.2905,
+    "macro_pass@3": 0.5821,
+    "macro_pass@10": 0.6667,
+    "macro_task_counts": {
+      "pass@1": 7,
+      "pass@3": 7,
+      "pass@10": 6
+    },
+    "cost_usd": 326.8842,
+    "cost_usd_by_provider": {
+      "amazon-bedrock": 285.7257,
+      "openrouter": 41.1584
+    },
+    "attempts_by_provider": {
+      "openrouter": 7,
+      "amazon-bedrock": 56
+    },
+    "model_turns": 1391,
+    "tool_calls": 1830,
     "duration_seconds": {
-      "mean": 654.436,
-      "median": 422.535,
+      "mean": 961.817,
+      "median": 757.607,
       "p90": 2124.741,
       "min": 226.968,
-      "max": 2124.741
+      "max": 3453.766
     }
   },
   "per_attempt_data": "fable5_trials.json"

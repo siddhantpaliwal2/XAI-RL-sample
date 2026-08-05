@@ -1,0 +1,555 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "ses_02cfb91b5ffetC2XmaBH5ziVoz",
+  "agent": {
+    "name": "opencode",
+    "version": "1.18.13",
+    "model_name": "amazon-bedrock/global.anthropic.claude-opus-5"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "source": "user",
+      "message": "<uploaded_files>/app</uploaded_files>\n\nSubject: escalation - recurring CRM data-quality complaints from the field\n\nI'm writing this up on behalf of Customer Success. Over the past few sprints our\naccount managers have logged a run of small but genuine mistakes in how the contact\ntooling saves and shows two fields: a contact's mobile number and their loan type.\nEvery one of these has been reproduced on a live account, so please treat them as\nreal defects rather than user error. They only bite when a contact's details come in\na slightly off-pattern shape, which is why they slipped past everyone for weeks - the\nroutine cases (a plain US mobile, a loan type chosen from the dropdown) come out\nperfectly correct, and our automated checks only ever exercise those routine cases.\n\nHere is what the managers actually reported, in their words:\n\n- \"I onboarded a borrower in London and typed their mobile the way it's printed on\n  their letterhead. Our workspace is configured to default to the UK, but the number\n  saved under a US code (+1...) instead of the UK code (+44...).\" So: when the digits\n  could belong to more than one country, the contact's configured home region is being\n  ignored and the wrong country is winning.\n\n- \"A few contacts gave me their number in the international style that starts with a\n  double-zero access code - a 0044 UK number, for instance. Instead of accepting it,\n  the tool told me the number was invalid and I had to retype it by hand.\" So: the 00\n  international prefix isn't being treated as equivalent to a leading +.\n\n- \"One of my older accounts is tagged with a loan type from before we cleaned up the\n  catalog, and the label on the record printed as 'Hardmoney' - no space - when it\n  should read 'Hard Money', same word-by-word capitalization as every other loan type\n  we display.\" So: an unfamiliar loan-type code isn't being turned into a readable,\n  properly spaced and capitalized label.\n\n- \"A rep entered a loan type as 'Working_Capital', with the odd capitals and the\n  underscore, and that's exactly the string that got stored on the contact - not the\n  tidy internal code the rest of the system matches against.\" So: an oddly-cased entry\n  of a known type is being stored verbatim rather than normalized to its standard code.\n\nThere may be more corners like these; those are simply the ones we could reproduce.\nThe common thread is that all of it is pure string-and-lookup work - deciding a\ncountry for a number, reshaping a dialed number into storage form, and mapping a\nloan-type string to its code and its display label. No database or network calls are\ninvolved, so each case is reproducible from a direct call.\n\nWhat I need from engineering: make the saved and displayed values correct for these\nunusual-but-legitimate inputs, and do it without disturbing how the ordinary inputs\n(the ones our current checks cover) already behave. Please don't touch the existing\ntest files, and confirm the current suite still passes when you're done:\n\n    cd /app/loangen-agent && python -m pytest tests -v\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-08-05T17:41:53.297000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "I'll start by exploring the codebase to understand the relevant code.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_N64fU1xlux8l6ezR9areXU",
+          "function_name": "bash",
+          "arguments": {
+            "command": "ls -la /app/loangen-agent && echo \"---\" && ls -la /app"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_7UoI2cj92IzPWy77oO0G9x",
+          "function_name": "task",
+          "arguments": {
+            "description": "Find phone and loan type utils",
+            "prompt": "Explore the repo at /app/loangen-agent (workspace root /app). I need to find:\n1. Any code that normalizes/parses/formats phone numbers (mobile numbers), especially involving country codes, regions, E.164 formatting.\n2. Any code that maps/normalizes loan types (loan type codes and display labels), enums, dropdown catalogs.\n3. The test files under /app/loangen-agent/tests that exercise these.\n4. Where contact save/display logic lives (CRM contact tooling).\n\nReport exact file paths, line numbers, and the full relevant source of the functions involved. Be very thorough.",
+            "subagent_type": "explore"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_N64fU1xlux8l6ezR9areXU",
+            "content": "total 60\ndrwxr-xr-x 1 root root    27 Jul 14 20:56 .\ndrwxr-xr-x 1 root root    26 Jul 15 02:21 ..\n-rw-r--r-- 1 root root 29414 Jul 14 20:56 .env.example\n-rw-r--r-- 1 root root   885 Jul 14 20:56 Dockerfile\n-rw-r--r-- 1 root root  4154 Jul 14 20:56 README.md\ndrwxr-xr-x 1 root root    54 Jul 14 20:56 agent\ndrwxr-xr-x 1 root root    27 Jul 12 20:34 deploy\ndrwxr-xr-x 1 root root    95 Jul 14 20:56 docker\n-rw-r--r-- 1 root root   288 Jul 14 20:56 docker-compose.yml\ndrwxr-xr-x 1 root root   171 Jul 14 20:56 docs\n-rw-r--r-- 1 root root  1590 Jul 14 20:56 requirements.txt\ndrwxr-xr-x 1 root root  4096 Jul 14 20:56 tests\ndrwxr-xr-x 1 root root  4096 Jul 14 20:56 training\n---\ntotal 220\ndrwxr-xr-x 1 root root    26 Jul 15 02:21 .\ndrwxr-xr-x 1 root root   144 Aug  5 17:41 ..\ndrwxr-xr-x 1 root root    27 Jul 12 20:40 .claude\ndrwxr-xr-x 1 root root    49 Aug  5 17:41 .git\n-rw-r--r-- 1 root root   610 Jul 14 20:56 .gitignore\n-rw-r--r-- 1 root root  7573 Jul 14 20:56 APPLICATION_FIELD_SOURCE_MAPPING.md\n-rw-r--r-- 1 root root 36563 Jul 14 20:56 BACKEND_TASKS.md\n-rw-r--r-- 1 root root 13176 Jul 14 20:56 DATA_ANALYTICS.md\ndrwxr-xr-x 1 root root  4096 Jul 14 20:56 Data\n-rw-r--r-- 1 root root  8297 Jul 14 20:56 OUTREACH.md\n-rw-r--r-- 1 root root 41074 Jul 14 20:56 PLATFORM_GUIDE.md\n-rw-r--r-- 1 root root  8054 Jul 14 20:56 QB_DELTA.md\n-rw-r--r-- 1 root root  7688 Jul 14 20:56 SMB_DASHBOARD_STRATEGY.md\n-rw-r--r-- 1 root root  7854 Jul 14 20:56 SMB_UX_STRATEGY.md\n-rw-r--r-- 1 root root 26463 Jul 14 20:56 STRAPI_SETUP.md\n-rw-r--r-- 1 root root  1666 Jul 14 20:56 UTM_TRACKING.md\n-rw-r--r-- 1 root root  7826 Jul 14 20:56 analytics-start.md\ndrwxr-xr-x 1 root root    27 Jul 14 20:56 loangen-agent\ndrwxr-xr-x 1 root root  4096 Jul 14 20:56 loangen-app\ndrwxr-xr-x 1 root root   100 Jul 14 20:56 loangen-voice-agent\n-rwxr-xr-x 1 root root  1619 Jul 14 20:56 start-analytics.sh\n-rw-r--r-- 1 root root 24183 Jul 14 20:56 user-flow.md\n"
+          },
+          {
+            "source_call_id": "tooluse_7UoI2cj92IzPWy77oO0G9x",
+            "content": "<task id=\"ses_02cfb7791ffeIthCQhg8dbBqWN\" state=\"completed\">\n<task_result>\nExploration complete. Here is the full report.\n\n---\n\n# 1. Phone number normalization / parsing / E.164 formatting\n\n## 1.1 PRIMARY MODULE \u2014 `/app/loangen-agent/agent/integrations/cartesia/phone.py` (154 lines)\n\nThis is the **only** module in the repo that uses the `phonenumbers` library (verified by grep \u2014 11 matches, all in this file). Everything else delegates to it.\n\nFull source:\n\n```python\n  1: \"\"\"\n  2: E.164 phone normalization for Cartesia outbound calls.\n  3:\n  4: Numbers may be stored with or without a + country code. When omitted, the number\n  5: is parsed using CARTESIA_DEFAULT_PHONE_REGION (default: US).\n  6: \"\"\"\n  7:\n  8: from __future__ import annotations\n  9:\n 10: import re\n 11: from typing import Optional\n 12:\n 13: import phonenumbers\n 14: from phonenumbers import NumberParseException, PhoneNumberFormat\n 15:\n 16: _NON_DIGIT_RE = re.compile(r\"[^\\d+]+\")\n 17: _FALLBACK_REGION = \"US\"\n 18: # Regions tried when no + country code is provided (default region first).\n 19: _CRM_FALLBACK_REGIONS = (\"US\", \"CA\", \"IN\", \"GB\", \"AU\", \"MX\", \"DE\", \"FR\")\n 20:\n 21:\n 22: def _format_parsed_number(parsed: phonenumbers.PhoneNumber, *, require_valid: bool) -> Optional[str]:\n 23:     if require_valid:\n 24:         if not phonenumbers.is_valid_number(parsed):\n 25:             return None\n 26:     elif not phonenumbers.is_possible_number(parsed):\n 27:         return None\n 28:     return phonenumbers.format_number(parsed, PhoneNumberFormat.E164)\n 29:\n 30:\n 31: def _try_parse_candidate(\n 32:     candidate: str,\n 33:     region: Optional[str],\n 34:     *,\n 35:     require_valid: bool,\n 36: ) -> Optional[str]:\n 37:     try:\n 38:         parsed = phonenumbers.parse(candidate, region)\n 39:     except NumberParseException:\n 40:         return None\n 41:     return _format_parsed_number(parsed, require_valid=require_valid)\n 42:\n 43:\n 44: def try_normalize_phone_to_e164(\n 45:     raw: str,\n 46:     *,\n 47:     default_region: Optional[str] = None,\n 48: ) -> Optional[str]:\n 49:     \"\"\"\n 50:     Best-effort E.164 normalization for CRM storage.\n 51:\n 52:     Accepts international numbers with or without a + prefix. Tries the configured\n 53:     default region first, then common regions, preferring valid parses over\n 54:     possible-only parses. Falls back to a +digits form for 8\u201315 digit inputs.\n 55:     \"\"\"\n 56:     value = (raw or \"\").strip()\n 57:     if not value:\n 58:         return None\n 59:\n 60:     if value.startswith(\"00\"):\n 61:         value = \"+\" + value[2:]\n 62:\n 63:     cleaned = _NON_DIGIT_RE.sub(\"\", value.replace(\" \", \"\"))\n 64:     if not cleaned:\n 65:         return None\n 66:\n 67:     if cleaned.startswith(\"+\"):\n 68:         explicit = \"+\" + cleaned[1:].lstrip(\"+\")\n 69:         for require_valid in (True, False):\n 70:             formatted = _try_parse_candidate(explicit, None, require_valid=require_valid)\n 71:             if formatted:\n 72:                 return formatted\n 73:\n 74:     digits = cleaned.lstrip(\"+\")\n 75:     regions: list[str] = []\n 76:     default = (default_region or _FALLBACK_REGION).strip().upper()\n 77:     if not default:\n 78:         regions.append(default)\n 79:     for region in _CRM_FALLBACK_REGIONS:\n 80:         if region not in regions:\n 81:             regions.append(region)\n 82:\n 83:     valid_matches: list[str] = []\n 84:     possible_matches: list[str] = []\n 85:     for region in regions:\n 86:         formatted = _try_parse_candidate(digits, region, require_valid=True)\n 87:         if formatted:\n 88:             valid_matches.append(formatted)\n 89:             continue\n 90:         formatted = _try_parse_candidate(digits, region, require_valid=False)\n 91:         if formatted:\n 92:             possible_matches.append(formatted)\n 93:\n 94:     if valid_matches:\n 95:         return valid_matches[0]\n 96:     if possible_matches:\n 97:         return possible_matches[-1]\n 98:\n 99:     if len(digits) == 10:\n100:         return f\"+1{digits}\"\n101:     if len(digits) == 11 and digits.startswith(\"1\"):\n102:         return f\"+{digits}\"\n103:     if 8 <= len(digits) <= 15:\n104:         return f\"+{digits}\"\n105:     return None\n106:\n107:\n108: def normalize_phone_to_e164(\n109:     raw: str,\n110:     *,\n111:     default_region: Optional[str] = None,\n112: ) -> str:\n113:     \"\"\"\n114:     Normalize a CRM mobile string to E.164 (e.g. +14155550142).\n115:\n116:     Raises:\n117:         ValueError: when the number cannot be parsed or is invalid.\n118:     \"\"\"\n119:     value = (raw or \"\").strip()\n120:     if not value:\n121:         raise ValueError(\"Mobile number is required.\")\n122:\n123:     # Allow 00 international prefix (common outside US).\n124:     if value.startswith(\"00\"):\n125:         value = \"+\" + value[1:]\n126:\n127:     cleaned = _NON_DIGIT_RE.sub(\"\", value.replace(\" \", \"\"))\n128:     if cleaned.startswith(\"+\"):\n129:         candidate = \"+\" + cleaned[1:].lstrip(\"+\")\n130:         region = None\n131:     else:\n132:         candidate = cleaned\n133:         region = (default_region or _FALLBACK_REGION).strip().upper()\n134:\n135:     try:\n136:         parsed = phonenumbers.parse(candidate, region)\n137:     except NumberParseException as exc:\n138:         raise ValueError(\n139:             f\"Invalid mobile number: {exc}. \"\n140:             f\"Include a country code (e.g. +91\u2026) or set CARTESIA_DEFAULT_PHONE_REGION.\"\n141:         ) from exc\n142:\n143:     if not phonenumbers.is_possible_number(parsed):\n144:         raise ValueError(\n145:             \"Mobile number is not a possible phone number. \"\n146:             \"Check the number or set CARTESIA_DEFAULT_PHONE_REGION for your country.\"\n147:         )\n148:     if not phonenumbers.is_valid_number(parsed):\n149:         raise ValueError(\n150:             \"Mobile number is not a valid phone number. \"\n151:             \"Check the number or set CARTESIA_DEFAULT_PHONE_REGION for your country.\"\n152:         )\n153:\n154:     return phonenumbers.format_number(parsed, PhoneNumberFormat.E164)\n```\n\n### Two confirmed latent bugs in this file (verified by running the code)\n\n**BUG A \u2014 `phone.py:76-81`: the `default_region` is never actually tried first (inverted condition).**\n\n```python\n 76:     default = (default_region or _FALLBACK_REGION).strip().upper()\n 77:     if not default:            # \u2190 inverted: should be `if default:`\n 78:         regions.append(default)\n```\nBecause `default` is always non-empty here (`or _FALLBACK_REGION` guarantees it), the `regions` list is **always** exactly `_CRM_FALLBACK_REGIONS` = `(\"US\",\"CA\",\"IN\",\"GB\",\"AU\",\"MX\",\"DE\",\"FR\")`, and the caller's `default_region` is ignored. Since `valid_matches[0]` wins (line 94-95), the region order silently decides the country code. Verified runtime behavior:\n\n| input | `default_region` | actual result | correct result |\n|---|---|---|---|\n| `7911123456` | `GB` | `+917911123456` (India) | `+447911123456` |\n| `5512345678` | `MX` | `+15512345678` (US) | `+525512345678` |\n| `8050306043` | `US` or `IN` | `+918050306043` | (India \u2014 coincidentally right) |\n| `4155550142` | `US` | `+14155550142` | correct |\n\nNote the docstring at line 52-54 explicitly promises \"Tries the configured default region first\", and the comment at line 18 says \"(default region first)\" \u2014 the code does not do this.\n\n**BUG B \u2014 `phone.py:124-125`: `00` international prefix stripping is off by one, so strict normalization rejects every `00`-prefixed number.**\n\n```python\n123:     # Allow 00 international prefix (common outside US).\n124:     if value.startswith(\"00\"):\n125:         value = \"+\" + value[1:]     # \u2190 keeps one leading 0 \u2192 \"+0918\u2026\"\n```\nCompare with the correct version in `try_normalize_phone_to_e164` at lines 60-61 (`value[2:]`). Verified runtime behavior:\n\n- `normalize_phone_to_e164(\"00918050306043\", default_region=\"US\")` \u2192 raises `ValueError: Invalid mobile number: (0) Could not interpret numbers after plus-sign\u2026`\n- `normalize_phone_to_e164(\"00447911123456\", default_region=\"GB\")` \u2192 same `ValueError`\n- `try_normalize_phone_to_e164(\"00918050306043\", default_region=\"US\")` \u2192 `'+918050306043'` (works)\n\nImpact: contacts stored with a `00\u2026` mobile pass CSV/PATCH (best-effort path) but then **fail at call time** in `_normalize_contact_phone` (`smbcontacts/service.py:569-593`), `build_inbound_twiml` (`calls/service.py:1784`), and `_find_contact_for_lender_phone` (`calls/inbound.py:196`).\n\n## 1.2 Re-export \u2014 `/app/loangen-agent/agent/integrations/cartesia/__init__.py`\n\n```python\n1: from agent.integrations.cartesia.client import CartesiaCallError, initiate_outbound_call\n2: from agent.integrations.cartesia.phone import normalize_phone_to_e164\n4: __all__ = [\"CartesiaCallError\", \"initiate_outbound_call\", \"normalize_phone_to_e164\"]\n```\n\n## 1.3 CRM-facing wrappers \u2014 `/app/loangen-agent/agent/services/smbcontacts/service.py`\n\nImports at lines 21-24; wrappers at lines 89-158:\n\n```python\n 21: from agent.integrations.cartesia.phone import (\n 22:     normalize_phone_to_e164,\n 23:     try_normalize_phone_to_e164,\n 24: )\n...\n 89: def _default_phone_region() -> str:\n 90:     return settings.cartesia_default_phone_region.strip() or \"US\"\n 91:\n 92:\n 93: def normalize_mobile_for_storage(raw: str) -> str:\n 94:     \"\"\"Normalize to E.164. Raises ValueError when the number is invalid.\"\"\"\n 95:     return normalize_phone_to_e164(raw, default_region=_default_phone_region())\n 96:\n 97:\n 98: def try_normalize_mobile(raw: str) -> Optional[str]:\n 99:     return try_normalize_phone_to_e164(raw, default_region=_default_phone_region())\n100:\n101:\n102: def _mobile_from_input_or_error(mobile_raw: str) -> str:\n103:     \"\"\"Normalize lender-entered mobile for create/update; empty string clears.\"\"\"\n104:     raw = (mobile_raw or \"\").strip()\n105:     if not raw:\n106:         return \"\"\n107:     normalized = try_normalize_mobile(raw)\n108:     if not normalized:\n109:         raise HTTPException(\n110:             status_code=status.HTTP_400_BAD_REQUEST,\n111:             detail={\n112:                 \"error\": \"INVALID_MOBILE_NUMBER\",\n113:                 \"message\": (\n114:                     f\"Could not verify phone number '{raw}'. \"\n115:                     \"Include country code if needed (e.g. +91 for India).\"\n116:                 ),\n117:             },\n118:         )\n119:     return normalized\n120:\n121:\n122: def _resolve_mobile_for_import(\n123:     mobile_raw: str,\n124:     *,\n125:     row_num: int,\n126:     email: str,\n127: ) -> tuple[str, list[CSVRowError]]:\n128:     \"\"\"Normalize a CSV mobile value; fall back to storing best-effort E.164.\"\"\"\n129:     warnings: list[CSVRowError] = []\n130:     if not mobile_raw:\n131:         warnings.append(CSVRowError(\n132:             row=row_num, email=email, field=\"mobile\",\n133:             reason=(\"Mobile number is missing. Contact was imported \u2014 \"\n134:                     \"add a phone number via Edit Contact before calling.\"),\n135:             severity=\"warning\",\n136:         ))\n137:         return \"\", warnings\n138:\n139:     normalized = try_normalize_mobile(mobile_raw)\n140:     if normalized:\n141:         return normalized, warnings\n142:\n143:     warnings.append(CSVRowError(\n144:         row=row_num, email=email, field=\"mobile\",\n145:         reason=(f\"Could not verify phone number '{mobile_raw}'. \"\n146:                 \"Contact was imported without a phone number \u2014 \"\n147:                 \"fix it in Edit Contact before calling.\"),\n148:         severity=\"warning\",\n149:     ))\n150:     return \"\", warnings\n```\n\nNote: `normalize_mobile_for_storage` (line 93) is **only** used by tests (`test_smb_contacts_csv_and_update.py:37`); production create/update paths use `_mobile_from_input_or_error` \u2192 `try_normalize_mobile`.\n\nStrict path used before dialing \u2014 `service.py:569-593`:\n\n```python\n569: async def _normalize_contact_phone(contact: SMBContact) -> str:\n570:     if not (contact.mobile or \"\").strip():\n571:         raise HTTPException(\n572:             status_code=status.HTTP_400_BAD_REQUEST,\n573:             detail={\"error\": \"MOBILE_NUMBER_REQUIRED\",\n574:                     \"message\": (\"This contact does not have a phone number yet. \"\n575:                                 \"Add a mobile number in Edit Contact before calling.\")},\n576:         )\n581:     try:\n582:         return normalize_phone_to_e164(\n583:             contact.mobile,\n584:             default_region=_default_phone_region(),\n585:         )\n586:     except ValueError as exc:\n587:         raise HTTPException(\n588:             status_code=status.HTTP_400_BAD_REQUEST,\n589:             detail={\"error\": \"INVALID_MOBILE_NUMBER\", \"message\": str(exc)},\n590:         ) from exc\n```\n\nCallers: `initiate_ai_call` line 613 (plus US-only guard at 615: `if settings.cartesia_outbound_us_only and not to_number.startswith(\"+1\")`), `initiate_direct_call` line 718.\n\n## 1.4 Other phone touch points\n\n| File | Lines | What |\n|---|---|---|\n| `/app/loangen-agent/agent/services/calls/service.py` | 76 (import), 1783-1790 | `build_inbound_twiml` normalizes inbound caller: `normalize_phone_to_e164(caller_raw, default_region=settings.cartesia_default_phone_region.strip() or \"US\")`; on `ValueError` plays \"unknown caller\" message |\n| `/app/loangen-agent/agent/services/calls/service.py` | 1184, 1215 | `mask_phone(cs.smb_phone_e164)` for display (`smb_phone_masked`) |\n| `/app/loangen-agent/agent/services/calls/inbound.py` | 21, 182-204 | `_find_contact_for_lender_phone`: last-10-digit `$regex` prefilter on `SMBContact.mobile`, then strict `normalize_phone_to_e164` per candidate and exact E.164 compare |\n| `/app/loangen-agent/agent/services/calls/inbound.py` | 108-169 | `resolve_inbound_route` / `_find_last_outbound_to_phone` \u2014 matches on `CallSession.smb_phone_e164` |\n| `/app/loangen-agent/agent/integrations/twilio/__init__.py` | 375-379 | `mask_phone(e164)` \u2192 `***-***-1234` (display-only formatting) |\n| `/app/loangen-agent/agent/integrations/twilio/outbound.py` | 34-36, 52, 67-100 | `outbound_caller_id()` from `settings.twilio_outbound_caller_id`; `create_smb_outbound_call(to_number=\u2026)` |\n| `/app/loangen-agent/agent/integrations/cartesia/setup.py` | 132-197, 239-279 | `_phone_number_matches` / `_find_imported_twilio_number_id` / `_import_twilio_number` \u2014 exact-string E.164 match against Cartesia's imported Twilio numbers |\n| `/app/loangen-agent/agent/integrations/cartesia/client.py` | 135, 162, 212, 267 | `to_number` passed to Cartesia outbound API |\n| `/app/loangen-agent/agent/services/calls/models.py` | 22, 52 | `CallSession.smb_phone_e164` + compound index `(smb_phone_e164, call_type, created_at)` |\n| `/app/loangen-agent/agent/services/smbcontacts/models.py` | 36 | `mobile: str = \"\"  # E.164 when set; may be empty until lender adds via Edit` |\n| `/app/loangen-agent/agent/core/config.py` | 246-248, 319-324 | `cartesia_default_phone_region: str = \"US\"` + `field_validator(..., mode=\"before\")` coercing blank \u2192 `\"US\"` |\n| `/app/loangen-agent/.env.example` | 470 | `CARTESIA_DEFAULT_PHONE_REGION=US` |\n\n---\n\n# 2. Loan type mapping / enums / dropdown catalogs\n\nThere are **two independent, non-shared loan-type catalogs** in the codebase.\n\n## 2.1 CANONICAL CRM CATALOG \u2014 `/app/loangen-agent/agent/services/smbcontacts/loan_types.py` (119 lines)\n\nFull source:\n\n```python\n  1: \"\"\"\n  2: Canonical US SMB loan types for CRM contacts and invite flows.\n  3:\n  4: Each entry has a stable ``id`` (stored in MongoDB) and a human ``label``.\n  5: \"\"\"\n  6:\n  7: from __future__ import annotations\n  8:\n  9: import re\n 10: from typing import List, Optional\n 11:\n 12: LOAN_TYPE_CHOICES: List[dict[str, str]] = [\n 13:     {\"id\": \"sba7a\", \"label\": \"SBA 7(a) Loan\"},\n 14:     {\"id\": \"sba504\", \"label\": \"SBA 504 Loan\"},\n 15:     {\"id\": \"sba_express\", \"label\": \"SBA Express Loan\"},\n 16:     {\"id\": \"sba_caplines\", \"label\": \"SBA CAPlines\"},\n 17:     {\"id\": \"microloan\", \"label\": \"SBA Microloan\"},\n 18:     {\"id\": \"term\", \"label\": \"Term Loan\"},\n 19:     {\"id\": \"loc\", \"label\": \"Line of Credit\"},\n 20:     {\"id\": \"equipment\", \"label\": \"Equipment Financing\"},\n 21:     {\"id\": \"working_capital\", \"label\": \"Working Capital Loan\"},\n 22:     {\"id\": \"cre\", \"label\": \"Commercial Real Estate Loan\"},\n 23:     {\"id\": \"construction\", \"label\": \"Construction Loan\"},\n 24:     {\"id\": \"bridge\", \"label\": \"Bridge Loan\"},\n 25:     {\"id\": \"acquisition\", \"label\": \"Business Acquisition Loan\"},\n 26:     {\"id\": \"franchise\", \"label\": \"Franchise Loan\"},\n 27:     {\"id\": \"invoice_factoring\", \"label\": \"Invoice Factoring\"},\n 28:     {\"id\": \"mca\", \"label\": \"Merchant Cash Advance\"},\n 29:     {\"id\": \"rbf\", \"label\": \"Revenue-Based Financing\"},\n 30:     {\"id\": \"abl\", \"label\": \"Asset-Based Lending\"},\n 31:     {\"id\": \"startup\", \"label\": \"Startup Loan\"},\n 32:     {\"id\": \"usda\", \"label\": \"USDA Business & Industry Loan\"},\n 33: ]\n 34:\n 35: _LOAN_TYPE_IDS = {c[\"id\"] for c in LOAN_TYPE_CHOICES}\n 36:\n 37: # id + normalized label + common aliases \u2192 canonical id\n 38: _EXTRA_ALIASES: dict[str, str] = {\n 39:     \"sba 7a\": \"sba7a\",\n 40:     \"sba 7(a)\": \"sba7a\",\n 41:     \"sba-7a\": \"sba7a\",\n 42:     \"sba_7a\": \"sba7a\",\n 43:     \"sba 504\": \"sba504\",\n 44:     \"sba-504\": \"sba504\",\n 45:     \"sba_504\": \"sba504\",\n 46:     \"sba express\": \"sba_express\",\n 47:     \"sba caplines\": \"sba_caplines\",\n 48:     \"caplines\": \"sba_caplines\",\n 49:     \"microloan\": \"microloan\",\n 50:     \"sba microloan\": \"microloan\",\n 51:     \"term loan\": \"term\",\n 52:     \"termloan\": \"term\",\n 53:     \"term_loan\": \"term\",\n 54:     \"line of credit\": \"loc\",\n 55:     \"lineofcredit\": \"loc\",\n 56:     \"line_of_credit\": \"loc\",\n 57:     \"equipment financing\": \"equipment\",\n 58:     \"equipment_financing\": \"equipment\",\n 59:     \"working capital\": \"working_capital\",\n 60:     \"working capital loan\": \"working_capital\",\n 61:     \"working_capital\": \"working_capital\",\n 62:     \"commercial real estate\": \"cre\",\n 63:     \"commercial real estate loan\": \"cre\",\n 64:     \"cre\": \"cre\",\n 65:     \"construction loan\": \"construction\",\n 66:     \"bridge loan\": \"bridge\",\n 67:     \"business acquisition\": \"acquisition\",\n 68:     \"business acquisition loan\": \"acquisition\",\n 69:     \"franchise loan\": \"franchise\",\n 70:     \"invoice factoring\": \"invoice_factoring\",\n 71:     \"merchant cash advance\": \"mca\",\n 72:     \"mca\": \"mca\",\n 73:     \"revenue based financing\": \"rbf\",\n 74:     \"revenue-based financing\": \"rbf\",\n 75:     \"asset based lending\": \"abl\",\n 76:     \"asset-based lending\": \"abl\",\n 77:     \"startup loan\": \"startup\",\n 78:     \"usda\": \"usda\",\n 79:     \"usda business\": \"usda\",\n 80:     \"usda b&i\": \"usda\",\n 81: }\n 82:\n 83:\n 84: def _normalize_key(value: str) -> str:\n 85:     return re.sub(r\"[_\\-]+\", \" \", value.strip().lower()).strip()\n 86:\n 87:\n 88: def loan_type_label(loan_type_id: Optional[str]) -> str:\n 89:     if not loan_type_id:\n 90:         return \"\"\n 91:     for choice in LOAN_TYPE_CHOICES:\n 92:         if choice[\"id\"] == loan_type_id:\n 93:             return choice[\"label\"]\n 94:     return loan_type_id.replace(\"_\", \"\").title()\n 95:\n 96:\n 97: def resolve_loan_type(raw: str) -> Optional[str]:\n 98:     \"\"\"Map a CSV/UI loan type string to a canonical id, or None if unrecognized.\"\"\"\n 99:     value = (raw or \"\").strip()\n100:     if not value:\n101:         return None\n102:     compact = value.lower().replace(\" \", \"\").replace(\"-\", \"\").replace(\"_\", \"\")\n103:     if compact in _LOAN_TYPE_IDS:\n104:         return compact\n105:     if value.lower() in _LOAN_TYPE_IDS:\n106:         return value\n107:     normalized = _normalize_key(value)\n108:     if normalized in _EXTRA_ALIASES:\n109:         return _EXTRA_ALIASES[normalized]\n110:     for choice in LOAN_TYPE_CHOICES:\n111:         if _normalize_key(choice[\"label\"]) == normalized:\n112:             return choice[\"id\"]\n113:         if _normalize_key(choice[\"id\"]) == normalized:\n114:             return choice[\"id\"]\n115:     return None\n116:\n117:\n118: def is_valid_loan_type_id(loan_type_id: Optional[str]) -> bool:\n119:     return bool(loan_type_id and loan_type_id in _LOAN_TYPE_IDS)\n```\n\n### Two confirmed latent bugs in this file (verified by running the code)\n\n**BUG C \u2014 `loan_types.py:105-106`: returns the raw, un-lowercased input instead of the canonical id.**\n\n```python\n105:     if value.lower() in _LOAN_TYPE_IDS:\n106:         return value          # \u2190 should be `return value.lower()`\n```\nThis branch is only reached for ids that contain a separator (because line 102's `compact` strips `_`/`-`/spaces, so `sba_express`, `sba_caplines`, `working_capital`, `invoice_factoring` never match `compact`). Verified:\n\n| input | returned | expected |\n|---|---|---|\n| `SBA_EXPRESS` | `'SBA_EXPRESS'` | `'sba_express'` |\n| `WORKING_CAPITAL` | `'WORKING_CAPITAL'` | `'working_capital'` |\n| `INVOICE_FACTORING` | `'INVOICE_FACTORING'` | `'invoice_factoring'` |\n| `SBA7A` | `'sba7a'` \u2713 (goes through line 103-104) | |\n| `Working Capital` | `'working_capital'` \u2713 (alias table) | |\n\nImpact: a non-canonical value gets persisted to `SMBContact.loan_type` via `schemas.py:82-92` / `schemas.py:139-151` / `service.py:171`, which then fails `is_valid_loan_type_id`, fails the `allowed = {c[\"id\"] for c in LOAN_TYPE_CHOICES}` membership check in `smbinvites/service.py:1232-1234`, and falls through to the broken fallback in `loan_type_label` (bug D) so the invite conversation renders a garbled label.\n\n**BUG D \u2014 `loan_types.py:94`: fallback label drops the separator instead of replacing it with a space.**\n\n```python\n 94:     return loan_type_id.replace(\"_\", \"\").title()   # \u2190 should be .replace(\"_\", \" \")\n```\nVerified: `loan_type_label(\"unknown_thing\")` \u2192 `'Unknownthing'` (expected `'Unknown Thing'`); `loan_type_label(\"some_new_type\")` \u2192 `'Somenewtype'`. Compare the two other places in the repo that do this correctly:\n- `cre_qualification/lender_match.py:56` \u2192 `raw.replace(\"_\", \" \").title()`\n- `cre_qualification/qualification_report_pdf.py:224` \u2192 `raw.replace(\"_\", \" \").strip().title()`\n\n(Known ids are unaffected since they hit the loop at lines 91-93; only unknown/legacy/non-canonical ids \u2014 e.g. the output of bug C \u2014 reach line 94.)\n\n### Consumers of the CRM catalog\n\n| File | Lines | Use |\n|---|---|---|\n| `agent/services/smbcontacts/schemas.py` | 20, 82-92 | `CreateSMBContactRequest.validate_loan_type` \u2014 `resolve_loan_type`, raises \"loan_type is not recognized\u2026\" |\n| `agent/services/smbcontacts/schemas.py` | 139-151 | `UpdateSMBContactRequest.validate_loan_type` \u2014 same |\n| `agent/services/smbcontacts/service.py` | 35, 161-185 | `_parse_loan_type_from_csv` \u2014 resolves or emits `severity=\"warning\"` CSVRowError |\n| `agent/services/smbcontacts/service.py` | 231-239 | merge into existing contact on duplicate-email CSV row |\n| `agent/services/smbcontacts/service.py` | 285, 349, 424, 917, 942 | response mapping / create / PATCH field list / CSV insert |\n| `agent/services/smbcontacts/models.py` | 51 | `loan_type: Optional[str] = None  # canonical id from loan_types.LOAN_TYPE_CHOICES` |\n| `agent/services/smbinvites/schemas.py` | 5, 14-26 | `CreateInviteRequest.validate_loan_type_id` |\n| `agent/services/smbinvites/service.py` | 35, 364-378 | `_seed_crm_hints` \u2192 `state[\"crm_hint_loan_type\"]` |\n| `agent/services/smbinvites/service.py` | 442-466 | `_next_prompt`: `loan_type_confirm` step uses `loan_type_label(hint)`; `loan_type` step serves `choices=LOAN_TYPE_CHOICES` (the dropdown catalog) |\n| `agent/services/smbinvites/service.py` | 1213-1235 | reply handler: `loan_type_confirm` / `loan_type` validation against `{c[\"id\"] for c in LOAN_TYPE_CHOICES}` |\n| `agent/services/smbinvites/service.py` | 664, 672-673 | `loan_type_id=payload.loan_type_id or contact.loan_type`; writes back to contact |\n| `docs/smb_contacts.md` | 86, 144, 395, 398-400, 494 | documents the canonical id list |\n\n## 2.2 SECOND, SEPARATE CATALOG \u2014 `/app/loangen-agent/agent/services/cre_qualification/lender_match.py`\n\nLines 20-118 (display labels + product matching). **Note it does not import the CRM catalog** and its label map disagrees (`\"cre\": \"Commercial Real Estate\"` vs CRM `\"Commercial Real Estate Loan\"`; adds `\"rehab\"`; omits 10 CRM ids):\n\n```python\n 20: _LOAN_TYPE_LABELS: Dict[str, str] = {\n 21:     \"term\": \"Term Loan\",\n 22:     \"sba7a\": \"SBA 7(a) Loan\",\n 23:     \"sba504\": \"SBA 504 Loan\",\n 24:     \"loc\": \"Line of Credit\",\n 25:     \"equipment\": \"Equipment Financing\",\n 26:     \"cre\": \"Commercial Real Estate\",\n 27:     \"commercial real estate\": \"Commercial Real Estate\",\n 28:     \"construction\": \"Construction\",\n 29:     \"rehab\": \"Rehab / Value-Add\",\n 30:     \"bridge\": \"Bridge Loan\",\n 31: }\n 32:\n 33: _CRE_LOAN_HINTS = (\n 34:     \"cre\", \"commercial real estate\", \"real estate\", \"construction\",\n 35:     \"rehab\", \"bridge\", \"refinance\", \"acquisition\", \"property\",\n 43: )\n 44:\n 45:\n 46: def format_application_loan_type(loan_type: str) -> str:\n 47:     raw = (loan_type or \"\").strip()\n 48:     if not raw:\n 49:         return \"\u2014\"\n 50:     key = raw.lower().replace(\"_\", \"\").replace(\"-\", \"\")\n 51:     for k, label in _LOAN_TYPE_LABELS.items():\n 52:         if k.replace(\" \", \"\").replace(\"_\", \"\") == key or k in raw.lower():\n 53:             return label\n 54:     if key in _LOAN_TYPE_LABELS:\n 55:         return _LOAN_TYPE_LABELS[key]\n 56:     return raw.replace(\"_\", \" \").title()\n 57:\n 58:\n 59: def _product_name(product: LoanProduct) -> str:\n 60:     return (product.name or \"\").lower()\n 61:\n 62:\n 63: def _product_category(product: LoanProduct) -> str:\n 64:     return (product.category or \"\").lower()\n 65:\n 66:\n 67: def product_matches_application_loan_type(\n 68:     product: LoanProduct,\n 69:     loan_type: str,\n 70:     loan_purpose: str = \"\",\n 71:     *,\n 72:     has_cre_deal: bool = False,\n 73: ) -> Tuple[bool, str]:\n 74:     \"\"\"\n 75:     Whether a catalog product aligns with the application's stated loan type.\n 76:\n 77:     Returns (matches, reason) for UI badges. Each product type is evaluated\n 78:     independently \u2014 CRE collateral docs do not block term/LOC matching.\n 79:     \"\"\"\n 80:     text = f\"{loan_type} {loan_purpose}\".lower().strip()\n 81:     name = _product_name(product)\n 82:     category = _product_category(product)\n 83:\n 84:     if \"sba\" in name or category == \"sba\":\n 85:         if any(k in text for k in (\"sba7\", \"sba 7\", \"sba504\", \"sba 504\")) or text in (\"sba\", \"sba7a\", \"sba504\"):\n 86:             return True, \"Matches requested SBA loan type\"\n 87:         return False, \"\"\n 88:\n 89:     if \"line of credit\" in name:\n 90:         if \"loc\" in text or \"line of credit\" in text:\n 91:             return True, \"Matches requested line of credit\"\n 92:         return False, \"\"\n 93:\n 94:     if \"equipment\" in name:\n 95:         if \"equipment\" in text:\n 96:             return True, \"Matches requested equipment financing\"\n 97:         return False, \"\"\n 98:\n 99:     if \"term loan\" in name and category == \"conventional\":\n100:         if \"term\" in text:\n101:             return True, \"Matches requested term loan\"\n102:         return False, \"\"\n103:\n104:     if \"real estate\" in name or category == \"real estate\":\n105:         lt = loan_type.lower()\n106:         lp = loan_purpose.lower()\n107:         if any(k in lt for k in (\"cre\", \"commercial real estate\", \"real estate\", \"bridge\", \"rehab\")):\n108:             return True, \"Matches requested CRE / real estate loan\"\n109:         # Purpose-based CRE match \u2014 not when borrower explicitly chose term/SBA/LOC/equipment.\n110:         if any(k in lp for k in (\"refinance\", \"acquisition\", \"commercial real estate\", \"property\")):\n111:             if not any(k in lt for k in (\"term\", \"sba\", \"loc\", \"line of credit\", \"equipment\")):\n112:                 return True, \"Matches CRE / real estate loan purpose\"\n113:         return False, \"\"\n114:\n115:     if \"revenue\" in text and \"revenue\" in name:\n116:         return True, \"Matches revenue-based financing request\"\n117:\n118:     return False, \"\"\n```\n\nObservations: `_CRE_LOAN_HINTS` (lines 33-43) is **dead code** \u2014 defined but never referenced. `has_cre_deal` (line 72) is accepted but never used in the body. Line 52's `or k in raw.lower()` substring test makes the label lookup order-dependent on dict insertion order.\n\n## 2.3 Other loan-type mapping / normalization\n\n| File | Lines | What |\n|---|---|---|\n| `agent/services/cre_qualification/qualification_report_pdf.py` | 221-224 | `_format_loan_type(raw)` \u2192 `raw.replace(\"_\", \" \").strip().title()`, `\"\u2014\"` when empty |\n| `agent/services/cre_qualification/required_docs.py` | 8-58 | `_REQUIRED_BY_LOAN_TYPE` keyed by loose lowercase loan-type strings (`\"commercial real estate\"`, `\"cre\"`, `\"sba\"`, `\"construction\"`, `\"rehab\"`, `\"bridge\"`, `\"default\"`) |\n| `agent/services/cre_qualification/required_docs.py` | 104-112 | `normalize_document_type` \u2014 enum/legacy \u2192 snake_case |\n| `agent/services/cre_qualification/required_docs.py` | 133-171 | `required_document_types`, `_required_for_loan_type` (substring key match), `infer_deal_profile` |\n| `agent/services/cre_qualification/structure.py` | 15 | `_purpose_score(loan_purpose, loan_type)` |\n| `agent/services/cre_qualification/constants.py` | 120 | `PROJECT_LOAN_TYPE_KEYWORDS` (used at `engine.py:24, 137`) |\n| `agent/services/smbinvites/service.py` | 347-353 | `ENTITY_TYPE_CHOICES` \u2014 parallel dropdown catalog (llc / s_corp / c_corp / sole_prop / partnership) |\n| `agent/tools/qualification_engine.py` | 50, 165 | `desired_loan_type: str = \"general\"` |\n\n---\n\n# 3. Test files under `/app/loangen-agent/tests`\n\n35 test files total. Those that exercise phone normalization and/or loan types:\n\n## 3.1 `/app/loangen-agent/tests/test_smb_contacts_csv_and_update.py` \u2014 the primary one (331 lines)\n\nDocstring line 1: *\"Tests for SMB CRM contact enrichment: CSV import, PATCH, phone normalization, loan types.\"*\n\n- `LoanTypeResolverTests` \u2014 **lines 16-27**\n  - `test_resolves_canonical_id` (17-18): `resolve_loan_type(\"sba7a\") == \"sba7a\"`\n  - `test_resolves_label` (20-21): `resolve_loan_type(\"SBA 7(a) Loan\") == \"sba7a\"`\n  - `test_resolves_alias` (23-24): `resolve_loan_type(\"line of credit\") == \"loc\"`\n  - `test_unknown_returns_none` (26-27): `resolve_loan_type(\"not-a-real-loan\") is None`\n  - **Gap:** no test for an underscore-containing id in mixed/upper case (bug C), and no test of `loan_type_label` at all (bug D).\n- `PhoneNormalizationTests` \u2014 **lines 30-61** (all patch `smb_contact_service.settings.cartesia_default_phone_region = \"US\"`)\n  - `test_normalize_us_number` (31-38): `normalize_mobile_for_storage(\"(512) 555-0142\")` starts with `+1`\n  - `test_try_normalize_indian_number_without_country_code` (40-47): `try_normalize_mobile(\"8050306043\") == \"+918050306043\"`\n  - `test_try_normalize_explicit_international` (49-53): `try_normalize_mobile(\"+918050306043\") == \"+918050306043\"`\n  - `test_try_normalize_invalid_returns_none` (55-61): `try_normalize_mobile(\"abc\") is None`\n  - **Gap:** every test pins `default_region=\"US\"`, and `\"US\"` happens to be `_CRM_FALLBACK_REGIONS[0]`, so bug A is invisible. No test with `00`-prefix through the strict path (bug B).\n- `ImportContactsCsvTests` \u2014 **lines 64-145**: `test_imports_row_with_optional_last_name_and_warnings` (65-87, CSV row with `bad-type` loan type \u2192 warning), `test_skips_row_missing_email` (89-102), `test_updates_existing_contact_mobile_on_duplicate_email` (104-145, asserts `existing.mobile == \"+13027373362\"`)\n- `UpdateContactIdentityLockTests` \u2014 **lines 148-283**: `test_blocks_identity_field_when_locked` (176-200), `test_allows_non_identity_updates_when_locked` (202-229, asserts `response.loan_type == \"term\"`), `test_updates_mobile_with_international_number` (231-257, asserts `+918050306043`), `test_updates_loan_amount_and_comment` (259-283)\n- `CreateContactTests` \u2014 **lines 286-327**: `test_creates_contact_with_required_fields` (287-327, asserts `call_kwargs[\"mobile\"].startswith(\"+1\")`)\n\n## 3.2 Other relevant test files\n\n| File | Lines | Coverage |\n|---|---|---|\n| `/app/loangen-agent/tests/test_smb_invite_schemas.py` | 12-34 | `CreateInviteRequest.loan_type_id`: accepts `\"sba7a\"`, rejects `\"not-a-real-loan\"`, `None` when omitted |\n| `/app/loangen-agent/tests/test_smb_invite_conversation.py` | 20-50 | `_next_prompt` with `loan_type=\"term\"`; `_seed_crm_hints` \u2192 `state[\"crm_hint_loan_type\"] == \"term\"` |\n| `/app/loangen-agent/tests/test_lender_product_match.py` | 18-47 | `format_application_loan_type(\"term\") == \"Term Loan\"`; four `product_matches_application_loan_type` cases |\n| `/app/loangen-agent/tests/test_inbound_calls.py` | 177-284 | `build_inbound_twiml` \u2014 but **patches out** `agent.services.calls.service.normalize_phone_to_e164` (lines 180-181, 222-223, 266-267), so no real phone parsing is exercised; sets `mock_settings.cartesia_default_phone_region = \"US\"` at 239 |\n| `/app/loangen-agent/tests/test_bridge_broadway_qualification.py` | 11, 77-78, 86 | `product_matches_application_loan_type(term, \"term\", \"Construction\")` |\n| `/app/loangen-agent/tests/test_required_docs.py` | 20-45, 53 | `missing_required_documents(\"Construction Loan\", \u2026)`, `loan_type=\"Construction\"` |\n| `/app/loangen-agent/tests/test_cre_qualification.py` | 26, 48, 70, 109 | `loan_type` values `\"Commercial Real Estate\"`, `\"Term Loan\"`, `\"SBA\"` |\n| `/app/loangen-agent/tests/test_qualification_report_pdf.py` | 51, 66, 80 | `loan_type=\"term\"` |\n| `/app/loangen-agent/tests/test_oak_hill_qualification.py` / `test_oak_hill_extraction.py` | 62 / 91 | `loan_type=\"term\"` / `\"Commercial Real Estate\"` |\n| `/app/loangen-agent/tests/test_cartesia_twilio_sync.py` | 41 | `mock_settings.twilio_outbound_caller_id = \"+15551234567\"` |\n\nCurrent status: `pytest tests/test_smb_contacts_csv_and_update.py tests/test_smb_invite_schemas.py tests/test_lender_product_match.py` \u2192 **23 passed**. All four bugs above are latent, not covered by existing assertions.\n\n---\n\n# 4. CRM contact save / display logic\n\nPackage: `/app/loangen-agent/agent/services/smbcontacts/`\n\n| File | Size | Role |\n|---|---|---|\n| `__init__.py` | 5 lines | Package docstring only |\n| `models.py` | 92 lines | `SMBContact` Beanie `Document`; collection `smb_contacts`; 3 indexes (`idx_smb_contacts_lender_email_unique` on `(lender_id, email)`, `idx_smb_contacts_lender_id`, `idx_smb_contacts_status`) |\n| `schemas.py` | 295 lines | `CreateSMBContactRequest` (40-97), `UpdateSMBContactRequest` (100-158), `SMBContactResponse` (164-196), `SMBContactListResponse` (202-211), `CSVRowError` (217-224), `CSVUploadResponse` (227-236), `SendInviteEmail*` (239-257), `InitiateContactCallResponse` (260-269, deprecated), `InitiateAiCallResponse` (272-281), `InitiateDirectCallResponse` (284-295) |\n| `service.py` | 976 lines | all business logic (below) |\n| `router.py` | 342 lines | FastAPI router, `prefix=\"/api/v1/services/smb-contacts\"`, all routes `require_lender_role(\"LENDER_ADMIN\")` |\n\n## 4.1 Save paths in `service.py`\n\n| Function | Lines | Notes |\n|---|---|---|\n| `_resolve(row, canonical)` + `_ALIASES` | 55-86 | CSV header alias resolution (incl. `\"loan_type\": [\"loan_type\",\"loan type\",\"loantype\"]` at 74) |\n| `create_smb_contact` | 311-360 | duplicate-email 409; `_mobile_from_input_or_error` at 332; `loan_type=payload.loan_type` at 349 (already canonicalized by the schema validator); `await contact.insert()` at 353 |\n| `update_smb_contact` | 369-437 | `model_dump(exclude_unset=True)` at 377; identity lock guard `{\"first_name\",\"last_name\",\"email\"}` at 381-393 \u2192 `IDENTITY_LOCKED`; email dup 409 at 395-413; **mobile re-normalized at 419-420** (`if \"mobile\" in updates: contact.mobile = _mobile_from_input_or_error(...)`, empty string clears); generic field loop incl. `loan_type`, `comment` at 422-427; `loan_amount` 429-430; `tags` 432-433; `updated_at` + `await contact.save()` at 435-436 |\n| `_apply_csv_row_to_contact` | 188-248 | merge for duplicate-email CSV rows; respects `identity_locked` (202-209); mobile at 211-220; loan_type at 231-239; tags 241-246 |\n| `import_contacts_csv` | 781-976 | UTF-8-sig decode, header lower-casing (803), `existing_by_email` prefetch (812-816), per-row validation, `insert_many` (953) + per-doc `save()` (954-955) |\n| `send_invite_email` | 495-538 | sends via `get_email_provider()`, then `contact.save()` |\n| `initiate_ai_call` | 596-686 | `_normalize_contact_phone` (613), US-only guard (615-625), Cartesia call, `contact.save()` (671) |\n| `initiate_direct_call` | 689-778 | `_normalize_contact_phone` (718), Twilio call + voice token, `contact.save()` (762) |\n\n## 4.2 Display / read paths\n\n| Function | Lines | Notes |\n|---|---|---|\n| `_to_response(contact, *, identity_locked=False)` | 269-294 | **the single display mapper** \u2014 `mobile=contact.mobile or \"\"` (276) is emitted **raw E.164, not formatted/masked**; `loan_type=contact.loan_type` (285) is emitted as the **raw canonical id, never passed through `loan_type_label`** |\n| `get_smb_contact` | 363-366 | + `_is_identity_locked` |\n| `list_smb_contacts` | 440-492 | search regex over `first_name/last_name/email/mobile/business_name` (452-464); sort `-created_at`; `_locked_contact_ids` batch (478); pagination envelope |\n| `_locked_contact_ids` / `_is_identity_locked` | 251-266 | locked when an `SMBInviteRequest` for the contact has `applied_user_id` set |\n| `_get_lender_contact` | 541-566 | ObjectId parse + lender ownership check \u2192 `CONTACT_NOT_FOUND` |\n| `_plain_text_to_html` / `_parse_tags` | 297-305 | invite email body escaping; tag splitting on `[;,]` + lowercase |\n\n## 4.3 Router endpoints (`router.py`)\n\n| Line | Route | Handler |\n|---|---|---|\n| 46-70 | `POST /api/v1/services/smb-contacts` | `create_contact` \u2192 `create_smb_contact` |\n| 73-132 | `GET /api/v1/services/smb-contacts` | `list_contacts` \u2192 `list_smb_contacts` |\n| 135-151 | `GET /{contact_id}` | `get_contact` \u2192 `get_smb_contact` |\n| 154-182 | `PATCH /{contact_id}` | `patch_contact` \u2192 `update_smb_contact` |\n| 185-207 | `POST /{contact_id}/invite-email` | `send_contact_invite_email` |\n| 210-237 | `POST /{contact_id}/ai-call` | `initiate_ai_contact_call` \u2192 `initiate_ai_call` |\n| 240-267 | `POST /{contact_id}/direct-call` | `initiate_direct_contact_call` \u2192 `initiate_direct_call` |\n| 270-342 | `POST /upload` | `upload_csv` \u2192 `import_contacts_csv` (MIME/extension + empty-file guards at 323-340) |\n\n## 4.4 Cross-service consumers of contact data\n\n- `/app/loangen-agent/agent/services/smbinvites/service.py:356-361` `_load_crm_contact`, `:364-378` `_seed_crm_hints`, `:664-673` writes `contact.loan_type` back, `:1208-1212` writes `contact.loan_amount`\n- `/app/loangen-agent/agent/services/calls/inbound.py:182-204` `_find_contact_for_lender_phone` (reads `SMBContact.mobile`)\n- `/app/loangen-agent/agent/services/calls/service.py:1184, 1215` masked-phone display via `mask_phone`\n\n## 4.5 Documentation\n\n`/app/loangen-agent/docs/smb_contacts.md` (506 lines) \u2014 full API reference. Relevant: data model table lines 70-92 (`mobile` \"Stored in E.164 when valid\"; `loan_type` \"Canonical loan type id\"), loan types list line 400, CSV alias tables 376-396, error contract 432-447 (`INVALID_MOBILE_NUMBER` 400, `IDENTITY_LOCKED` 400), file structure 484-497. Note doc drift: line 417 says duplicate CRM emails are \"skipped\u2026 left unchanged\", but `_apply_csv_row_to_contact` (`service.py:188-248`) actually **updates** them; the response examples at 149-169 / 204-234 show `\"mobile\": \"(512) 555-0142\"` un-normalized and omit `loan_amount` / `comment` / `identity_locked`.\n\n---\n\n## Summary of the four confirmed latent defects\n\n| # | File:line | Defect |\n|---|---|---|\n| A | `agent/integrations/cartesia/phone.py:77` | `if not default:` inverted \u2014 `default_region` never prepended to region list, so `_CRM_FALLBACK_REGIONS` order (US, CA, IN, GB, \u2026) silently decides the country code. GB/MX/etc. numbers without `+` are mis-normalized (`7911123456`+GB \u2192 `+917911123456`). Contradicts docstring line 52-54 and comment line 18. |\n| B | `agent/integrations/cartesia/phone.py:125` | `value[1:]` should be `value[2:]` \u2014 `00`-prefixed international numbers become `+0\u2026` and `normalize_phone_to_e164` always raises `ValueError`, despite comment line 123. The sibling `try_` variant at line 61 does it correctly. |\n| C | `agent/services/smbcontacts/loan_types.py:106` | `return value` should be `return value.lower()` \u2014 mixed/upper-case underscore ids (`SBA_EXPRESS`, `WORKING_CAPITAL`, `INVOICE_FACTORING`, `SBA_CAPLINES`) are persisted non-canonical, later failing `is_valid_loan_type_id` and the `LOAN_TYPE_CHOICES` id check in `smbinvites/service.py:1232`. |\n| D | `agent/services/smbcontacts/loan_types.py:94` | `.replace(\"_\", \"\")` should be `.replace(\"_\", \" \")` \u2014 fallback label renders `\"Unknownthing\"`. Both analogous helpers (`lender_match.py:56`, `qualification_report_pdf.py:224`) use the space form. |\n</task_result>\n</task>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10401,
+        "completion_tokens": 394,
+        "cached_tokens": 10399,
+        "cost_usd": 0.02169075,
+        "extra": {
+          "cache_write_tokens": 1061
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-08-05T17:47:10.006000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "Exploration found exactly four defects matching the four reports. Let me verify them directly.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_S7k85esYAkULJy1GP9NMIf",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/integrations/cartesia/phone.py"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_JtEobITcBAwhtBS1uZ2lgh",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/services/smbcontacts/loan_types.py"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_S7k85esYAkULJy1GP9NMIf",
+            "content": "<path>/app/loangen-agent/agent/integrations/cartesia/phone.py</path>\n<type>file</type>\n<content>\n1: \"\"\"\n2: E.164 phone normalization for Cartesia outbound calls.\n3: \n4: Numbers may be stored with or without a + country code. When omitted, the number\n5: is parsed using CARTESIA_DEFAULT_PHONE_REGION (default: US).\n6: \"\"\"\n7: \n8: from __future__ import annotations\n9: \n10: import re\n11: from typing import Optional\n12: \n13: import phonenumbers\n14: from phonenumbers import NumberParseException, PhoneNumberFormat\n15: \n16: _NON_DIGIT_RE = re.compile(r\"[^\\d+]+\")\n17: _FALLBACK_REGION = \"US\"\n18: # Regions tried when no + country code is provided (default region first).\n19: _CRM_FALLBACK_REGIONS = (\"US\", \"CA\", \"IN\", \"GB\", \"AU\", \"MX\", \"DE\", \"FR\")\n20: \n21: \n22: def _format_parsed_number(parsed: phonenumbers.PhoneNumber, *, require_valid: bool) -> Optional[str]:\n23:     if require_valid:\n24:         if not phonenumbers.is_valid_number(parsed):\n25:             return None\n26:     elif not phonenumbers.is_possible_number(parsed):\n27:         return None\n28:     return phonenumbers.format_number(parsed, PhoneNumberFormat.E164)\n29: \n30: \n31: def _try_parse_candidate(\n32:     candidate: str,\n33:     region: Optional[str],\n34:     *,\n35:     require_valid: bool,\n36: ) -> Optional[str]:\n37:     try:\n38:         parsed = phonenumbers.parse(candidate, region)\n39:     except NumberParseException:\n40:         return None\n41:     return _format_parsed_number(parsed, require_valid=require_valid)\n42: \n43: \n44: def try_normalize_phone_to_e164(\n45:     raw: str,\n46:     *,\n47:     default_region: Optional[str] = None,\n48: ) -> Optional[str]:\n49:     \"\"\"\n50:     Best-effort E.164 normalization for CRM storage.\n51: \n52:     Accepts international numbers with or without a + prefix. Tries the configured\n53:     default region first, then common regions, preferring valid parses over\n54:     possible-only parses. Falls back to a +digits form for 8\u201315 digit inputs.\n55:     \"\"\"\n56:     value = (raw or \"\").strip()\n57:     if not value:\n58:         return None\n59: \n60:     if value.startswith(\"00\"):\n61:         value = \"+\" + value[2:]\n62: \n63:     cleaned = _NON_DIGIT_RE.sub(\"\", value.replace(\" \", \"\"))\n64:     if not cleaned:\n65:         return None\n66: \n67:     if cleaned.startswith(\"+\"):\n68:         explicit = \"+\" + cleaned[1:].lstrip(\"+\")\n69:         for require_valid in (True, False):\n70:             formatted = _try_parse_candidate(explicit, None, require_valid=require_valid)\n71:             if formatted:\n72:                 return formatted\n73: \n74:     digits = cleaned.lstrip(\"+\")\n75:     regions: list[str] = []\n76:     default = (default_region or _FALLBACK_REGION).strip().upper()\n77:     if not default:\n78:         regions.append(default)\n79:     for region in _CRM_FALLBACK_REGIONS:\n80:         if region not in regions:\n81:             regions.append(region)\n82: \n83:     valid_matches: list[str] = []\n84:     possible_matches: list[str] = []\n85:     for region in regions:\n86:         formatted = _try_parse_candidate(digits, region, require_valid=True)\n87:         if formatted:\n88:             valid_matches.append(formatted)\n89:             continue\n90:         formatted = _try_parse_candidate(digits, region, require_valid=False)\n91:         if formatted:\n92:             possible_matches.append(formatted)\n93: \n94:     if valid_matches:\n95:         return valid_matches[0]\n96:     if possible_matches:\n97:         return possible_matches[-1]\n98: \n99:     if len(digits) == 10:\n100:         return f\"+1{digits}\"\n101:     if len(digits) == 11 and digits.startswith(\"1\"):\n102:         return f\"+{digits}\"\n103:     if 8 <= len(digits) <= 15:\n104:         return f\"+{digits}\"\n105:     return None\n106: \n107: \n108: def normalize_phone_to_e164(\n109:     raw: str,\n110:     *,\n111:     default_region: Optional[str] = None,\n112: ) -> str:\n113:     \"\"\"\n114:     Normalize a CRM mobile string to E.164 (e.g. +14155550142).\n115: \n116:     Raises:\n117:         ValueError: when the number cannot be parsed or is invalid.\n118:     \"\"\"\n119:     value = (raw or \"\").strip()\n120:     if not value:\n121:         raise ValueError(\"Mobile number is required.\")\n122: \n123:     # Allow 00 international prefix (common outside US).\n124:     if value.startswith(\"00\"):\n125:         value = \"+\" + value[1:]\n126: \n127:     cleaned = _NON_DIGIT_RE.sub(\"\", value.replace(\" \", \"\"))\n128:     if cleaned.startswith(\"+\"):\n129:         candidate = \"+\" + cleaned[1:].lstrip(\"+\")\n130:         region = None\n131:     else:\n132:         candidate = cleaned\n133:         region = (default_region or _FALLBACK_REGION).strip().upper()\n134: \n135:     try:\n136:         parsed = phonenumbers.parse(candidate, region)\n137:     except NumberParseException as exc:\n138:         raise ValueError(\n139:             f\"Invalid mobile number: {exc}. \"\n140:             f\"Include a country code (e.g. +91\u2026) or set CARTESIA_DEFAULT_PHONE_REGION.\"\n141:         ) from exc\n142: \n143:     if not phonenumbers.is_possible_number(parsed):\n144:         raise ValueError(\n145:             \"Mobile number is not a possible phone number. \"\n146:             \"Check the number or set CARTESIA_DEFAULT_PHONE_REGION for your country.\"\n147:         )\n148:     if not phonenumbers.is_valid_number(parsed):\n149:         raise ValueError(\n150:             \"Mobile number is not a valid phone number. \"\n151:             \"Check the number or set CARTESIA_DEFAULT_PHONE_REGION for your country.\"\n152:         )\n153: \n154:     return phonenumbers.format_number(parsed, PhoneNumberFormat.E164)\n\n(End of file - total 154 lines)\n</content>"
+          },
+          {
+            "source_call_id": "tooluse_JtEobITcBAwhtBS1uZ2lgh",
+            "content": "<path>/app/loangen-agent/agent/services/smbcontacts/loan_types.py</path>\n<type>file</type>\n<content>\n1: \"\"\"\n2: Canonical US SMB loan types for CRM contacts and invite flows.\n3: \n4: Each entry has a stable ``id`` (stored in MongoDB) and a human ``label``.\n5: \"\"\"\n6: \n7: from __future__ import annotations\n8: \n9: import re\n10: from typing import List, Optional\n11: \n12: LOAN_TYPE_CHOICES: List[dict[str, str]] = [\n13:     {\"id\": \"sba7a\", \"label\": \"SBA 7(a) Loan\"},\n14:     {\"id\": \"sba504\", \"label\": \"SBA 504 Loan\"},\n15:     {\"id\": \"sba_express\", \"label\": \"SBA Express Loan\"},\n16:     {\"id\": \"sba_caplines\", \"label\": \"SBA CAPlines\"},\n17:     {\"id\": \"microloan\", \"label\": \"SBA Microloan\"},\n18:     {\"id\": \"term\", \"label\": \"Term Loan\"},\n19:     {\"id\": \"loc\", \"label\": \"Line of Credit\"},\n20:     {\"id\": \"equipment\", \"label\": \"Equipment Financing\"},\n21:     {\"id\": \"working_capital\", \"label\": \"Working Capital Loan\"},\n22:     {\"id\": \"cre\", \"label\": \"Commercial Real Estate Loan\"},\n23:     {\"id\": \"construction\", \"label\": \"Construction Loan\"},\n24:     {\"id\": \"bridge\", \"label\": \"Bridge Loan\"},\n25:     {\"id\": \"acquisition\", \"label\": \"Business Acquisition Loan\"},\n26:     {\"id\": \"franchise\", \"label\": \"Franchise Loan\"},\n27:     {\"id\": \"invoice_factoring\", \"label\": \"Invoice Factoring\"},\n28:     {\"id\": \"mca\", \"label\": \"Merchant Cash Advance\"},\n29:     {\"id\": \"rbf\", \"label\": \"Revenue-Based Financing\"},\n30:     {\"id\": \"abl\", \"label\": \"Asset-Based Lending\"},\n31:     {\"id\": \"startup\", \"label\": \"Startup Loan\"},\n32:     {\"id\": \"usda\", \"label\": \"USDA Business & Industry Loan\"},\n33: ]\n34: \n35: _LOAN_TYPE_IDS = {c[\"id\"] for c in LOAN_TYPE_CHOICES}\n36: \n37: # id + normalized label + common aliases \u2192 canonical id\n38: _EXTRA_ALIASES: dict[str, str] = {\n39:     \"sba 7a\": \"sba7a\",\n40:     \"sba 7(a)\": \"sba7a\",\n41:     \"sba-7a\": \"sba7a\",\n42:     \"sba_7a\": \"sba7a\",\n43:     \"sba 504\": \"sba504\",\n44:     \"sba-504\": \"sba504\",\n45:     \"sba_504\": \"sba504\",\n46:     \"sba express\": \"sba_express\",\n47:     \"sba caplines\": \"sba_caplines\",\n48:     \"caplines\": \"sba_caplines\",\n49:     \"microloan\": \"microloan\",\n50:     \"sba microloan\": \"microloan\",\n51:     \"term loan\": \"term\",\n52:     \"termloan\": \"term\",\n53:     \"term_loan\": \"term\",\n54:     \"line of credit\": \"loc\",\n55:     \"lineofcredit\": \"loc\",\n56:     \"line_of_credit\": \"loc\",\n57:     \"equipment financing\": \"equipment\",\n58:     \"equipment_financing\": \"equipment\",\n59:     \"working capital\": \"working_capital\",\n60:     \"working capital loan\": \"working_capital\",\n61:     \"working_capital\": \"working_capital\",\n62:     \"commercial real estate\": \"cre\",\n63:     \"commercial real estate loan\": \"cre\",\n64:     \"cre\": \"cre\",\n65:     \"construction loan\": \"construction\",\n66:     \"bridge loan\": \"bridge\",\n67:     \"business acquisition\": \"acquisition\",\n68:     \"business acquisition loan\": \"acquisition\",\n69:     \"franchise loan\": \"franchise\",\n70:     \"invoice factoring\": \"invoice_factoring\",\n71:     \"merchant cash advance\": \"mca\",\n72:     \"mca\": \"mca\",\n73:     \"revenue based financing\": \"rbf\",\n74:     \"revenue-based financing\": \"rbf\",\n75:     \"asset based lending\": \"abl\",\n76:     \"asset-based lending\": \"abl\",\n77:     \"startup loan\": \"startup\",\n78:     \"usda\": \"usda\",\n79:     \"usda business\": \"usda\",\n80:     \"usda b&i\": \"usda\",\n81: }\n82: \n83: \n84: def _normalize_key(value: str) -> str:\n85:     return re.sub(r\"[_\\-]+\", \" \", value.strip().lower()).strip()\n86: \n87: \n88: def loan_type_label(loan_type_id: Optional[str]) -> str:\n89:     if not loan_type_id:\n90:         return \"\"\n91:     for choice in LOAN_TYPE_CHOICES:\n92:         if choice[\"id\"] == loan_type_id:\n93:             return choice[\"label\"]\n94:     return loan_type_id.replace(\"_\", \"\").title()\n95: \n96: \n97: def resolve_loan_type(raw: str) -> Optional[str]:\n98:     \"\"\"Map a CSV/UI loan type string to a canonical id, or None if unrecognized.\"\"\"\n99:     value = (raw or \"\").strip()\n100:     if not value:\n101:         return None\n102:     compact = value.lower().replace(\" \", \"\").replace(\"-\", \"\").replace(\"_\", \"\")\n103:     if compact in _LOAN_TYPE_IDS:\n104:         return compact\n105:     if value.lower() in _LOAN_TYPE_IDS:\n106:         return value\n107:     normalized = _normalize_key(value)\n108:     if normalized in _EXTRA_ALIASES:\n109:         return _EXTRA_ALIASES[normalized]\n110:     for choice in LOAN_TYPE_CHOICES:\n111:         if _normalize_key(choice[\"label\"]) == normalized:\n112:             return choice[\"id\"]\n113:         if _normalize_key(choice[\"id\"]) == normalized:\n114:             return choice[\"id\"]\n115:     return None\n116: \n117: \n118: def is_valid_loan_type_id(loan_type_id: Optional[str]) -> bool:\n119:     return bool(loan_type_id and loan_type_id in _LOAN_TYPE_IDS)\n\n(End of file - total 119 lines)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10401,
+        "completion_tokens": 355,
+        "cached_tokens": 10399,
+        "cost_usd": 0.1426595,
+        "extra": {
+          "cache_write_tokens": 20572
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-08-05T17:47:15.361000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_0J0KheDZfHYq3JsYbkPhYm",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -c \"\nfrom agent.integrations.cartesia.phone import try_normalize_phone_to_e164, normalize_phone_to_e164\nfrom agent.services.smbcontacts.loan_types import loan_type_label, resolve_loan_type\n\nprint('1 UK default region:', try_normalize_phone_to_e164('7911 123456', default_region='GB'))\nprint('1 MX default region:', try_normalize_phone_to_e164('5512345678', default_region='MX'))\ntry:\n    print('2 00-prefix strict:', normalize_phone_to_e164('0044 7911 123456', default_region='GB'))\nexcept ValueError as e:\n    print('2 00-prefix strict RAISED:', e)\nprint('3 label hard_money:', repr(loan_type_label('hard_money')))\nprint('4 resolve Working_Capital:', repr(resolve_loan_type('Working_Capital')))\nprint('--- routine cases (must not change) ---')\nprint('US plain:', try_normalize_phone_to_e164('(512) 555-0142', default_region='US'))\nprint('IN bare:', try_normalize_phone_to_e164('8050306043', default_region='US'))\nprint('explicit intl:', try_normalize_phone_to_e164('+918050306043', default_region='US'))\nprint('invalid:', try_normalize_phone_to_e164('abc', default_region='US'))\nprint('strict US:', normalize_phone_to_e164('(512) 555-0142', default_region='US'))\nprint('label term:', loan_type_label('term'), '| resolve sba7a:', resolve_loan_type('sba7a'))\n\"\n"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_0J0KheDZfHYq3JsYbkPhYm",
+            "content": "1 UK default region: +917911123456\n1 MX default region: +15512345678\n2 00-prefix strict RAISED: Invalid mobile number: (0) Could not interpret numbers after plus-sign.. Include a country code (e.g. +91\u2026) or set CARTESIA_DEFAULT_PHONE_REGION.\n3 label hard_money: 'Hardmoney'\n4 resolve Working_Capital: 'Working_Capital'\n--- routine cases (must not change) ---\nUS plain: +15125550142\nIN bare: +918050306043\nexplicit intl: +918050306043\ninvalid: None\nstrict US: +15125550142\nlabel term: Term Loan | resolve sba7a: sba7a\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 30973,
+        "completion_tokens": 818,
+        "cached_tokens": 30971,
+        "cost_usd": 0.06632675,
+        "extra": {
+          "cache_write_tokens": 4861
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-08-05T17:47:26.727000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "All four defects reproduce. Now applying the fixes.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_yeWWIUishooWTydxQW6sdY",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/integrations/cartesia/phone.py",
+            "oldString": "    default = (default_region or _FALLBACK_REGION).strip().upper()\n    if not default:\n        regions.append(default)",
+            "newString": "    default = (default_region or _FALLBACK_REGION).strip().upper()\n    if default:\n        regions.append(default)"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_18uVF9XNrebDLqMFNoAyGc",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/integrations/cartesia/phone.py",
+            "oldString": "    # Allow 00 international prefix (common outside US).\n    if value.startswith(\"00\"):\n        value = \"+\" + value[1:]",
+            "newString": "    # Allow 00 international prefix (common outside US) \u2014 equivalent to a leading +.\n    if value.startswith(\"00\"):\n        value = \"+\" + value[2:]"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_yeWWIUishooWTydxQW6sdY",
+            "content": "Edit applied successfully."
+          },
+          {
+            "source_call_id": "tooluse_18uVF9XNrebDLqMFNoAyGc",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 35834,
+        "completion_tokens": 1264,
+        "cached_tokens": 35832,
+        "cost_usd": 0.05613225,
+        "extra": {
+          "cache_write_tokens": 1057
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-08-05T17:47:43.601000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_3thq2WICTwybHKWnXl9eKh",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/services/smbcontacts/loan_types.py",
+            "newString": "def loan_type_label(loan_type_id: Optional[str]) -> str:\n    if not loan_type_id:\n        return \"\"\n    for choice in LOAN_TYPE_CHOICES:\n        if choice[\"id\"] == loan_type_id:\n            return choice[\"label\"]\n    # Unknown/legacy id: render a readable, word-by-word capitalized label\n    # (e.g. \"hard_money\" -> \"Hard Money\").\n    return _normalize_key(loan_type_id).title()\n",
+            "oldString": "def loan_type_label(loan_type_id: Optional[str]) -> str:\n    if not loan_type_id:\n        return \"\"\n    for choice in LOAN_TYPE_CHOICES:\n        if choice[\"id\"] == loan_type_id:\n            return choice[\"label\"]\n    return loan_type_id.replace(\"_\", \"\").title()\n"
+          }
+        },
+        {
+          "tool_call_id": "tooluse_XROdOuAyuk4yfmmvDtFmWM",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/services/smbcontacts/loan_types.py",
+            "newString": "    if value.lower() in _LOAN_TYPE_IDS:\n        return value.lower()",
+            "oldString": "    if value.lower() in _LOAN_TYPE_IDS:\n        return value"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_3thq2WICTwybHKWnXl9eKh",
+            "content": "Edit applied successfully."
+          },
+          {
+            "source_call_id": "tooluse_XROdOuAyuk4yfmmvDtFmWM",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 36891,
+        "completion_tokens": 802,
+        "cached_tokens": 36889,
+        "cost_usd": 0.0468545,
+        "extra": {
+          "cache_write_tokens": 1336
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-08-05T17:47:53.657000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_XiMfWzN0AKYer4l35Qq18k",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -c \"\nfrom agent.integrations.cartesia.phone import try_normalize_phone_to_e164, normalize_phone_to_e164\nfrom agent.services.smbcontacts.loan_types import loan_type_label, resolve_loan_type, is_valid_loan_type_id\n\nprint('== reported defects ==')\nprint('1 GB bare  :', try_normalize_phone_to_e164('7911 123456', default_region='GB'))\nprint('1 GB london:', try_normalize_phone_to_e164('020 7946 0958', default_region='GB'))\nprint('1 MX bare  :', try_normalize_phone_to_e164('5512345678', default_region='MX'))\nprint('1 DE bare  :', try_normalize_phone_to_e164('030 12345678', default_region='DE'))\nprint('2 strict 0044:', normalize_phone_to_e164('0044 7911 123456', default_region='GB'))\nprint('2 strict 0091:', normalize_phone_to_e164('00918050306043', default_region='US'))\nprint('2 loose 0044 :', try_normalize_phone_to_e164('00447911123456', default_region='US'))\nprint('3 label hard_money  :', repr(loan_type_label('hard_money')))\nprint('3 label some_new_type:', repr(loan_type_label('some_new_type')))\nprint('3 label hard-money  :', repr(loan_type_label('hard-money')))\nprint('4 Working_Capital :', repr(resolve_loan_type('Working_Capital')))\nprint('4 SBA_EXPRESS     :', repr(resolve_loan_type('SBA_EXPRESS')))\nprint('4 Invoice_Factoring:', repr(resolve_loan_type('Invoice_Factoring')))\nprint('4 SBA_CAPlines    :', repr(resolve_loan_type('SBA_CAPlines')))\nprint('4 valid after resolve:', is_valid_loan_type_id(resolve_loan_type('Working_Capital')))\nprint()\nprint('== routine cases must be unchanged ==')\nprint('US plain      :', try_normalize_phone_to_e164('(512) 555-0142', default_region='US'))\nprint('US strict     :', normalize_phone_to_e164('(512) 555-0142', default_region='US'))\nprint('IN bare/US def:', try_normalize_phone_to_e164('8050306043', default_region='US'))\nprint('explicit +91  :', try_normalize_phone_to_e164('+918050306043', default_region='US'))\nprint('explicit strict:', normalize_phone_to_e164('+918050306043', default_region='US'))\nprint('invalid       :', try_normalize_phone_to_e164('abc', default_region='US'))\nprint('empty         :', try_normalize_phone_to_e164('', default_region='US'))\nprint('no default arg:', try_normalize_phone_to_e164('4155550142'))\nprint('label term/loc:', loan_type_label('term'), '|', loan_type_label('loc'), '|', loan_type_label(''))\nprint('resolve sba7a :', resolve_loan_type('sba7a'), '| SBA 7(a) Loan:', resolve_loan_type('SBA 7(a) Loan'))\nprint('resolve loc   :', resolve_loan_type('line of credit'), '| unknown:', resolve_loan_type('not-a-real-loan'))\nprint('all ids roundtrip ok:', all(resolve_loan_type(c['id'])==c['id'] and resolve_loan_type(c['id'].upper())==c['id'] and resolve_loan_type(c['label'])==c['id'] for c in __import__('agent.services.smbcontacts.loan_types',fromlist=['x']).LOAN_TYPE_CHOICES))\nprint('all labels roundtrip ok:', all(loan_type_label(c['id'])==c['label'] for c in __import__('agent.services.smbcontacts.loan_types',fromlist=['x']).LOAN_TYPE_CHOICES))\n\"\n"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_XiMfWzN0AKYer4l35Qq18k",
+            "content": "== reported defects ==\n1 GB bare  : +447911123456\n1 GB london: +442079460958\n1 MX bare  : +525512345678\n1 DE bare  : +493012345678\n2 strict 0044: +447911123456\n2 strict 0091: +918050306043\n2 loose 0044 : +447911123456\n3 label hard_money  : 'Hard Money'\n3 label some_new_type: 'Some New Type'\n3 label hard-money  : 'Hard Money'\n4 Working_Capital : 'working_capital'\n4 SBA_EXPRESS     : 'sba_express'\n4 Invoice_Factoring: 'invoice_factoring'\n4 SBA_CAPlines    : 'sba_caplines'\n4 valid after resolve: True\n\n== routine cases must be unchanged ==\nUS plain      : +15125550142\nUS strict     : +15125550142\nIN bare/US def: +918050306043\nexplicit +91  : +918050306043\nexplicit strict: +918050306043\ninvalid       : None\nempty         : None\nno default arg: +14155550142\nlabel term/loc: Term Loan | Line of Credit | \nresolve sba7a : sba7a | SBA 7(a) Loan: sba7a\nresolve loc   : loc | unknown: None\nall ids roundtrip ok: True\nall labels roundtrip ok: True\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 38227,
+        "completion_tokens": 1789,
+        "cached_tokens": 38225,
+        "cost_usd": 0.06931,
+        "extra": {
+          "cache_write_tokens": 874
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-08-05T17:48:13.981000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_pHAbmAP7HXfrOFkzD6UKUr",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -m pytest tests -v 2>&1 | tail -60",
+            "timeout": 300000
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_pHAbmAP7HXfrOFkzD6UKUr",
+            "content": "tests/test_inbound_calls.py:195: AssertionError\n_ RecoverStaleDocumentsTests.test_recovers_stale_queued_document_for_application _\n\nself = <test_ingestion_stale_recovery.RecoverStaleDocumentsTests testMethod=test_recovers_stale_queued_document_for_application>\n\n    async def test_recovers_stale_queued_document_for_application(self) -> None:\n        from agent.documents.ingestion.stale_recovery import recover_stale_documents_for_application\n    \n        app = MagicMock()\n        app.user_id = \"user-1\"\n    \n        stale_doc = MagicMock()\n        stale_doc.id = \"doc-stale\"\n        stale_doc.is_deleted = False\n        stale_doc.ingestion_status = IngestionStatus.QUEUED\n        stale_doc.ingestion_updated_at = datetime.now(timezone.utc) - timedelta(minutes=30)\n    \n        async def fake_get(doc_id: str):\n            if doc_id == \"app-1\":\n                return app\n            if doc_id == \"doc-stale\":\n                return stale_doc\n            return None\n    \n        mock_svc = MagicMock()\n        mock_svc.re_enqueue_stale_document = AsyncMock(return_value=True)\n    \n        with patch(\"agent.core.config.settings\") as mock_settings:\n            mock_settings.document_ingestion_enabled = True\n            mock_settings.ingestion_stale_job_minutes = 15\n            with patch(\n                \"agent.services.smbapplications.models.SMBApplication.get\",\n                new=AsyncMock(side_effect=fake_get),\n            ):\n                with patch(\n                    \"agent.documents.ingestion.stale_recovery.UserDocument.get\",\n                    new=AsyncMock(side_effect=fake_get),\n                ):\n                    with patch(\n                        \"agent.documents.ingestion.readiness.get_application_document_ids\",\n                        new=AsyncMock(return_value=[\"doc-stale\"]),\n                    ):\n                        recovered = await recover_stale_documents_for_application(\n                            \"app-1\",\n                            service=mock_svc,\n                        )\n    \n>       self.assertEqual(recovered, 1)\nE       AssertionError: 0 != 1\n\ntests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n================== 7 failed, 166 passed, 24 skipped in 1.58s ===================\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 39101,
+        "completion_tokens": 473,
+        "cached_tokens": 39099,
+        "cost_usd": 0.04539075,
+        "extra": {
+          "cache_write_tokens": 2241
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-08-05T17:48:25.538000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "Some failures \u2014 need to confirm whether they're pre-existing.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_X4kq6gMOZNquJsVLE9QSO5",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && git stash && python -m pytest tests 2>&1 | tail -12 && git stash pop",
+            "timeout": 300000
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_X4kq6gMOZNquJsVLE9QSO5",
+            "content": "Saved working directory and index state WIP on main: db6fa85 import codebase\nE       AssertionError: 0 != 1\n\ntests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n================== 7 failed, 166 passed, 24 skipped in 1.60s ===================\nOn branch main\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git restore <file>...\" to discard changes in working directory)\n\tmodified:   agent/integrations/cartesia/phone.py\n\tmodified:   agent/services/smbcontacts/loan_types.py\n\nno changes added to commit (use \"git add\" and/or \"git commit -a\")\nDropped refs/stash@{0} (373132270cd794bbd52ceb47c83373d855200547)\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 41342,
+        "completion_tokens": 210,
+        "cached_tokens": 41340,
+        "cost_usd": 0.03637375,
+        "extra": {
+          "cache_write_tokens": 1671
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-08-05T17:48:31.892000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "Pre-existing failures identical to baseline (7 failed / 166 passed both before and after). Let me check one adjacent corner in the same code path.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_WUaI0qZwB29H8yZUfhxZcx",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -c \"\nimport agent.integrations.cartesia.phone as p\n# find inputs where no region yields a VALID parse but several yield possible-only\nimport phonenumbers\nfor digits in ['123456789','12345678','1234567890','987654321','5551234']:\n    valid=[];poss=[]\n    for r in ('GB','US','CA','IN','AU','MX','DE','FR'):\n        v=p._try_parse_candidate(digits,r,require_valid=True)\n        if v: valid.append((r,v)); continue\n        v=p._try_parse_candidate(digits,r,require_valid=False)\n        if v: poss.append((r,v))\n    print(digits,'valid=',valid,'possible=',poss)\n    print('   -> current result with default GB:', p.try_normalize_phone_to_e164(digits, default_region='GB'))\n\"\n"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_WUaI0qZwB29H8yZUfhxZcx",
+            "content": "123456789 valid= [('FR', '+33123456789')] possible= [('GB', '+44123456789'), ('IN', '+91123456789'), ('AU', '+61123456789'), ('DE', '+49123456789')]\n   -> current result with default GB: +33123456789\n12345678 valid= [] possible= [('GB', '+4412345678'), ('CA', '+12345678'), ('IN', '+9112345678'), ('AU', '+6112345678'), ('MX', '+5212345678'), ('DE', '+4912345678')]\n   -> current result with default GB: +4912345678\n1234567890 valid= [('GB', '+441234567890'), ('IN', '+911234567890')] possible= [('US', '+11234567890'), ('CA', '+11234567890'), ('AU', '+611234567890'), ('MX', '+521234567890'), ('DE', '+491234567890')]\n   -> current result with default GB: +441234567890\n987654321 valid= [('DE', '+49987654321'), ('FR', '+33987654321')] possible= [('GB', '+44987654321'), ('IN', '+91987654321'), ('AU', '+61987654321')]\n   -> current result with default GB: +49987654321\n5551234 valid= [('DE', '+495551234')] possible= [('GB', '+445551234'), ('US', '+15551234'), ('CA', '+15551234'), ('IN', '+915551234'), ('AU', '+615551234'), ('MX', '+525551234')]\n   -> current result with default GB: +495551234\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 43013,
+        "completion_tokens": 927,
+        "cached_tokens": 43011,
+        "cost_usd": 0.05003425,
+        "extra": {
+          "cache_write_tokens": 855
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-08-05T17:48:45.620000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "Found one more instance of the same defect class: when only \"possible-only\" parses exist, the *last* fallback region wins instead of the configured home region.",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_hc1TqHYkV5Bh1W6h6GawfM",
+          "function_name": "read",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/integrations/cartesia/phone.py",
+            "offset": 83,
+            "limit": 16
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_hc1TqHYkV5Bh1W6h6GawfM",
+            "content": "<path>/app/loangen-agent/agent/integrations/cartesia/phone.py</path>\n<type>file</type>\n<content>\n83:     valid_matches: list[str] = []\n84:     possible_matches: list[str] = []\n85:     for region in regions:\n86:         formatted = _try_parse_candidate(digits, region, require_valid=True)\n87:         if formatted:\n88:             valid_matches.append(formatted)\n89:             continue\n90:         formatted = _try_parse_candidate(digits, region, require_valid=False)\n91:         if formatted:\n92:             possible_matches.append(formatted)\n93: \n94:     if valid_matches:\n95:         return valid_matches[0]\n96:     if possible_matches:\n97:         return possible_matches[-1]\n98: \n\n(Showing lines 83-98 of 154. Use offset=99 to continue.)\n</content>"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 43868,
+        "completion_tokens": 471,
+        "cached_tokens": 43866,
+        "cost_usd": 0.04277425,
+        "extra": {
+          "cache_write_tokens": 1449
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-08-05T17:48:54.999000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_P9OfIvGwy7ScCQtQmytigy",
+          "function_name": "edit",
+          "arguments": {
+            "filePath": "/app/loangen-agent/agent/integrations/cartesia/phone.py",
+            "newString": "    if valid_matches:\n        return valid_matches[0]\n    if possible_matches:\n        # Regions are tried default-first, so the first hit honors the\n        # configured home region rather than an arbitrary fallback.\n        return possible_matches[0]",
+            "oldString": "    if valid_matches:\n        return valid_matches[0]\n    if possible_matches:\n        return possible_matches[-1]"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_P9OfIvGwy7ScCQtQmytigy",
+            "content": "Edit applied successfully."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 45317,
+        "completion_tokens": 236,
+        "cached_tokens": 45315,
+        "cost_usd": 0.03336125,
+        "extra": {
+          "cache_write_tokens": 767
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-08-05T17:48:58.956000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_Bn1XIMYEHlojN3H2f6omiI",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -m pytest tests 2>&1 | tail -10",
+            "timeout": 300000
+          }
+        },
+        {
+          "tool_call_id": "tooluse_fB1bgjgEMJCmuq1eeTEpQS",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -c \"\nfrom agent.integrations.cartesia.phone import try_normalize_phone_to_e164 as t, normalize_phone_to_e164 as s\nprint('possible-only GB :', t('12345678', default_region='GB'))\nprint('possible-only US :', t('12345678', default_region='US'))\nprint('routine US       :', t('(512) 555-0142', default_region='US'), s('(512) 555-0142', default_region='US'))\nprint('routine IN bare  :', t('8050306043', default_region='US'))\nprint('routine +91      :', t('+918050306043', default_region='US'), s('+918050306043', default_region='US'))\nprint('invalid          :', t('abc', default_region='US'))\n\""
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_Bn1XIMYEHlojN3H2f6omiI",
+            "content": "tests/test_ingestion_stale_recovery.py:90: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_deleted_document_ids_do_not_show_as_missing\nFAILED tests/test_document_ingestion_readiness.py::BuildApplicationIngestionStatusTests::test_failed_documents_do_not_block_when_non_blocking_enabled\nFAILED tests/test_document_report.py::TestReportSupport::test_credit_and_bank_excluded\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_last_dialer_offline_plays_unavailable\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_rings_last_dialer_not_other_lender\nFAILED tests/test_inbound_calls.py::BuildInboundTwimlTests::test_unknown_caller_plays_message\nFAILED tests/test_ingestion_stale_recovery.py::RecoverStaleDocumentsTests::test_recovers_stale_queued_document_for_application\n================== 7 failed, 166 passed, 24 skipped in 1.51s ===================\n"
+          },
+          {
+            "source_call_id": "tooluse_fB1bgjgEMJCmuq1eeTEpQS",
+            "content": "possible-only GB : +4412345678\npossible-only US : +12345678\nroutine US       : +15125550142 +15125550142\nroutine IN bare  : +918050306043\nroutine +91      : +918050306043 +918050306043\ninvalid          : None\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 46084,
+        "completion_tokens": 388,
+        "cached_tokens": 46082,
+        "cost_usd": 0.0343135,
+        "extra": {
+          "cache_write_tokens": 250
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 14,
+      "timestamp": "2026-08-05T17:49:04.549000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "",
+      "tool_calls": [
+        {
+          "tool_call_id": "tooluse_9g4sNHdmyMDCFUtNaAxoId",
+          "function_name": "bash",
+          "arguments": {
+            "command": "cd /app/loangen-agent && python -m pytest tests/test_smb_contacts_csv_and_update.py tests/test_smb_invite_schemas.py tests/test_smb_invite_conversation.py tests/test_lender_product_match.py -v 2>&1 | tail -35 && git diff",
+            "timeout": 300000
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "tooluse_9g4sNHdmyMDCFUtNaAxoId",
+            "content": "============================= test session starts ==============================\nplatform linux -- Python 3.12.13, pytest-8.3.4, pluggy-1.6.0 -- /usr/local/bin/python\ncachedir: .pytest_cache\nrootdir: /app/loangen-agent\nplugins: anyio-4.14.2, asyncio-0.24.0\nasyncio: mode=Mode.STRICT, default_loop_scope=None\ncollecting ... collected 25 items\n\ntests/test_smb_contacts_csv_and_update.py::LoanTypeResolverTests::test_resolves_alias PASSED [  4%]\ntests/test_smb_contacts_csv_and_update.py::LoanTypeResolverTests::test_resolves_canonical_id PASSED [  8%]\ntests/test_smb_contacts_csv_and_update.py::LoanTypeResolverTests::test_resolves_label PASSED [ 12%]\ntests/test_smb_contacts_csv_and_update.py::LoanTypeResolverTests::test_unknown_returns_none PASSED [ 16%]\ntests/test_smb_contacts_csv_and_update.py::PhoneNormalizationTests::test_normalize_us_number PASSED [ 20%]\ntests/test_smb_contacts_csv_and_update.py::PhoneNormalizationTests::test_try_normalize_explicit_international PASSED [ 24%]\ntests/test_smb_contacts_csv_and_update.py::PhoneNormalizationTests::test_try_normalize_indian_number_without_country_code PASSED [ 28%]\ntests/test_smb_contacts_csv_and_update.py::PhoneNormalizationTests::test_try_normalize_invalid_returns_none PASSED [ 32%]\ntests/test_smb_contacts_csv_and_update.py::ImportContactsCsvTests::test_imports_row_with_optional_last_name_and_warnings PASSED [ 36%]\ntests/test_smb_contacts_csv_and_update.py::ImportContactsCsvTests::test_skips_row_missing_email PASSED [ 40%]\ntests/test_smb_contacts_csv_and_update.py::ImportContactsCsvTests::test_updates_existing_contact_mobile_on_duplicate_email PASSED [ 44%]\ntests/test_smb_contacts_csv_and_update.py::UpdateContactIdentityLockTests::test_allows_non_identity_updates_when_locked PASSED [ 48%]\ntests/test_smb_contacts_csv_and_update.py::UpdateContactIdentityLockTests::test_blocks_identity_field_when_locked PASSED [ 52%]\ntests/test_smb_contacts_csv_and_update.py::UpdateContactIdentityLockTests::test_updates_loan_amount_and_comment PASSED [ 56%]\ntests/test_smb_contacts_csv_and_update.py::UpdateContactIdentityLockTests::test_updates_mobile_with_international_number PASSED [ 60%]\ntests/test_smb_contacts_csv_and_update.py::CreateContactTests::test_creates_contact_with_required_fields PASSED [ 64%]\ntests/test_smb_invite_schemas.py::CreateInviteRequestTests::test_accepts_valid_loan_type_id PASSED [ 68%]\ntests/test_smb_invite_schemas.py::CreateInviteRequestTests::test_omitted_loan_type_id_is_none PASSED [ 72%]\ntests/test_smb_invite_schemas.py::CreateInviteRequestTests::test_rejects_unknown_loan_type_id PASSED [ 76%]\ntests/test_smb_invite_conversation.py::SMBInviteConversationTests::test_next_prompt_skips_time_in_business_and_monthly_revenue PASSED [ 80%]\ntests/test_smb_invite_conversation.py::SMBInviteConversationTests::test_seed_crm_hints_applies_revenue_and_tenure_silently PASSED [ 84%]\ntests/test_lender_product_match.py::TestLenderProductMatch::test_cre_deal_matches_real_estate_product PASSED [ 88%]\ntests/test_lender_product_match.py::TestLenderProductMatch::test_format_term_loan_type PASSED [ 92%]\ntests/test_lender_product_match.py::TestLenderProductMatch::test_term_matches_business_term_loan_only PASSED [ 96%]\ntests/test_lender_product_match.py::TestLenderProductMatch::test_term_still_matches_when_cre_collateral_present PASSED [100%]\n\n============================== 25 passed in 0.66s ==============================\ndiff --git a/loangen-agent/agent/integrations/cartesia/phone.py b/loangen-agent/agent/integrations/cartesia/phone.py\nindex c6e7be7..8386b7e 100644\n--- a/loangen-agent/agent/integrations/cartesia/phone.py\n+++ b/loangen-agent/agent/integrations/cartesia/phone.py\n@@ -74,7 +74,7 @@ def try_normalize_phone_to_e164(\n     digits = cleaned.lstrip(\"+\")\n     regions: list[str] = []\n     default = (default_region or _FALLBACK_REGION).strip().upper()\n-    if not default:\n+    if default:\n         regions.append(default)\n     for region in _CRM_FALLBACK_REGIONS:\n         if region not in regions:\n@@ -94,7 +94,9 @@ def try_normalize_phone_to_e164(\n     if valid_matches:\n         return valid_matches[0]\n     if possible_matches:\n-        return possible_matches[-1]\n+        # Regions are tried default-first, so the first hit honors the\n+        # configured home region rather than an arbitrary fallback.\n+        return possible_matches[0]\n \n     if len(digits) == 10:\n         return f\"+1{digits}\"\n@@ -120,9 +122,9 @@ def normalize_phone_to_e164(\n     if not value:\n         raise ValueError(\"Mobile number is required.\")\n \n-    # Allow 00 international prefix (common outside US).\n+    # Allow 00 international prefix (common outside US) \u2014 equivalent to a leading +.\n     if value.startswith(\"00\"):\n-        value = \"+\" + value[1:]\n+        value = \"+\" + value[2:]\n \n     cleaned = _NON_DIGIT_RE.sub(\"\", value.replace(\" \", \"\"))\n     if cleaned.startswith(\"+\"):\ndiff --git a/loangen-agent/agent/services/smbcontacts/loan_types.py b/loangen-agent/agent/services/smbcontacts/loan_types.py\nindex b32fe9d..c9b8a2e 100644\n--- a/loangen-agent/agent/services/smbcontacts/loan_types.py\n+++ b/loangen-agent/agent/services/smbcontacts/loan_types.py\n@@ -91,7 +91,9 @@ def loan_type_label(loan_type_id: Optional[str]) -> str:\n     for choice in LOAN_TYPE_CHOICES:\n         if choice[\"id\"] == loan_type_id:\n             return choice[\"label\"]\n-    return loan_type_id.replace(\"_\", \"\").title()\n+    # Unknown/legacy id: render a readable, word-by-word capitalized label\n+    # (e.g. \"hard_money\" -> \"Hard Money\").\n+    return _normalize_key(loan_type_id).title()\n \n \n def resolve_loan_type(raw: str) -> Optional[str]:\n@@ -103,7 +105,7 @@ def resolve_loan_type(raw: str) -> Optional[str]:\n     if compact in _LOAN_TYPE_IDS:\n         return compact\n     if value.lower() in _LOAN_TYPE_IDS:\n-        return value\n+        return value.lower()\n     normalized = _normalize_key(value)\n     if normalized in _EXTRA_ALIASES:\n         return _EXTRA_ALIASES[normalized]\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 46334,
+        "completion_tokens": 227,
+        "cached_tokens": 46332,
+        "cost_usd": 0.03481975,
+        "extra": {
+          "cache_write_tokens": 955
+        }
+      },
+      "llm_call_count": 1
+    },
+    {
+      "step_id": 15,
+      "timestamp": "2026-08-05T17:49:09.715000+00:00",
+      "source": "agent",
+      "model_name": "amazon-bedrock/global.anthropic.claude-opus-5",
+      "message": "All four reported defects were real, and each reduced to a one-line logic error. I reproduced every one from a direct call before touching anything, and none of them are covered by the existing suite (which is why they survived).\n\n## Fixes\n\n**1. Configured home region ignored for ambiguous numbers** \u2014 `agent/integrations/cartesia/phone.py:77`\n\nThe condition was inverted (`if not default:`). Since `default` is always non-empty (`default_region or _FALLBACK_REGION`), the caller's region was *never* prepended, so the hardcoded `_CRM_FALLBACK_REGIONS` order (`US, CA, IN, GB, \u2026`) silently decided the country. The docstring and the comment on line 18 both promise \"default region first.\"\n\n- `7911 123456` + `GB` \u2192 was `+917911123456` (India), now `+447911123456`\n- `020 7946 0958` + `GB` \u2192 now `+442079460958`\n- `5512345678` + `MX` \u2192 was `+15512345678`, now `+525512345678`\n\n**2. `00` international prefix rejected** \u2014 `phone.py:125`\n\nOff-by-one: `value[1:]` left a stray zero, producing `+0044\u2026`, which `phonenumbers` rejects outright. The sibling `try_` variant on line 61 already did it correctly with `value[2:]`.\n\n- `normalize_phone_to_e164(\"0044 7911 123456\")` \u2192 was `ValueError`, now `+447911123456`\n\n**3. Unfamiliar loan-type label not spaced** \u2014 `loan_types.py:94`\n\n`.replace(\"_\", \"\")` deleted the separator instead of substituting a space. Now routed through the existing `_normalize_key` helper, matching how the two analogous helpers (`lender_match.py:56`, `qualification_report_pdf.py:224`) already do it.\n\n- `loan_type_label(\"hard_money\")` \u2192 was `'Hardmoney'`, now `'Hard Money'`\n\n**4. Odd-cased known type stored verbatim** \u2014 `loan_types.py:106`\n\n`return value` returned the raw input instead of the canonical id. Only reachable for ids containing a separator, since the preceding branch strips `_`/`-`/spaces \u2014 which is exactly the `working_capital` / `sba_express` / `invoice_factoring` / `sba_caplines` family.\n\n- `resolve_loan_type(\"Working_Capital\")` \u2192 was `'Working_Capital'`, now `'working_capital'`\n\nThe stored value now also passes `is_valid_loan_type_id` and the `LOAN_TYPE_CHOICES` membership check at `smbinvites/service.py:1232`, which the verbatim string had been failing downstream.\n\n## One additional corner, same root cause\n\nYou mentioned there may be more. `phone.py:97` returned `possible_matches[-1]` \u2014 the *last* fallback region \u2014 so when no region yields a strictly-valid parse, the home region was still ignored. With regions now ordered default-first, `[0]` honors it: `12345678` + `GB` was `+4912345678` (Germany), now `+4412345678`. I deliberately left the valid-over-possible preference alone, since that behavior is documented and intended.\n\n## Verification\n\nFull suite: **166 passed, 7 failed, 24 skipped** \u2014 byte-identical to the pre-change baseline, which I captured via `git stash` to be certain. The 7 failures are pre-existing and unrelated (document-ingestion readiness, stale recovery, report support, and inbound-TwiML tests that mock `normalize_phone_to_e164` out entirely). No test files were modified.\n\nI also confirmed the routine paths your checks cover are untouched: plain US numbers via both the strict and best-effort entry points, bare Indian numbers under a US default, explicit `+91` input, invalid/empty input, and a full round-trip of all 20 catalog entries through both `resolve_loan_type` (id, uppercased id, and label forms) and `loan_type_label`.",
+      "metrics": {
+        "prompt_tokens": 47289,
+        "completion_tokens": 1300,
+        "cached_tokens": 47287,
+        "cost_usd": 0.07474725,
+        "extra": {
+          "cache_write_tokens": 2975
+        }
+      },
+      "llm_call_count": 1
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 515075,
+    "total_completion_tokens": 9654,
+    "total_cached_tokens": 515047,
+    "total_cost_usd": 0.7547885000000001,
+    "total_steps": 15
+  }
+}

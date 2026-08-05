@@ -1,0 +1,39 @@
+/usr/local/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+collecting ... collected 23 items
+
+tests/test_financial_tools_boundaries.py::TestCreditRiskTierBoundary::test_score_exactly_on_good_floor_is_good PASSED [  4%]
+tests/test_financial_tools_boundaries.py::TestCreditRiskTierBoundary::test_score_just_above_good_floor_is_good PASSED [  8%]
+tests/test_financial_tools_boundaries.py::TestCreditRiskTierBoundary::test_score_just_below_good_floor_is_fair PASSED [ 13%]
+tests/test_financial_tools_boundaries.py::TestCashFlowVolatilityWindow::test_single_month_series_has_zero_volatility PASSED [ 17%]
+tests/test_financial_tools_boundaries.py::TestCashFlowVolatilityWindow::test_three_month_series_reports_volatility PASSED [ 21%]
+tests/test_financial_tools_boundaries.py::TestCashFlowVolatilityWindow::test_two_month_series_reports_volatility PASSED [ 26%]
+tests/test_financial_tools_boundaries.py::TestCashFlowVolatilityWindow::test_two_month_series_wider_spread_reports_volatility PASSED [ 30%]
+tests/test_financial_tools_boundaries.py::TestBankNearLimitUtilization::test_account_exactly_on_near_limit_cutoff_counts PASSED [ 34%]
+tests/test_financial_tools_boundaries.py::TestBankNearLimitUtilization::test_account_just_above_cutoff_counts PASSED [ 39%]
+tests/test_financial_tools_boundaries.py::TestBankNearLimitUtilization::test_account_just_below_cutoff_is_excluded PASSED [ 43%]
+tests/test_financial_tools_boundaries.py::TestBankNearLimitUtilization::test_two_accounts_one_exactly_on_cutoff_both_count PASSED [ 47%]
+tests/test_financial_tools_boundaries.py::TestQbMonthlySummaryWidth::test_minimal_width_summary_yields_monthly_values PASSED [ 52%]
+tests/test_financial_tools_boundaries.py::TestQbMonthlySummaryWidth::test_minimal_width_three_month_summary_yields_values PASSED [ 56%]
+tests/test_financial_tools_boundaries.py::TestQbMonthlySummaryWidth::test_too_narrow_summary_yields_empty PASSED [ 60%]
+tests/test_financial_tools_boundaries.py::TestQbMonthlySummaryWidth::test_wider_summary_yields_monthly_values PASSED [ 65%]
+tests/test_financial_tools_boundaries.py::TestCreditSevereDelinquency::test_no_severe_lates_not_counted PASSED [ 69%]
+tests/test_financial_tools_boundaries.py::TestCreditSevereDelinquency::test_single_severe_late_counts_as_severe FAILED [ 73%]
+tests/test_financial_tools_boundaries.py::TestCreditSevereDelinquency::test_two_severe_lates_still_counts PASSED [ 78%]
+tests/test_financial_tools_boundaries.py::TestCreditSummarySentinelValues::test_not_applicable_sentinel_falls_back_to_default PASSED [ 82%]
+tests/test_financial_tools_boundaries.py::TestCreditSummarySentinelValues::test_not_applicable_sentinel_is_discarded PASSED [ 86%]
+tests/test_financial_tools_boundaries.py::TestCreditSummarySentinelValues::test_ordinary_value_is_kept PASSED [ 91%]
+tests/test_financial_tools_boundaries.py::TestCreditSummarySentinelValues::test_other_special_codes_still_discarded PASSED [ 95%]
+tests/test_financial_tools_boundaries.py::TestCreditSummarySentinelValues::test_real_negative_value_is_kept PASSED [100%]
+
+=================================== FAILURES ===================================
+_____ TestCreditSevereDelinquency.test_single_severe_late_counts_as_severe _____
+tests/test_financial_tools_boundaries.py:131: in test_single_severe_late_counts_as_severe
+    self.assertEqual(_severe_delinquency_count(tradelines), 1)
+E   AssertionError: 0 != 1
+=========================== short test summary info ============================
+FAILED tests/test_financial_tools_boundaries.py::TestCreditSevereDelinquency::test_single_severe_late_counts_as_severe
+========================= 1 failed, 22 passed in 0.40s =========================

@@ -1,0 +1,35 @@
+/usr/local/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+collecting ... collected 19 items
+
+tests/test_extractor_boundaries.py::TestAppraisalValueFloor::test_value_above_floor_is_kept PASSED [  5%]
+tests/test_extractor_boundaries.py::TestAppraisalValueFloor::test_value_below_floor_is_discarded PASSED [ 10%]
+tests/test_extractor_boundaries.py::TestAppraisalValueFloor::test_value_exactly_on_100k_floor_is_kept PASSED [ 15%]
+tests/test_extractor_boundaries.py::TestRentRollSum::test_single_rent_line_is_not_a_roll FAILED [ 21%]
+tests/test_extractor_boundaries.py::TestRentRollSum::test_three_rent_lines_are_summed PASSED [ 26%]
+tests/test_extractor_boundaries.py::TestRentRollSum::test_two_rent_lines_are_summed PASSED [ 31%]
+tests/test_extractor_boundaries.py::TestHudLoanFloor::test_loan_above_minimum_is_kept PASSED [ 36%]
+tests/test_extractor_boundaries.py::TestHudLoanFloor::test_loan_below_minimum_is_discarded PASSED [ 42%]
+tests/test_extractor_boundaries.py::TestHudLoanFloor::test_loan_exactly_on_minimum_is_kept PASSED [ 47%]
+tests/test_extractor_boundaries.py::TestPfsAssetFloor::test_total_assets_above_floor_is_kept PASSED [ 52%]
+tests/test_extractor_boundaries.py::TestPfsAssetFloor::test_total_assets_below_floor_is_discarded PASSED [ 57%]
+tests/test_extractor_boundaries.py::TestPfsAssetFloor::test_total_assets_exactly_on_scan_floor_is_kept PASSED [ 63%]
+tests/test_extractor_boundaries.py::TestFicoBand::test_in_band_score_below_top_is_kept PASSED [ 68%]
+tests/test_extractor_boundaries.py::TestFicoBand::test_out_of_band_score_is_dropped PASSED [ 73%]
+tests/test_extractor_boundaries.py::TestFicoBand::test_top_of_band_score_is_kept PASSED [ 78%]
+tests/test_cre_field_extraction.py::TestCreFieldExtraction::test_appraisal_extracts_as_is_value PASSED [ 84%]
+tests/test_cre_field_extraction.py::TestCreFieldExtraction::test_hud_loan_amount PASSED [ 89%]
+tests/test_cre_field_extraction.py::TestCreFieldExtraction::test_rent_roll_occupancy PASSED [ 94%]
+tests/test_cre_field_extraction.py::TestCreFieldExtraction::test_t12_noi PASSED [100%]
+
+=================================== FAILURES ===================================
+_____________ TestRentRollSum.test_single_rent_line_is_not_a_roll ______________
+tests/test_extractor_boundaries.py:62: in test_single_rent_line_is_not_a_roll
+    self.assertIsNone(facts.get("gross_potential_rent"))
+E   AssertionError: 2000.0 is not None
+=========================== short test summary info ============================
+FAILED tests/test_extractor_boundaries.py::TestRentRollSum::test_single_rent_line_is_not_a_roll
+========================= 1 failed, 18 passed in 0.04s =========================
