@@ -124,6 +124,10 @@ rather than search.
 
 ## Long-horizon migration task
 
+For a focused, standalone treatment of the task, verifier, four-model results,
+failure patterns, cost, and limitations, see
+[`LONG_HORIZON_ANALYSIS.md`](LONG_HORIZON_ANALYSIS.md).
+
 `long-native-table-migration` condenses a real 62-commit production branch
 into one feature-development task at its pre-migration base. The branch changed
 70 production files and added roughly 13,000 lines across native PDF geometry,
