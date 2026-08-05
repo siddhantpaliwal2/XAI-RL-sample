@@ -1,18 +1,16 @@
 # Coding RL from Enterprise Codebases
 
-Eight fail-to-pass coding tasks mined from real production codebases (fintech
-lending, transaction enrichment, credit-bureau tooling - Python and Java).
-Each task plants five latent single-token boundary defects into a working repo:
-every existing test stays green, and only untested edge inputs come out wrong.
-The agent gets the repo and a symptom-style bug report; the gold tests are
-injected only at grade time, so they can never be read or weakened.
+Eight fail-to-pass debugging tasks and one long-horizon feature migration,
+all mined from real production fintech codebases in Python and Java. The eight
+debugging tasks plant latent single-token boundary defects into otherwise
+working repos; the migration condenses a real 62-commit native PDF extraction
+branch into one scoped task. Agents receive only the repository and an
+engineering ticket, while gold tests enter the sandbox only at grade time.
 
-This XAI evaluation package adds an 80-attempt Grok 4.5 run to the original
-frontier matrix: OpenCode, ten attempts per task, and one isolated Daytona
-sandbox per attempt. The primary score report is `sample-run/results.md`, the
-win-condition and trace analysis is `sample-run/analysis.md`, and every Grok
-attempt's result, verifier verdicts, and full trajectory is under
-`sample-run/grok-trials/`.
+This XAI evaluation package includes the 80-attempt Grok 4.5 pass plus fresh
+OpenCode measurements for Claude Opus 5 and Claude Fable 5. Every valid trial
+runs in an isolated Daytona sandbox and includes its result, verifier verdicts,
+turn/tool counts, wall time, and full trajectory under `sample-run/`.
 
 ## Task format
 
@@ -43,7 +41,7 @@ A task rewards 1 only when **every** `fail_to_pass` and `pass_to_pass` test
 passes - partial fixes score 0.
 
 For convenience, `instructions/` holds a readable copy of every task's
-`instruction.md` (one file per task) so the eight agent-facing prompts can be
+`instruction.md` (one file per task) so the nine agent-facing prompts can be
 skimmed side by side, and `gold-tests/` holds the extracted source of every
 task's hidden gold test suite (the exact code the verifier runs). The canonical
 copies remain `tasks/<name>/instruction.md` and the `test_patch` field inside
@@ -58,8 +56,8 @@ finds that one. Every other task gates all five of its defects.
 
 ## Gates and measured results
 
-Every task clears four gates **in order** - two mechanical checks, then two
-model probes. Each gate must pass before the next runs:
+Each latent debugging task clears four gates **in order** - two mechanical
+checks, then two model probes. Each gate must pass before the next runs:
 
 | # | Gate | Threshold | What it proves |
 |---|---|---|---|
@@ -237,7 +235,7 @@ access from the maintainer, then:
 ```sh
 aws ecr get-login-password --region us-east-1 | docker login --username AWS \
   --password-stdin 237343249281.dkr.ecr.us-east-1.amazonaws.com
-for r in loangenus-repo txenrich-repo fiu-repo; do
+for r in loangenus-repo txenrich-repo fiu-repo bank-statement-parser-repo; do
   docker pull 237343249281.dkr.ecr.us-east-1.amazonaws.com/rl-images/$r:v1-amd64
   docker tag  237343249281.dkr.ecr.us-east-1.amazonaws.com/rl-images/$r:v1-amd64 $r:v1
 done
@@ -245,8 +243,10 @@ done
 
 The images can also be rebuilt from source: the substrate trees live in the
 companion `rl-repositories` share, and the exact image recipes are the
-`Dockerfile` at each substrate root (loangenus, transaction-enrichment-python)
-and `tasks/xrepo-fiu-latent/environment/Dockerfile.repo` (fiu_adapter).
+`Dockerfile` at each substrate root (loangenus, transaction-enrichment-python),
+`tasks/xrepo-fiu-latent/environment/Dockerfile.repo` (fiu_adapter), and
+`tasks/long-native-table-migration/environment/Dockerfile.repo`
+(bank-statement-parser).
 
 **1. Get an Anthropic API key into your shell** (a probe attempt typically
 costs $0.40–1.60 and is hard-capped at $3):
@@ -287,19 +287,21 @@ for i in $(seq 1 5); do PROBE_MODEL=anthropic/claude-sonnet-4-6 "$PY" harness/ru
 Count solves: `grep -l '"reward": 1' results/latent-credit-normalize-a*.json | wc -l`
 - that number over 10 is the task's cell in the table.
 
-**4b. Run all tasks** (reproduces the whole table). Attempts are independent,
+**4b. Run the eight latent tasks** (reproduces the latent-task table).
+Attempts are independent,
 so parallelize with `xargs -P`; builds every task image, then fans out
 attempts:
 
 ```sh
 PY="$(uv tool dir)/mini-swe-agent/bin/python"
+TASKS="latent-credit-normalize latent-doc-extractors latent-financial-tools latent-phone-invites xrepo-fiu-latent xrepo-txenrich-latent xrepo-txenrich3-latent xrepo-txenrich4-latent"
 # Opus pass (10 attempts per task):
-for t in $(ls tasks); do
+for t in $TASKS; do
   docker build -q -t "$t" "tasks/$t/environment"
   for i in $(seq 1 10); do echo "$t $i"; done
 done | xargs -P 10 -L 1 sh -c "\"$PY\" harness/run_attempt.py \$0 \$1 results/"
 # Sonnet pass (5 attempts per task):
-for t in $(ls tasks); do
+for t in $TASKS; do
   for i in $(seq 1 5); do echo "$t $i"; done
 done | PROBE_MODEL=anthropic/claude-sonnet-4-6 xargs -P 10 -L 1 sh -c "\"$PY\" harness/run_attempt.py \$0 \$1 results-sonnet/"
 ```

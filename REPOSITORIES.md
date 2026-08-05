@@ -1,7 +1,7 @@
 # Substrate Repositories
 
-The eight tasks were built on three real, private production codebases (two
-Python, one Java), all from the fintech-lending domain. Each was frozen into a
+The task bank was built on four real, private production codebases (two
+Python, two Java), all from the fintech-lending domain. Each was frozen into a
 pinned Docker base image (`<name>-repo:v1`) that contains the working tree with
 dependencies installed and any required dummy env baked in; every task's
 `environment/Dockerfile` starts `FROM` one of these images and plants that
@@ -70,7 +70,27 @@ enough that finding the defective boundaries is most of the work.
   agent-side and grading-side `mvn test` runs are fast and offline.
 - **Task built on it (1):** `xrepo-fiu-latent` - the only Java task in the
   bank, and proof the task recipe transfers across languages and build
-  systems.
+systems.
+
+## bank-statement-parser - `bank-statement-parser-repo:v1`
+
+- **Language / size:** Java 17 - 980 files at the pinned base; the migration
+  changes 70 production files and adds about 13k lines.
+- **Domain:** bank-statement ingestion and transaction normalization across a
+  large corpus of Indian-bank PDF formats, with Azure Document Intelligence as
+  the pre-existing remote extraction path.
+- **Structure:** Spring Boot service code under `src/main/java/`; 135 real PDF
+  fixtures plus cached extraction data under `src/test/resources/`.
+- **Environment notes:** Maven dependencies, Surefire and JUnit are warmed at
+  image-build time; the agent and verifier run offline. Git history is
+  collapsed before the agent sees the repository.
+- **Task built on it (1):** `long-native-table-migration`, a real 62-commit
+  feature migration adding native grid, box-guided and text-position table
+  extraction, bank-format routing, remote fallback and usage diagnostics.
+- **Why it's good long-horizon substrate:** the feature crosses geometry,
+  normalized document models, format-policy handlers, service orchestration,
+  API representation and persistence. A complete implementation cannot be
+  reduced to grepping for a handful of nearby boundary defects.
 
 ---
 
@@ -86,5 +106,5 @@ enough that finding the defective boundaries is most of the work.
   them.
 - **Private substrate.** These are private codebases; the base images are
   distributed directly rather than rebuilt from source. To run the tasks you
-  need the three `*-repo:v1` images present locally (`docker images | grep
+  need the four `*-repo:v1` images present locally (`docker images | grep
   repo:v1`).

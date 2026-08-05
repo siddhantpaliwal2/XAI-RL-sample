@@ -1,0 +1,33 @@
+# syntax=docker/dockerfile:1
+# Builds bank-statement-parser-repo:v1 from the private source checkout pinned
+# at a03ff50b9e6868565ba88be5f7438f4ac7583138.
+#
+#   docker build -f Dockerfile.repo -t bank-statement-parser-repo:v1 \
+#     /path/to/bank-statement-parser-at-a03ff50
+FROM maven:3.9-eclipse-temurin-17
+
+RUN apt-get update && apt-get install -y --no-install-recommends git python3 \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . /app/
+
+ARG BASE_COMMIT=a03ff50b9e6868565ba88be5f7438f4ac7583138
+RUN git checkout --detach "$BASE_COMMIT" \
+ && test "$(git rev-parse HEAD)" = "$BASE_COMMIT"
+
+# Warm production dependencies, the compiler, Surefire, and JUnit while the
+# image build has network access; grading is fully offline.
+RUN mvn -B -q -DskipTests dependency:go-offline || true
+RUN mvn -B -q dependency:get -Dartifact=org.json:json:20240303 \
+ && mvn -B -q dependency:get -Dartifact=commons-io:commons-io:2.21.0
+RUN mvn -B -q -DskipTests package
+RUN mkdir -p src/test/java/com/finboost/bank/statement/parser \
+ && printf '%s\n' \
+      'package com.finboost.bank.statement.parser;' \
+      'import org.junit.jupiter.api.Test;' \
+      'import static org.junit.jupiter.api.Assertions.assertEquals;' \
+      'class WarmProviderTest { @Test void ok(){ assertEquals(2, 1 + 1); } }' \
+      > src/test/java/com/finboost/bank/statement/parser/WarmProviderTest.java \
+ && mvn -B -q -Dtest=WarmProviderTest test \
+ && rm -rf src/test/java target/test-classes target/surefire-reports
