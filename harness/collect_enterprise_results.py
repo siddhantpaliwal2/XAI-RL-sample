@@ -18,11 +18,11 @@ ROUTE = "amazon-bedrock/global.anthropic.claude-opus-5"
 AGENT_VERSION = "1.18.13"
 OPUS_JOBS = {
     "paigo-dimension-pricing-tiers": (
-        "enterprise-opus-isolated-tests-r1-opus5-bedrock-"
+        "enterprise-opus-final-taxonomy-r1-opus5-bedrock-"
         "paigo-dimension-pricing-tiers-a01"
     ),
     "paigo-top-up-billing-lifecycle": (
-        "enterprise-opus-isolated-tests-r1-opus5-bedrock-"
+        "enterprise-opus-fair-complete-r1-opus5-bedrock-"
         "paigo-top-up-billing-lifecycle-a01"
     ),
     "paigo-s3-datastore-measurement": (
@@ -34,11 +34,11 @@ OPUS_JOBS = {
         "paigo-customer-identity-migration-a01"
     ),
     "paigo-customer-billing-schedule-migration": (
-        "enterprise-opus-regrade-r1-opus5-bedrock-"
+        "enterprise-opus-final-taxonomy-r1-opus5-bedrock-"
         "paigo-customer-billing-schedule-migration-a01"
     ),
     "champ-email-inbox-infrastructure": (
-        "enterprise-opus-reserved-tests-r1-opus5-bedrock-"
+        "enterprise-opus-fair-complete-r1-opus5-bedrock-"
         "champ-email-inbox-infrastructure-a01"
     ),
     "finbit-bank-parser-consolidation": (

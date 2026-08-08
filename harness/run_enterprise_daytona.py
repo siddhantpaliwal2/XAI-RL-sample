@@ -97,7 +97,7 @@ def recorded_spend(ledger: Path) -> float:
             item = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if item.get("event") == "completed":
+        if item.get("event") in {"completed", "invalid"}:
             total += float(item.get("cost_usd") or 0)
     return total
 
@@ -288,6 +288,23 @@ def run_one(
         if any(marker in tail for marker in fatal):
             break
         emit(f"RETRY {job_name} returncode={completed.returncode}")
+    unscored = valid_existing(
+        job_dir,
+        route=route,
+        snapshot=snapshot,
+        agent_version=agent_version,
+        checksum=checksum,
+        disable_task_tool=True,
+    )
+    if unscored is not None:
+        metrics = result_metrics(unscored)
+        emit(f"INVALID {job_name} cost=${metrics['cost_usd']:.2f}")
+        return {
+            "job": job_name,
+            "status": "invalid",
+            "reward": None,
+            **{key: value for key, value in metrics.items() if key != "reward"},
+        }
     emit(f"FAILED {job_name}")
     return {"job": job_name, "status": "failed", "reward": None, "cost_usd": 0.0}
 
@@ -397,11 +414,13 @@ def main() -> int:
                 }
             )
             outcomes.append(outcome)
-            if outcome["status"] == "completed":
+            if outcome["status"] in {"completed", "invalid"} and float(
+                outcome.get("cost_usd") or 0
+            ) > 0:
                 append_ledger(
                     ledger,
                     {
-                        "event": "completed",
+                        "event": outcome["status"],
                         "recorded_at": datetime.now(timezone.utc).isoformat(),
                         **outcome,
                     },
