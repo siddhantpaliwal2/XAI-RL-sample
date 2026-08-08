@@ -15,16 +15,16 @@ MANIFEST = ROOT / "authoring" / "historical_tasks.json"
 CONTROL_SUMMARY = ROOT / "sample-run" / "enterprise-controls-summary.json"
 CONTROL_JOBS = {
     "paigo-dimension-pricing-tiers": (
-        "eng830-null-daytona-r9",
-        "eng830-oracle-daytona-r9",
+        "eng830-null-daytona-r10",
+        "eng830-oracle-daytona-r10",
     ),
     "paigo-top-up-billing-lifecycle": (
-        "eng1167-null-daytona-r4",
-        "eng1167-oracle-daytona-r4",
+        "eng1167-null-daytona-r5",
+        "eng1167-oracle-daytona-r5",
     ),
     "paigo-s3-datastore-measurement": (
-        "eng411-null-daytona-r2",
-        "eng411-oracle-daytona-r2",
+        "eng411-null-daytona-r3",
+        "eng411-oracle-daytona-r3",
     ),
     "paigo-customer-identity-migration": (
         "eng504a-null-daytona-r2",
@@ -39,8 +39,8 @@ CONTROL_JOBS = {
         "champ2197-oracle-daytona-r5",
     ),
     "finbit-bank-parser-consolidation": (
-        "finbit-parser-null-daytona-r1",
-        "finbit-parser-oracle-daytona-r1",
+        "finbit-parser-null-daytona-r2",
+        "finbit-parser-oracle-daytona-r2",
     ),
     "finbit-google-cloud-storage-migration": (
         "finbit-cloud-null-daytona-r3",
@@ -96,7 +96,14 @@ def path_allowed(path: str, specs: list[str]) -> bool:
 
 def directory_sha256(path: Path) -> str:
     digest = hashlib.sha256()
-    for file_path in sorted(item for item in path.rglob("*") if item.is_file()):
+    for file_path in sorted(
+        item
+        for item in path.rglob("*")
+        if item.is_file()
+        and "__pycache__" not in item.parts
+        and item.suffix not in {".pyc", ".pyo"}
+        and item.name != ".DS_Store"
+    ):
         digest.update(str(file_path.relative_to(path)).encode())
         digest.update(b"\0")
         digest.update(file_path.read_bytes())
@@ -232,12 +239,24 @@ def audit_task(task: str, spec: dict, controls_dir: Path, summary: dict) -> dict
         for name in config["fail_to_pass"] + config["pass_to_pass"]
         if oracle_verdicts.get(name) != "passed"
     ]
+    ungated_oracle_repairs = [
+        name
+        for name, status in null_verdicts.items()
+        if status != "passed"
+        and oracle_verdicts.get(name) == "passed"
+        and name not in config["fail_to_pass"]
+    ]
     if null_unexpected:
         errors.append(f"null unexpectedly passes fail-to-pass tests: {null_unexpected}")
     if null_regressions:
         errors.append(f"null does not preserve pass-to-pass tests: {null_regressions}")
     if oracle_missing:
         errors.append(f"oracle lacks passing required tests: {oracle_missing}")
+    if ungated_oracle_repairs:
+        errors.append(
+            "null-fail/oracle-pass behavior is not reward-gated: "
+            f"{ungated_oracle_repairs}"
+        )
 
     return {
         "task": task,

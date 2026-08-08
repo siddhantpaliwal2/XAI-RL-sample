@@ -55,7 +55,14 @@ def emit(message: str) -> None:
 
 def directory_sha256(path: Path) -> str:
     digest = hashlib.sha256()
-    for file_path in sorted(item for item in path.rglob("*") if item.is_file()):
+    for file_path in sorted(
+        item
+        for item in path.rglob("*")
+        if item.is_file()
+        and "__pycache__" not in item.parts
+        and item.suffix not in {".pyc", ".pyo"}
+        and item.name != ".DS_Store"
+    ):
         digest.update(str(file_path.relative_to(path)).encode())
         digest.update(b"\0")
         digest.update(file_path.read_bytes())

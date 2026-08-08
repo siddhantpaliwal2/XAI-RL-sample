@@ -67,7 +67,7 @@ implementation hints.
 
 | Task | Change family | Oracle files | Changed LOC | Hidden F2P / P2P |
 |---|---|---:|---:|---:|
-| `paigo-dimension-pricing-tiers` | tiered billing | 12 | 512 | 12 / 3 |
+| `paigo-dimension-pricing-tiers` | tiered billing | 12 | 512 | 18 / 3 |
 | `paigo-top-up-billing-lifecycle` | wallet and billing lifecycle | 28 | 1,450 | 9 / 2 |
 | `paigo-s3-datastore-measurement` | AWS usage ingestion | 17 | 1,809 | 9 / 1 |
 | `paigo-customer-identity-migration` | ownership-model migration | 44 | 1,823 | 8 / 1 |
@@ -96,6 +96,43 @@ contains 23 allowlisted files. Service-account JSON, statement fixtures,
 customer data, unrelated configuration, and the historical credential-bearing
 transfer script are absent from snapshots, oracle patches, and verifier data.
 All verifier fixtures are synthetic.
+
+### Enterprise calibration results
+
+Each enterprise task has three independent, complete Claude Opus 5 attempts
+using OpenCode 1.18.13, the exact
+`amazon-bedrock/global.anthropic.claude-opus-5` route, and the same Daytona
+snapshot as its controls. A result counts only when its task checksum and full
+required-test set match the frozen package.
+
+| Task | Opus solves/3 | Required tests passed by each attempt |
+|---|---:|---|
+| `paigo-dimension-pricing-tiers` | 0/3 | 20/21, 17/21, 20/21 |
+| `paigo-top-up-billing-lifecycle` | 0/3 | 5/11, 5/11, 5/11 |
+| `paigo-s3-datastore-measurement` | 0/3 | 4/10, 4/10, 4/10 |
+| `paigo-customer-identity-migration` | 0/3 | 6/9, 6/9, 6/9 |
+| `paigo-customer-billing-schedule-migration` | 1/3 | 7/8, 7/8, 8/8 |
+| `champ-email-inbox-infrastructure` | 1/3 | 12/12, 9/12, 6/12 |
+| `finbit-bank-parser-consolidation` | 0/3 | 4/7, 4/7, 4/7 |
+| `finbit-google-cloud-storage-migration` | 0/3 | 4/7, 3/7, 4/7 |
+
+The aggregate is **2/24 solves (8.33% measured pass@1)**, with two of eight
+tasks solved at least once. This is harder than the approximate 50% Opus
+calibration target, but the misses are complete implementation attempts with
+specific behavioral failures, not verifier, build, or transport failures. The
+traces used 38–141 tool calls (median 96.5) and ran for 7m 12s–45m 37s. The 24
+selected trials cost **$210.26**. The conservative enterprise ledger records
+**$358.28** including exploratory and superseded-checksum runs, well below the
+$2,000 target and $3,000 hard ceiling.
+
+Exact Grok 4.5 and GPT-5.6 Sol denominators remain empty rather than using
+substitutes. Bedrock does not expose Grok 4.5, and no Daytona-accessible
+OpenRouter or xAI credential was available. GPT-5.6 Sol worked through Bedrock
+Mantle from the host, but Daytona reset both direct Mantle and authenticated
+relay connections; those zero-turn transport probes are excluded. An exact
+OpenRouter route available inside Daytona would unblock both requested model
+passes. Full per-attempt metrics and failure names are in
+`sample-run/enterprise-model-results.json`.
 
 ## Gates and measured results
 
