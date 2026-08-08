@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+import re
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -15,8 +17,25 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "sample-run" / "enterprise-raw"
 LEDGER = ROOT / "sample-run" / "enterprise-budget-ledger.jsonl"
 OUTPUT = ROOT / "sample-run" / "enterprise-model-results.json"
+PACKAGED = ROOT / "sample-run" / "enterprise-trials" / "opus5"
 ROUTE = "amazon-bedrock/global.anthropic.claude-opus-5"
 AGENT_VERSION = "1.18.13"
+SENSITIVE_ASSIGNMENT = re.compile(
+    r"(?im)^(\s*[A-Z_][A-Z0-9_.-]*(?:KEY|SECRET|PASSWORD|TOKEN|CREDENTIAL)"
+    r"[A-Z0-9_.-]*\s*=)[^\r\n]*"
+)
+SENSITIVE_TOKEN_PATTERNS = (
+    re.compile(r"sk-or-v1-[A-Za-z0-9_-]{20,}"),
+    re.compile(r"(?:AKIA|ASIA)[0-9A-Z]{16}"),
+    re.compile(r"AIza[0-9A-Za-z_-]{30,}"),
+    re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}"),
+    re.compile(r"(?i)Bearer\s+[A-Za-z0-9._~+/-]{20,}=*"),
+    re.compile(
+        r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----.*?"
+        r"-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+        re.DOTALL,
+    ),
+)
 OPUS_A01 = {
     "paigo-dimension-pricing-tiers": (
         "enterprise-opus-pricing-final-r1-opus5-bedrock-"
@@ -71,6 +90,23 @@ def parse_timestamp(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def redact_text(value: str) -> str:
+    redacted = SENSITIVE_ASSIGNMENT.sub(r"\1<REDACTED>", value)
+    for pattern in SENSITIVE_TOKEN_PATTERNS:
+        redacted = pattern.sub("<REDACTED>", redacted)
+    return redacted
+
+
+def redact_artifact(value: object) -> object:
+    if isinstance(value, dict):
+        return {key: redact_artifact(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [redact_artifact(item) for item in value]
+    if isinstance(value, str):
+        return redact_text(value)
+    return value
+
+
 def trial_dir_for_result(job_dir: Path, result: dict) -> Path:
     for result_path in sorted(job_dir.glob("*/result.json")):
         try:
@@ -80,6 +116,41 @@ def trial_dir_for_result(job_dir: Path, result: dict) -> Path:
         if candidate == result:
             return result_path.parent
     raise ValueError(f"could not locate selected result under {job_dir}")
+
+
+def package_artifacts(
+    task: str,
+    job: str,
+    trial_dir: Path,
+    result: dict,
+    trajectory: dict,
+    verifier: dict,
+) -> dict:
+    match = re.search(r"-a(\d+)$", job)
+    if match is None:
+        raise ValueError(f"job lacks attempt suffix: {job}")
+    destination = PACKAGED / task / f"attempt-{int(match.group(1)):02d}"
+    if destination.exists():
+        shutil.rmtree(destination)
+    destination.mkdir(parents=True)
+    artifacts = {
+        "trajectory": (destination / "trajectory.json", trajectory),
+        "result": (destination / "result.json", result),
+        "verifier_output": (destination / "verifier-output.json", verifier),
+    }
+    packaged = {}
+    for label, (path, artifact) in artifacts.items():
+        path.write_text(json.dumps(redact_artifact(artifact), indent=2) + "\n")
+        packaged[label] = str(path.relative_to(ROOT / "sample-run"))
+    verifier_stdout = trial_dir / "verifier" / "stdout.txt"
+    if verifier_stdout.is_file():
+        stdout_path = destination / "verifier-stdout.txt"
+        stdout_path.write_text(redact_text(verifier_stdout.read_text()))
+        packaged["verifier_stdout"] = str(stdout_path.relative_to(ROOT / "sample-run"))
+    packaged["artifact_redaction"] = (
+        "credential assignments, provider tokens, bearer tokens, and private keys redacted"
+    )
+    return packaged
 
 
 def collect_attempt(task: str, job: str) -> dict:
@@ -114,6 +185,7 @@ def collect_attempt(task: str, job: str) -> dict:
         for item in tests
         if item["name"] not in required and item["status"] != "passed"
     ]
+    packaged = package_artifacts(task, job, trial_dir, result, trajectory, verifier)
     return {
         "task": task,
         "job": job,
@@ -131,6 +203,7 @@ def collect_attempt(task: str, job: str) -> dict:
         "cache_tokens": agent_result.get("n_cache_tokens"),
         "output_tokens": agent_result.get("n_output_tokens"),
         "grading_provenance": "final task checksum; complete verifier output",
+        **packaged,
     }
 
 

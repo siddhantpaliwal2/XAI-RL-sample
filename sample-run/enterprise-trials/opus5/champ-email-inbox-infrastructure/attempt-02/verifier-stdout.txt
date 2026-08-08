@@ -1,0 +1,73 @@
+[31m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [31m  ERROR[39m [38;5;3m[EmailinfraService] [39m[31mEmail account missing not found in Smartlead[39m
+FAIL src/emailinfra/emailinfra.gold.spec.ts (9.071 s)
+  ● Email inbox infrastructure contract › persists the normalized email account in the dedicated collection
+
+    TypeError: account.save is not a function
+
+      154 |     });
+      155 |
+    > 156 |     await account.save(db);
+          |                   ^
+      157 |     expect(db.store).toHaveBeenCalledTimes(1);
+      158 |     const request = db.store.mock.calls[0][0];
+      159 |     expect(request.context.uniqueId).toBe('inbox-1');
+
+      at Object.<anonymous> (emailinfra/emailinfra.gold.spec.ts:156:19)
+
+  ● Email inbox infrastructure contract › deduplicates campaign associations and refuses partial id sets
+
+    expect(received).rejects.toBeInstanceOf()
+
+    Received promise resolved instead of rejected
+    Resolved to value: [{"campaignIds": ["campaign-1"], "email": "a@example.com", "smartleadClientId": undefined, "smartleadInboxId": "1", "tags": [], "updatedAt": "2026-08-08T06:48:59.993Z"}, {"campaignIds": ["campaign-1"], "email": "a@example.com", "smartleadClientId": undefined, "smartleadInboxId": "1", "tags": [], "updatedAt": "2026-08-08T06:48:59.993Z"}]
+
+      220 |     ]);
+      221 |     const partial = subject(partialDb).service;
+    > 222 |     await expect(
+          |           ^
+      223 |       partial.associateEmailAccountsWithCampaign({
+      224 |         emailAccountIds: ['1', 'missing'],
+      225 |         campaignId: 'campaign-1',
+
+      at expect (../node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (emailinfra/emailinfra.gold.spec.ts:222:11)
+
+  ● Email inbox infrastructure contract › skips existing campaign links and persists each new association once
+
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+
+    Expected number of calls: 1
+    Received number of calls: 0
+
+      245 |     });
+      246 |
+    > 247 |     expect(db.store).toHaveBeenCalledTimes(1);
+          |                      ^
+      248 |     expect(db.store.mock.calls[0][0].data).toEqual(
+      249 |       expect.objectContaining({
+      250 |         id: '2',
+
+      at Object.<anonymous> (emailinfra/emailinfra.gold.spec.ts:247:22)
+
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailinfraService] [39m[32mAssociating email accounts 1, 2 with campaign campaign-1[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailInfraEntity] [39m[32mSaving email account a@example.com (1)[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailInfraEntity] [39m[32mSaving email account a@example.com (1)[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailinfraService] [39m[32mAssociating email accounts 1, missing with campaign campaign-1[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailInfraEntity] [39m[32mSaving email account a@example.com (1)[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailInfraEntity] [39m[32mSaving email account a@example.com (1)[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailinfraService] [39m[32mAssociating email accounts 1, 2 with campaign campaign-1[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailInfraEntity] [39m[32mEmail account 1 is already associated with campaign campaign-1[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailInfraEntity] [39m[32mEmail account 1 is already associated with campaign campaign-1[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailinfraService] [39m[32mCampaign campaign-1 needs 3 inboxes to send 650 emails over 10 days for client client-1[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailinfraService] [39m[32mSelected 3 of 5 inboxes for campaign campaign-1[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailinfraService] [39m[32mCampaign campaign-1 needs 3 inboxes to send 650 emails over 10 days for client client-1[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailinfraService] [39m[32mSelected 3 of 5 inboxes for campaign campaign-1[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailInfraEntity] [39m[32mSaving email account owner@example.com (inbox-1)[39m
+[32m[Nest] 4443  - [39m08/08/2026, 6:48:59 AM [32m    LOG[39m [38;5;3m[EmailInfraEntity] [39m[32mDeleting email account inbox-1[39m
+PASS src/email-reply-agent/entities/entity.spec.ts
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       3 failed, 9 passed, 12 total
+Snapshots:   0 total
+Time:        9.166 s
+Test results written to: ../tmp/jest-unit.json

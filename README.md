@@ -132,7 +132,9 @@ Mantle from the host, but Daytona reset both direct Mantle and authenticated
 relay connections; those zero-turn transport probes are excluded. An exact
 OpenRouter route available inside Daytona would unblock both requested model
 passes. Full per-attempt metrics and failure names are in
-`sample-run/enterprise-model-results.json`.
+`sample-run/enterprise-model-results.json`; each selected row links to its
+sanitized full trajectory, result, verifier output, and verifier stdout under
+`sample-run/enterprise-trials/`.
 
 ## Gates and measured results
 

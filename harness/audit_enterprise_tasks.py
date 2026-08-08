@@ -276,6 +276,9 @@ def secret_findings(task_names: list[str]) -> list[dict]:
         ROOT / "authoring",
         ROOT / "gold-tests",
         ROOT / "harness",
+        ROOT / "sample-run" / "enterprise-controls-summary.json",
+        ROOT / "sample-run" / "enterprise-model-results.json",
+        ROOT / "sample-run" / "enterprise-trials",
         *(ROOT / "tasks" / task for task in task_names),
     ]
     findings = []

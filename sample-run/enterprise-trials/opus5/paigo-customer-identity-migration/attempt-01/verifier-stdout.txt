@@ -1,0 +1,74 @@
+ts-jest[backports] (WARN) "[jest-config].globals.ts-jest.tsConfig" is deprecated, use "[jest-config].globals.ts-jest.tsconfig" instead.
+ts-jest[backports] (WARN) Your Jest configuration is outdated. Use the CLI to help migrating it: ts-jest config:migrate <config-file>.
+FAIL src/customer/customerIdentityMigration.gold.spec.ts
+  ● Customer identity migration › queries usage through the customer offering and preserves time and interval overrides
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [TypeError: this.customerService.findOne is not a function]
+
+       98 |             {} as any,
+       99 |         );
+    > 100 |         await expect(
+          |               ^
+      101 |             service.findUsageForCustomer(
+      102 |                 { customerId: 'customer-1', businessID: 'business-1' },
+      103 |                 {
+
+      at expect (../node_modules/@jest/expect/node_modules/expect/build/index.js:128:15)
+      at Object.<anonymous> (customer/customerIdentityMigration.gold.spec.ts:100:15)
+
+  ● Customer identity migration › returns customer reads with invoices and the hydrated offering
+
+    TypeError: this.offeringService.findOne is not a function
+
+      68 |             const {
+      69 |                 data: [offering],
+    > 70 |             } = await this.offeringService.findOne({ businessID, offeringId });
+         |                                            ^
+      71 |             return offering ? offering : null;
+      72 |         } catch (e) {
+      73 |             if (e instanceof NotFoundException) {
+
+      at CustomerService.findOfferingForCustomer (customer/customer.service.ts:70:44)
+      at CustomerService.findOne (customer/customer.service.ts:117:41)
+      at Object.<anonymous> (customer/customerIdentityMigration.gold.spec.ts:138:24)
+
+  ● Customer identity migration › wraps customer usage results without changing their records
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [TypeError: this.usageService.findUsageForCustomer is not a function]
+
+      178 |             { findUsageForCustomer: jest.fn(async () => usage) } as any,
+      179 |         );
+    > 180 |         await expect(
+          |               ^
+      181 |             service.findUsageForCustomer(
+      182 |                 { customerId: 'customer-1', businessID: 'business-1' },
+      183 |                 { aggregationInterval: 'day' } as any,
+
+      at expect (../node_modules/@jest/expect/node_modules/expect/build/index.js:128:15)
+      at Object.<anonymous> (customer/customerIdentityMigration.gold.spec.ts:180:15)
+
+[32m[Nest] 6103  - [39m08/08/2026, 6:01:50 AM [32m    LOG[39m [38;5;3m[CustomerService] [39m[32mFinding saasClientID: customer-1 for business-1[39m
+[32m[Nest] 6103  - [39m08/08/2026, 6:01:50 AM [32m    LOG[39m [38;5;3m[CustomerService] [39m[32mFinding invoices for customer customer-1 of business business-1[39m
+[95m[Nest] 6103  - [39m08/08/2026, 6:01:50 AM [95m  DEBUG[39m [38;5;3m[CustomerService] [39m[95m[][39m
+[32m[Nest] 6103  - [39m08/08/2026, 6:01:50 AM [32m    LOG[39m [38;5;3m[OfferingService] [39m[32mAttempting to delete offering: offering-1 for business-1[39m
+[32m[Nest] 6103  - [39m08/08/2026, 6:01:50 AM [32m    LOG[39m [38;5;3m[CustomerService] [39m[32mGetting Usage for a customer[39m
+[32m[Nest] 6103  - [39m08/08/2026, 6:01:50 AM [32m    LOG[39m [38;5;3m[CustomerService] [39m[32mObject:[39m
+{
+  "businessID": "business-1",
+  "customerId": "customer-1"
+}
+
+PASS src/measurement-config/measurementConfigControllerHistorical.gold.spec.ts
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       3 failed, 6 passed, 9 total
+Snapshots:   0 total
+Time:        2.044 s
+Test results written to: ../tmp/jest-unit.json
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

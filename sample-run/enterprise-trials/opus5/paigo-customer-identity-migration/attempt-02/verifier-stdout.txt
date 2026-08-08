@@ -1,0 +1,97 @@
+ts-jest[backports] (WARN) "[jest-config].globals.ts-jest.tsConfig" is deprecated, use "[jest-config].globals.ts-jest.tsconfig" instead.
+ts-jest[backports] (WARN) Your Jest configuration is outdated. Use the CLI to help migrating it: ts-jest config:migrate <config-file>.
+[31m[Nest] 9785  - [39m08/08/2026, 6:52:18 AM [31m  ERROR[39m [38;5;3m[CustomerService] [39m[31mCould not hydrate offering: offering-1 for business: business-1[39m
+[31m[Nest] 9785  - [39m08/08/2026, 6:52:18 AM [31m  ERROR[39m [38;5;3m[CustomerService] [39m[31mTypeError: this.offeringService.findOne is not a function[39m
+FAIL src/customer/customerIdentityMigration.gold.spec.ts
+  ● Customer identity migration › queries usage through the customer offering and preserves time and interval overrides
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [TypeError: this.customerService.findOne is not a function]
+
+       98 |             {} as any,
+       99 |         );
+    > 100 |         await expect(
+          |               ^
+      101 |             service.findUsageForCustomer(
+      102 |                 { customerId: 'customer-1', businessID: 'business-1' },
+      103 |                 {
+
+      at expect (../node_modules/@jest/expect/node_modules/expect/build/index.js:128:15)
+      at Object.<anonymous> (customer/customerIdentityMigration.gold.spec.ts:100:15)
+
+  ● Customer identity migration › returns customer reads with invoices and the hydrated offering
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  -  4
+    + Received  + 11
+
+    - ObjectContaining {
+    + ReadCustomerResponseData {
+    +   "address": Object {},
+    +   "businessID": undefined,
+        "customerId": "customer-1",
+    +   "customerName": "Acme",
+    +   "customerVatId": undefined,
+    +   "email": "",
+        "invoices": Array [],
+    -   "offering": ObjectContaining {
+    +   "offering": null,
+        "offeringId": "offering-1",
+    -   },
+    -   "offeringId": "offering-1",
+    +   "paymentChannel": "manual",
+    +   "paymentChannelOptions": Object {},
+    +   "softDelete": undefined,
+    +   "taxExempt": "none",
+      }
+
+      137 |         const service = new CustomerService(influx as any, {} as any, {} as any, offering as any, {} as any);
+      138 |         const result = await service.findOne({ customerId: 'customer-1', businessID: 'business-1' });
+    > 139 |         expect(result.data[0]).toEqual(
+          |                                ^
+      140 |             expect.objectContaining({
+      141 |                 customerId: 'customer-1',
+      142 |                 offeringId: 'offering-1',
+
+      at Object.<anonymous> (customer/customerIdentityMigration.gold.spec.ts:139:32)
+
+  ● Customer identity migration › wraps customer usage results without changing their records
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [TypeError: this.usageService.findUsageForCustomer is not a function]
+
+      178 |             { findUsageForCustomer: jest.fn(async () => usage) } as any,
+      179 |         );
+    > 180 |         await expect(
+          |               ^
+      181 |             service.findUsageForCustomer(
+      182 |                 { customerId: 'customer-1', businessID: 'business-1' },
+      183 |                 { aggregationInterval: 'day' } as any,
+
+      at expect (../node_modules/@jest/expect/node_modules/expect/build/index.js:128:15)
+      at Object.<anonymous> (customer/customerIdentityMigration.gold.spec.ts:180:15)
+
+[32m[Nest] 9785  - [39m08/08/2026, 6:52:18 AM [32m    LOG[39m [38;5;3m[CustomerService] [39m[32mFinding saasClientID: customer-1 for business-1[39m
+[32m[Nest] 9785  - [39m08/08/2026, 6:52:18 AM [32m    LOG[39m [38;5;3m[CustomerService] [39m[32mFinding invoices for customer customer-1 of business business-1[39m
+[95m[Nest] 9785  - [39m08/08/2026, 6:52:18 AM [95m  DEBUG[39m [38;5;3m[CustomerService] [39m[95m[][39m
+[32m[Nest] 9785  - [39m08/08/2026, 6:52:18 AM [32m    LOG[39m [38;5;3m[OfferingService] [39m[32mAttempting to delete offering: offering-1 for business-1[39m
+[32m[Nest] 9785  - [39m08/08/2026, 6:52:18 AM [32m    LOG[39m [38;5;3m[CustomerService] [39m[32mGetting Usage for a customer[39m
+[32m[Nest] 9785  - [39m08/08/2026, 6:52:18 AM [32m    LOG[39m [38;5;3m[CustomerService] [39m[32mObject:[39m
+{
+  "businessID": "business-1",
+  "customerId": "customer-1"
+}
+
+PASS src/measurement-config/measurementConfigControllerHistorical.gold.spec.ts
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       3 failed, 6 passed, 9 total
+Snapshots:   0 total
+Time:        2.041 s
+Test results written to: ../tmp/jest-unit.json
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
