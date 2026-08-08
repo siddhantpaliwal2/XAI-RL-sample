@@ -1,11 +1,10 @@
 # Substrate Repositories
 
-The task bank was built on four real, private production codebases (two
-Python, two Java), all from the fintech-lending domain. Each was frozen into a
-pinned Docker base image (`<name>-repo:v1`) that contains the working tree with
-dependencies installed and any required dummy env baked in; every task's
-`environment/Dockerfile` starts `FROM` one of these images and plants that
-task's defects on top.
+The original task bank was built on four real, private production codebases
+(two Python, two Java) from the fintech-lending domain. The historical
+enterprise extension adds Paigo, Champ, and Finbit substrates in TypeScript
+and Groovy. Every environment is pinned to an immutable base commit and sealed
+without usable Git history; hidden tests arrive only at grading time.
 
 A lesson encoded in this selection: **substrate size is the difficulty
 lever.** Candidate tasks built on small repos (200–900 LOC, one or two files)
@@ -92,6 +91,42 @@ systems.
   API representation and persistence. A complete implementation cannot be
   reduced to grepping for a handful of nearby boundary defects.
 
+## paigo-backend - five historical snapshots
+
+- **Language / stack:** TypeScript, NestJS, TypeORM, Jest.
+- **Domain:** usage metering and billing, offering/customer ownership,
+  scheduled invoicing, wallets, and cloud usage ingestion.
+- **Tasks built on it (5):** dimension pricing tiers, top-up billing,
+  S3-backed measurements, customer identity migration, and customer billing
+  schedules.
+- **Environment notes:** each task uses its own exact pre-change commit. Node
+  dependencies are preinstalled in the Daytona snapshot, Git history is
+  collapsed, and only unit tests run during grading.
+
+## Champ state-machine - one historical snapshot
+
+- **Language / stack:** TypeScript, Jest, document-database repositories.
+- **Domain:** managed email inboxes, campaign associations, deliverability,
+  reputation, ranking, and Smartlead lifecycle integration.
+- **Task built on it (1):** `champ-email-inbox-infrastructure`.
+- **Environment notes:** external providers are mocked at their existing
+  repository/service boundaries; no live email or Smartlead calls occur.
+
+## Finbit fin360 - two source-minimized historical snapshots
+
+- **Language / stack:** Groovy, Grails 2.3.11, Java 8.
+- **Domain:** heterogeneous bank-statement parsing and multi-backend document
+  storage.
+- **Tasks built on it (2):** bank parser consolidation and Google Cloud
+  Storage migration.
+- **Environment notes:** these are deliberately not full repository exports.
+  The parser snapshot contains only required production parser/service code
+  and pinned jars. The cloud snapshot contains 23 allowlisted files. Real
+  statements, test-data directories, service-account JSON, unrelated config,
+  and the historical credential-bearing transfer script are excluded. The
+  verifiers compile the actual production classes against synthetic fixtures
+  and minimal deterministic boundary stubs.
+
 ---
 
 ## Common properties
@@ -100,11 +135,10 @@ systems.
   task images scrub git history down to a single synthetic commit so agents
   cannot diff their way to the defects. No task needs network access, real
   credentials, or external services at solve or grade time.
-- **Green under their own tests.** Every planted defect is invisible to the
-  repo's existing test suite - that is the "latent" property. Only the gold
-  boundary tests (injected at grade time from `tests/config.json`) expose
-  them.
-- **Private substrate.** These are private codebases; the base images are
-  distributed directly rather than rebuilt from source. To run the tasks you
-  need the four `*-repo:v1` images present locally (`docker images | grep
-  repo:v1`).
+- **Green or historically pre-feature.** Latent tasks begin from green code
+  with planted boundary defects. Historical tasks begin at the real parent
+  commit before a feature or migration. Both use gold tests injected from
+  `tests/config.json` only at grade time.
+- **Private substrate.** Base images and Daytona snapshots are distributed
+  separately from this task repository. Publishing generated source patches
+  still requires the source owner's authorization.

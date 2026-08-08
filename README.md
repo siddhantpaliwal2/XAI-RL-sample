@@ -1,10 +1,10 @@
 # Coding RL from Enterprise Codebases
 
-Eight fail-to-pass debugging tasks and one long-horizon feature migration,
-all mined from real production fintech codebases in Python and Java. The eight
-debugging tasks plant latent single-token boundary defects into otherwise
-working repos; the migration condenses a real 62-commit native PDF extraction
-branch into one scoped task. Agents receive only the repository and an
+Eight fail-to-pass debugging tasks, one long-horizon feature migration, and
+eight historical enterprise tasks mined from real production codebases in
+Python, Java, TypeScript, and Groovy. The original debugging tasks plant latent
+boundary defects; the migrations and features preserve real base commits and
+historical multi-file changes. Agents receive only the repository and an
 engineering ticket, while gold tests enter the sandbox only at grade time.
 
 This XAI evaluation package includes the 80-attempt Grok 4.5 debugging pass,
@@ -43,7 +43,7 @@ A task rewards 1 only when **every** `fail_to_pass` and `pass_to_pass` test
 passes - partial fixes score 0.
 
 For convenience, `instructions/` holds a readable copy of every task's
-`instruction.md` (one file per task) so the nine agent-facing prompts can be
+`instruction.md` (one file per task) so the agent-facing prompts can be
 skimmed side by side, and `gold-tests/` holds the extracted source of every
 task's hidden gold test suite (the exact code the verifier runs). The canonical
 copies remain `tasks/<name>/instruction.md` and the `test_patch` field inside
@@ -55,6 +55,47 @@ planted defects. The fifth (a personal-financial-statement scan floor) is
 planted and reversed by the oracle, but no graded test distinguishes it - an
 agent that fixes the four gated boundaries scores 1 whether or not it also
 finds that one. Every other task gates all five of its defects.
+
+## Historical enterprise task set
+
+The 2026 enterprise extension adds eight repository-scale tasks from Paigo,
+Champ, and Finbit. Unlike the latent tasks, these do not plant synthetic bugs:
+each task starts at the exact parent commit of a real feature or migration and
+uses a filtered historical change as its solvability oracle. Prompts state
+behavioral contracts without commit messages, ticket IDs, file lists, or
+implementation hints.
+
+| Task | Change family | Oracle files | Changed LOC | Hidden F2P / P2P |
+|---|---|---:|---:|---:|
+| `paigo-dimension-pricing-tiers` | tiered billing | 12 | 512 | 12 / 3 |
+| `paigo-top-up-billing-lifecycle` | wallet and billing lifecycle | 28 | 1,450 | 9 / 2 |
+| `paigo-s3-datastore-measurement` | AWS usage ingestion | 17 | 1,809 | 9 / 1 |
+| `paigo-customer-identity-migration` | ownership-model migration | 44 | 1,823 | 8 / 1 |
+| `paigo-customer-billing-schedule-migration` | billing-schedule migration | 23 | 343 | 6 / 2 |
+| `champ-email-inbox-infrastructure` | email-infrastructure feature | 16 | 846 | 10 / 2 |
+| `finbit-bank-parser-consolidation` | parser consolidation | 20 | 1,134 | 5 / 2 |
+| `finbit-google-cloud-storage-migration` | cloud-storage migration | 4 | 70 | 5 / 2 |
+
+Every package clears the two mandatory mechanical gates in an independent
+Daytona sandbox: untouched base reward 0, historical oracle reward 1, and zero
+control exceptions. The selected job IDs and patch statistics are recorded in
+`sample-run/enterprise-controls-summary.json`; rerun the complete boundary,
+control, and credential audit with:
+
+```sh
+python3 harness/audit_enterprise_tasks.py
+```
+
+Enterprise hidden tests are collision-safe: verifier patches only add reserved
+`*.gold.spec.ts` or `xai-tests/` files. They never modify a candidate-visible
+test file, so an agent remains free to add or update its own conventional tests.
+
+The Finbit snapshots are deliberately source-minimized. The parser task carries
+only the production parser/service subset needed by the task. The cloud task
+contains 23 allowlisted files. Service-account JSON, statement fixtures,
+customer data, unrelated configuration, and the historical credential-bearing
+transfer script are absent from snapshots, oracle patches, and verifier data.
+All verifier fixtures are synthetic.
 
 ## Gates and measured results
 
