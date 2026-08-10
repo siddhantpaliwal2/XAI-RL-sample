@@ -7,8 +7,9 @@
   - [Enterprise long-horizon track: three tasks](#enterprise-long-horizon-track-three-tasks)
   - [Separate native-table difficulty control](#separate-native-table-difficulty-control)
 - [Headline result](#headline-result)
-- [Eight latent-defect debugging tasks](#eight-latent-defect-debugging-tasks)
-  - [Turn, tool, and wall-clock profile](#turn-tool-and-wall-clock-profile)
+  - [Enterprise long-horizon tasks](#enterprise-long-horizon-tasks)
+  - [Bug-injection debugging tasks](#bug-injection-debugging-tasks)
+    - [Turn, tool, and wall-clock profile](#turn-tool-and-wall-clock-profile)
 - [Long-horizon definition and evaluation bar](#long-horizon-definition-and-evaluation-bar)
 - [Long-horizon capability-gap results](#long-horizon-capability-gap-results)
   - [Pass@k results](#passk-results)
@@ -82,6 +83,8 @@ difficulty rather than a Grok-specific gap.
 
 ## Headline result
 
+### Enterprise long-horizon tasks
+
 The strongest capability separation appears on the three new long-horizon
 tasks. Across 29 required behavioral checks, Grok solves **0/24** attempts while
 Opus solves **19/24**.
@@ -114,7 +117,7 @@ API precision. A task-level 0/8 estimate still has a 95% Wilson interval of
 0–32.4%, so the claim rests on the complete eight-attempt evidence and the
 comparator result rather than the point estimate alone.
 
-## Eight latent-defect debugging tasks
+### Bug-injection debugging tasks
 
 On the eight latent-defect debugging tasks, Grok solved **21/80 attempts** for
 a macro mean **pass@1 of 0.2625**, **pass@3 of 0.3833**, and **pass@10 of
@@ -144,7 +147,7 @@ leader: Opus 5 is both more repeatable and more broadly capable than either.
 | Claude Opus 4.8 | 8/79 | 0.100 | 0.244 | 0.375 | 3/8 |
 | Nova Premier | 0/80 | 0.000 | 0.000 | 0.000 | 0/8 |
 
-### Turn, tool, and wall-clock profile
+#### Turn, tool, and wall-clock profile
 
 The packaged artifacts retain enough timing and trajectory metadata to measure
 the run directly. A **model turn** here is an agent-sourced OpenCode trajectory
