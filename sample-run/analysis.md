@@ -9,7 +9,8 @@
 - [Headline result](#headline-result)
   - [Enterprise long-horizon tasks](#enterprise-long-horizon-tasks)
   - [Bug-injection debugging tasks](#bug-injection-debugging-tasks)
-    - [Turn, tool, and wall-clock profile](#turn-tool-and-wall-clock-profile)
+- [Bug-injection debugging analysis](#bug-injection-debugging-analysis)
+  - [Turn, tool, and wall-clock profile](#turn-tool-and-wall-clock-profile)
 - [Long-horizon definition and evaluation bar](#long-horizon-definition-and-evaluation-bar)
 - [Long-horizon capability-gap results](#long-horizon-capability-gap-results)
   - [Pass@k results](#passk-results)
@@ -108,44 +109,22 @@ unweighted macro mean of the three task-level estimators, not a pooled
 24-attempt estimator. At n=8, pass@8 is task coverage: it is 1 for any cell
 with at least one solve and 0 for a zero-solve cell.
 
-The learnability criterion accepts tasks where Grok solves one to six of eight
-attempts, or where Grok solves zero and a comparable model completes the task.
-All three qualify through the comparator-completion path. Opus's repeated
-success establishes solvability, while Grok's near-miss traces isolate distinct
-gaps in requirement retention, state-machine composition, and cross-boundary
-API precision. A task-level 0/8 estimate still has a 95% Wilson interval of
-0–32.4%, so the claim rests on the complete eight-attempt evidence and the
-comparator result rather than the point estimate alone.
-
-The same cohort's measured effort is shown below. Agent time excludes sandbox
-setup and grading; trial time includes those phases and remote
-scheduling/provider latency.
-
-| Model | Task | Turns, mean | Tool calls, mean | Agent time, median (range) | Trial time, range |
-|---|---|---:|---:|---:|---:|
-| Grok | Billing | 17.3 | 64.4 | 2.9m (2.8–3.7m) | 3.3m–25.3m |
-| Opus | Billing | 62.3 | 67.1 | 10.5m (7.9–12.2m) | 8.7m–22.8m |
-| Grok | Top-up | 54.6 | 161.4 | 13.6m (10.6–19.2m) | 12.0m–58.6m |
-| Opus | Top-up | 149.9 | 149.6 | 27.5m (21.6–40.2m) | 22.2m–59.7m |
-| Grok | S3 | 22.1 | 74.0 | 5.7m (5.2–18.4m) | 5.8m–18.9m |
-| Opus | S3 | 109.0 | 111.5 | 25.1m (19.7–36.3m) | 20.3m–37.6m |
-
 ### Bug-injection debugging tasks
 
 On the eight latent-defect debugging tasks, Grok solved **21/80 attempts** for
 a macro mean **pass@1 of 0.2625**, **pass@3 of 0.3833**, and **pass@10 of
 0.5000**. Its task-level result is:
 
-| Task | c/n | pass@1 | pass@3 | pass@10 | Mean f2p passed |
-|---|---:|---:|---:|---:|---:|
-| credit-normalize | 8/10 | 0.800 | 1.000 | 1.000 | 4.8/5 |
-| doc-extractors | 0/10 | 0.000 | 0.000 | 0.000 | 4.0/4 |
-| financial-tools | 0/10 | 0.000 | 0.000 | 0.000 | 8.0/9 |
-| phone-invites | 9/10 | 0.900 | 1.000 | 1.000 | 4.9/5 |
-| fiu | 2/10 | 0.200 | 0.533 | 1.000 | 3.7/5 |
-| txenrich | 2/10 | 0.200 | 0.533 | 1.000 | 4.4/5 |
-| txenrich3 | 0/10 | 0.000 | 0.000 | 0.000 | 3.2/5 |
-| txenrich4 | 0/10 | 0.000 | 0.000 | 0.000 | 2.6/5 |
+| Task | c/n | pass@1 | pass@3 | pass@10 |
+|---|---:|---:|---:|---:|
+| credit-normalize | 8/10 | 0.800 | 1.000 | 1.000 |
+| doc-extractors | 0/10 | 0.000 | 0.000 | 0.000 |
+| financial-tools | 0/10 | 0.000 | 0.000 | 0.000 |
+| phone-invites | 9/10 | 0.900 | 1.000 | 1.000 |
+| fiu | 2/10 | 0.200 | 0.533 | 1.000 |
+| txenrich | 2/10 | 0.200 | 0.533 | 1.000 |
+| txenrich3 | 0/10 | 0.000 | 0.000 | 0.000 |
+| txenrich4 | 0/10 | 0.000 | 0.000 | 0.000 |
 
 The apparent tension between the three means is the main Grok result. Grok's
 solves are concentrated in four tasks, while GPT-5.6 Sol solves fewer attempts
@@ -160,7 +139,9 @@ leader: Opus 5 is both more repeatable and more broadly capable than either.
 | Claude Opus 4.8 | 8/79 | 0.100 | 0.244 | 0.375 | 3/8 |
 | Nova Premier | 0/80 | 0.000 | 0.000 | 0.000 | 0/8 |
 
-#### Turn, tool, and wall-clock profile
+## Bug-injection debugging analysis
+
+### Turn, tool, and wall-clock profile
 
 The packaged artifacts retain enough timing and trajectory metadata to measure
 the run directly. A **model turn** here is an agent-sourced OpenCode trajectory
