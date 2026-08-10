@@ -54,14 +54,27 @@ frontier difficulty rather than a Grok-specific gap.
 ## Headline result
 
 The strongest capability separation appears on the three new long-horizon
-tasks. Grok solves **0/24** attempts while Opus solves **19/24**:
+tasks. Across 29 required behavioral checks, Grok solves **0/24** attempts while
+Opus solves **19/24**.
 
-| Task | Required checks | Grok 4.5 | Claude Opus 5 | Opus minus Grok | Learnability result |
-|---|---:|---:|---:|---:|---|
-| Customer billing-schedule migration | 8 | 0/8 | 7/8 | +87.5 pp | qualifies |
-| Top-up billing lifecycle | 11 | 0/8 | 7/8 | +87.5 pp | qualifies |
-| S3 datastore measurement | 10 | 0/8 | 5/8 | +62.5 pp | qualifies |
-| **Total** | **29** | **0/24** | **19/24** | **+79.2 pp** | **3/3 qualify** |
+Using the unbiased estimator `1 − C(n−c, k) / C(n, k)`, the largest supported
+`k` is 8 because each task/model cell has eight valid attempts:
+
+| Task | Required checks | Model | c/n | pass@1 | pass@3 | pass@8 |
+|---|---:|---|---:|---:|---:|---:|
+| Customer billing-schedule migration | 8 | Grok 4.5 | 0/8 | 0.0000 | 0.0000 | 0.0000 |
+| Customer billing-schedule migration | 8 | Claude Opus 5 | 7/8 | 0.8750 | 1.0000 | 1.0000 |
+| Top-up billing lifecycle | 11 | Grok 4.5 | 0/8 | 0.0000 | 0.0000 | 0.0000 |
+| Top-up billing lifecycle | 11 | Claude Opus 5 | 7/8 | 0.8750 | 1.0000 | 1.0000 |
+| S3 datastore measurement | 10 | Grok 4.5 | 0/8 | 0.0000 | 0.0000 | 0.0000 |
+| S3 datastore measurement | 10 | Claude Opus 5 | 5/8 | 0.6250 | 0.9821 | 1.0000 |
+| **Macro mean** | — | **Grok 4.5** | **0/24** | **0.0000** | **0.0000** | **0.0000** |
+| **Macro mean** | — | **Claude Opus 5** | **19/24** | **0.7917** | **0.9940** | **1.0000** |
+
+The summary c/n values are sums across task cells; the pass@k summary is the
+unweighted macro mean of the three task-level estimators, not a pooled
+24-attempt estimator. At n=8, pass@8 is task coverage: it is 1 for any cell
+with at least one solve and 0 for a zero-solve cell.
 
 The learnability criterion accepts tasks where Grok solves one to six of eight
 attempts, or where Grok solves zero and a comparable model completes the task.
