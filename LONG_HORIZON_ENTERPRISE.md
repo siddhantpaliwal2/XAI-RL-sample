@@ -36,17 +36,11 @@ validation, scheduler, queue, billing, AWS, or failure-recovery boundaries.
 Their source evidence spans multiple engineering days, and the evaluated agents
 used up to 168 model turns and 40 minutes of agent execution on one attempt.
 
-| Task | Packaged oracle | Historical evidence | Original developers | Human estimate | Coupled surface |
-|---|---:|---|---:|---:|---|
-| Billing schedule | 23 files / 343 LOC | 56 files, +1,447/-855 over 4 days | 2 | 3 days | customer enrollment, invoice periods, ledger, queues, empty usage |
-| Top-up lifecycle | 28 files / 1,450 LOC | 35 files, +1,569/-325; 21 commits over 6 days; 18.5 ticket days | 1 | 3 days | DTO/entity/persistence, hourly scheduling, wallet credit, invoice and overdraft ordering |
-| S3 measurement | 17 files / 1,809 LOC | four PRs over 3 days; 17.8 ticket days | 1 | 5 days | nested configuration, IAM trust/policy, persistence, connector routing, mirrored DLQ writes |
-
-Original-developer counts are unique human commit authors, after normalizing
-author aliases, in each task's cited source PR/commit set. The count excludes
-bots, reviewers without commits, merge-only aliases, and unrelated mainline
-work. It measures implementation contributors, not total people involved in
-planning, review, or QA.
+| Task | Packaged oracle | Historical evidence | Human estimate | Coupled surface |
+|---|---:|---|---:|---|
+| Billing schedule | 23 files / 343 LOC | 56 files, +1,447/-855 over 4 days | 3 days | customer enrollment, invoice periods, ledger, queues, empty usage |
+| Top-up lifecycle | 28 files / 1,450 LOC | 35 files, +1,569/-325; 21 commits over 6 days; 18.5 ticket days | 3 days | DTO/entity/persistence, hourly scheduling, wallet credit, invoice and overdraft ordering |
+| S3 measurement | 17 files / 1,809 LOC | four PRs over 3 days; 17.8 ticket days | 5 days | nested configuration, IAM trust/policy, persistence, connector routing, mirrored DLQ writes |
 
 The S3 changed-LOC figure includes a dependency lockfile, which is why file
 count, behavioral boundaries, engineering history, agent turns, and wall time
