@@ -99,42 +99,56 @@ All verifier fixtures are synthetic.
 
 ### Enterprise calibration results
 
-Each enterprise task has three independent, complete Claude Opus 5 attempts
-using OpenCode 1.18.13, the exact
-`amazon-bedrock/global.anthropic.claude-opus-5` route, and the same Daytona
-snapshot as its controls. A result counts only when its task checksum and full
-required-test set match the frozen package.
+The enterprise runner now has a historical frontier matrix plus a separate
+fairness checkpoint for three Paigo tasks whose first hidden tests encoded
+oracle-specific assumptions. A result enters the denominator only when the
+requested model produces complete, scoreable verifier output on the stated
+task checksum. Provider failures and silent partial output are excluded.
 
-| Task | Opus solves/3 | Required tests passed by each attempt |
-|---|---:|---|
-| `paigo-dimension-pricing-tiers` | 0/3 | 20/21, 17/21, 20/21 |
-| `paigo-top-up-billing-lifecycle` | 0/3 | 5/11, 5/11, 5/11 |
-| `paigo-s3-datastore-measurement` | 0/3 | 4/10, 4/10, 4/10 |
-| `paigo-customer-identity-migration` | 0/3 | 6/9, 6/9, 6/9 |
-| `paigo-customer-billing-schedule-migration` | 1/3 | 7/8, 7/8, 8/8 |
-| `champ-email-inbox-infrastructure` | 1/3 | 12/12, 9/12, 6/12 |
-| `finbit-bank-parser-consolidation` | 0/3 | 4/7, 4/7, 4/7 |
-| `finbit-google-cloud-storage-migration` | 0/3 | 4/7, 3/7, 4/7 |
+The historical matrix predates the repaired checksums for top-up billing, S3
+datastore measurement, and customer identity. It remains useful diagnostic
+evidence, but it is not current-checksum qualification evidence for those three
+tasks.
 
-The aggregate is **2/24 solves (8.33% measured pass@1)**, with two of eight
-tasks solved at least once. This is harder than the approximate 50% Opus
-calibration target, but the misses are complete implementation attempts with
-specific behavioral failures, not verifier, build, or transport failures. The
-traces used 38–141 tool calls (median 96.5) and ran for 7m 12s–45m 37s. The 24
-selected trials cost **$210.26**. The conservative enterprise ledger records
-**$358.28** including exploratory and superseded-checksum runs, well below the
-$2,000 target and $3,000 hard ceiling.
+| Task | Opus 5 | Grok 4.5 | GPT-5.6 Sol |
+|---|---:|---:|---:|
+| `paigo-dimension-pricing-tiers` | 7/8 | 2/3 | 1/2 |
+| `paigo-top-up-billing-lifecycle` | 0/8 | 0/3 | 0/2 |
+| `paigo-s3-datastore-measurement` | 0/8 | 0/2 | 0/1 |
+| `paigo-customer-identity-migration` | 0/8 | 0/2 | 0/2 |
+| `paigo-customer-billing-schedule-migration` | 4/8 | 0/8 | 0/8 |
+| `champ-email-inbox-infrastructure` | 1/8 | 0/8 | 0/8 |
+| `finbit-bank-parser-consolidation` | 0/8 | 1/2 | 0/3 |
+| `finbit-google-cloud-storage-migration` | 3/8 | 0/3 | 0/1 |
+| **Total valid** | **15/64** | **3/31** | **1/27** |
 
-Exact Grok 4.5 and GPT-5.6 Sol denominators remain empty rather than using
-substitutes. Bedrock does not expose Grok 4.5, and no Daytona-accessible
-OpenRouter or xAI credential was available. GPT-5.6 Sol worked through Bedrock
-Mantle from the host, but Daytona reset both direct Mantle and authenticated
-relay connections; those zero-turn transport probes are excluded. An exact
-OpenRouter route available inside Daytona would unblock both requested model
-passes. Full per-attempt metrics and failure names are in
-`sample-run/enterprise-model-results.json`; each selected row links to its
-sanitized full trajectory, result, verifier output, and verifier stdout under
-`sample-run/enterprise-trials/`.
+Grok launched 43 jobs and GPT-5.6 Sol launched 42, but only 31 and 27
+respectively produced valid verifier outcomes. The smaller denominators are
+intentional: transport, credit, and incomplete-output failures are not model
+failures.
+
+The repaired tasks each cleared fresh Daytona controls before model spend:
+untouched base reward 0, historical oracle reward 1, and zero exceptions. Four
+fresh Opus 5 attempts then measured the effect of the verifier repairs.
+
+| Repaired task | Historical Opus | Corrected Opus | Required tests by attempt | Classification |
+|---|---:|---:|---|---|
+| `paigo-top-up-billing-lifecycle` | 0/8 | 4/4 | 11/11, 11/11, 11/11, 11/11 | too easy |
+| `paigo-s3-datastore-measurement` | 0/8 | 3/4 | 10/10, 9/10, 10/10, 10/10 | too easy |
+| `paigo-customer-identity-migration` | 0/8 | 4/4 | 9/9, 9/9, 9/9, 9/9 | too easy |
+
+The 12 selected current-checksum attempts cost **$172.17**. An earlier four-run
+S3 checkpoint costing **$36.44** is excluded because a valid AWS SDK v3 client
+cleanup pattern exposed missing `destroy` methods in the verifier mocks. The
+full controls, checksums, costs, historical denominators, and exclusion reason
+are frozen in `sample-run/enterprise-fairness-v4-summary.json`.
+
+These three tasks remain long-horizon—their historical changes span 17–44 files
+and 1,450–1,823 changed lines across coupled persistence, service, API, billing,
+migration, AWS, and failure-recovery boundaries. Their next step is difficulty
+rebalancing with additional historically supported integration behavior,
+followed by fresh controls and four-attempt Opus probes. Only after the checksum
+is frozen should the final eight-rollout Grok, Opus, and Sol matrices run.
 
 ## Gates and measured results
 
