@@ -15,20 +15,13 @@
 - [Long-horizon capability-gap results](#long-horizon-capability-gap-results)
   - [Pass@k results](#passk-results)
   - [Measured effort](#measured-effort)
-  - [Trace-backed capability gaps](#trace-backed-capability-gaps)
+  - [Grok win conditions on enterprise long-horizon tasks](#grok-win-conditions-on-enterprise-long-horizon-tasks)
+  - [Failure modes and model contrast](#failure-modes-and-model-contrast)
+    - [Billing: declared invariant, omitted nested field](#billing-declared-invariant-omitted-nested-field)
+    - [Top-up: parallel implementations instead of one lifecycle invariant](#top-up-parallel-implementations-instead-of-one-lifecycle-invariant)
+    - [S3: correct architecture, non-canonical output string](#s3-correct-architecture-non-canonical-output-string)
   - [Fairness and validity](#fairness-and-validity)
 - [Native-table migration difficulty control](#native-table-migration-difficulty-control)
-- [Grok's win conditions](#groks-win-conditions)
-  - [A small number of named helpers with behaviorally direct symptoms](#1-a-small-number-of-named-helpers-with-behaviorally-direct-symptoms)
-  - [Cross-file work succeeds when every defect leaves a strong local anomaly](#2-cross-file-work-succeeds-when-every-defect-leaves-a-strong-local-anomaly)
-  - [Fast hypothesis-to-replay loops](#3-fast-hypothesis-to-replay-loops)
-- [Load-bearing failures](#load-bearing-failures)
-  - [Doc-extractors: every reported defect fixed, every attempt over-corrects](#doc-extractors-every-reported-defect-fixed-every-attempt-over-corrects)
-  - [Financial-tools: one universal needle](#financial-tools-one-universal-needle)
-  - [Txenrich3: right symptom family, wrong bank](#txenrich3-right-symptom-family-wrong-bank)
-  - [Txenrich4: breadth without the decisive PNB edit](#txenrich4-breadth-without-the-decisive-pnb-edit)
-  - [Txenrich: repair plus restraint is the gate](#txenrich-repair-plus-restraint-is-the-gate)
-- [Trace comparison: Grok vs GPT-5.6 vs Opus 4.8](#trace-comparison-grok-vs-gpt-56-vs-opus-48)
 - [Caveats](#caveats)
 
 ## Setup
@@ -289,42 +282,173 @@ tool calls. Top-up produces the deepest measured trajectories. Billing is
 structurally long-horizon even though Grok converges quickly, because all eight
 runs reach the same nearly complete but behaviorally incorrect implementation.
 
-### Trace-backed capability gaps
+### Grok win conditions on enterprise long-horizon tasks
 
-**Billing: requirement retention across a migration.** All eight Grok attempts
-pass 7/8 checks and fail schedule replacement. The representative trace
-restates that subject and business identity must be preserved, yet both the
-create and replacement paths write only `customerId` into
-`scheduleParameters`. Opus solves 7/8 attempts. This isolates failure to retain
-one cross-module field invariant across a larger migration, not repository
-localization or inability to build the code.
+Grok records no binary win in this cohort, so "win conditions" here means the
+conditions under which it reaches a high fraction of the required hidden
+checks. The closest Grok attempt on each task is compared with the first Opus
+solve:
 
-**Top-up: state-machine and exact-boundary composition.** Grok's attempts pass
-between 3/11 and 9/11 required checks. Every run misses the stable hourly
-scheduler ID, while most also lose at least one validation, charging, usage, or
-overdraft-ordering invariant. The best run reaches 9/11. Opus solves 7/8
-attempts, showing that the complete wallet/scheduler state machine is difficult
-but learnable.
+| Task | Best Grok checks | Opus comparison | What Grok completed | Remaining gate |
+|---|---:|---:|---|---|
+| Billing schedule | 7/8 | 7/8 attempts solve | customer create/update flow, invoice range and ledger, queue routing, empty usage | preserve one nested identity field on schedule replacement |
+| Top-up lifecycle | 9/11 | 7/8 attempts solve | DTO/entity persistence, threshold arithmetic, gap charging, credit storage, hourly usage deduction | unify validation and scheduler identity across every lifecycle entry point |
+| S3 measurement | 8/10 | 5/8 attempts solve | IAM trust/update, persistence, connector ingestion, mirrored DLQ behavior | return one exact canonical location shape through setup, persistence, and create |
 
-**S3: cross-boundary API-contract precision.** Every Grok attempt misses both
-the scoped IAM provisioning/returned-location contract and the
-create-persist-return configuration contract; six also miss the mirrored DLQ
-behavior. The best runs reach 8/10 checks. Opus solves 5/8 attempts, including
-complete implementations across IAM, persistence, connector routing, and
-failure handling.
+The positive pattern is competent repository mapping plus correct local
+implementation when the prompt names a boundary and gives an exact data-flow
+rule. For example, the [best Grok top-up trace](long-horizon-enterprise-trials/grok45/paigo-top-up-billing-lifecycle/attempt-08/trajectory.json)
+implements the core refill calculation and payment mode directly:
 
-These failures are complementary to the latent-task boundary errors below. In
-the long-horizon cohort, Grok usually finds the relevant subsystems and builds a
-substantial implementation, but does not preserve every dependent contract
-through the final state transition or returned object. The repeated Opus solves
-make those omissions useful training signals rather than evidence that the
-tasks are unsatisfiable.
+```ts
+const unitCost = Math.round((topUpAmount - currentBalance) * 100) / 100;
+lineItems.addLineItem(new InvoiceLineItem(`${this.offeringName} - Top Up`, 1, unitCost));
+await this.invoicesService.create({
+    businessID: this.businessID,
+    customer,
+    customerId: customer.customerId,
+    items: lineItems,
+    invoiceDate: new Date().toISOString(),
+    currency: Offering.getCurrency({ customer, offering: this }),
+    storePaymentAsCredit: true,
+});
+```
 
-Selected trace pairs:
+That attempt passes the charging, credit-storage, threshold, persistence, and
+hourly wallet checks. Billing is even more repeatable: every Grok attempt passes
+7/8. S3 shows breadth across AWS and application code, with the closest attempt
+passing 8/10. Grok comes closest when each requirement can be closed with a
+named local edit and a direct replay. It falls short when the same invariant
+must remain exact across several constructors, lifecycle paths, or serialized
+representations.
 
-- Billing: [Grok near miss](long-horizon-enterprise-trials/grok45/paigo-customer-billing-schedule-migration/attempt-01/trajectory.json) and [Opus solve](long-horizon-enterprise-trials/opus5/paigo-customer-billing-schedule-migration/attempt-02/trajectory.json)
-- Top-up: [Grok best near miss](long-horizon-enterprise-trials/grok45/paigo-top-up-billing-lifecycle/attempt-08/trajectory.json) and [Opus solve](long-horizon-enterprise-trials/opus5/paigo-top-up-billing-lifecycle/attempt-01/trajectory.json)
-- S3: [Grok near miss](long-horizon-enterprise-trials/grok45/paigo-s3-datastore-measurement/attempt-01/trajectory.json) and [Opus solve](long-horizon-enterprise-trials/opus5/paigo-s3-datastore-measurement/attempt-01/trajectory.json)
+### Failure modes and model contrast
+
+The selected pairs below compare Grok's closest graded attempt with a complete
+Opus 5 solve. Each example links the full trajectory and the Grok verifier
+output; the code is copied from the recorded tool calls, not reconstructed from
+the oracle.
+
+#### Billing: declared invariant, omitted nested field
+
+[Grok attempt 1](long-horizon-enterprise-trials/grok45/paigo-customer-billing-schedule-migration/attempt-01/trajectory.json)
+passes 7/8, while [Opus attempt 2](long-horizon-enterprise-trials/opus5/paigo-customer-billing-schedule-migration/attempt-02/trajectory.json)
+passes 8/8. In step 13, Grok correctly preserves `subject` and `businessID` at
+the scheduler's top level but omits `businessID` from the nested parameters:
+
+```ts
+// Grok
+scheduleParameters: { customerId },
+subject,
+businessID,
+
+// Opus
+scheduleParameters: { customerId, businessID },
+subject,
+businessID,
+```
+
+The [verifier output](long-horizon-enterprise-trials/grok45/paigo-customer-billing-schedule-migration/attempt-01/verifier-test-stdout.txt)
+shows that exact object mismatch. Grok's final step nevertheless says
+"`subject` + `businessID` preserved," so the failure is not missing task
+comprehension. It is a final-diff verification failure: the summary tracks the
+intended invariant rather than the object actually written. Opus reduces the
+surface by routing create and replacement through one billing-schedule helper.
+
+**Where to improve:** maintain a field-level contract ledger for every outbound
+object, then inspect or test the final object at each creation site before
+declaring completion. A targeted assertion on both the top-level scheduler and
+its nested `scheduleParameters` would have converted all eight Grok near misses.
+
+#### Top-up: parallel implementations instead of one lifecycle invariant
+
+[Grok attempt 8](long-horizon-enterprise-trials/grok45/paigo-top-up-billing-lifecycle/attempt-08/trajectory.json)
+passes 9/11, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/paigo-top-up-billing-lifecycle/attempt-01/trajectory.json)
+passes 11/11. Grok implements most of the wallet state machine, but its top-up
+enrollment returns before the shared schedule-registration path:
+
+```ts
+// Grok
+if (this.billingCycle === ValidBillingCycles.topUp) {
+    if (customer) await this.topUp({ customer });
+    return;
+}
+await this.registerBillingSchedule(subject);
+```
+
+It creates a second scheduler path in `OfferingService`, leaving the domain
+registration path customer-specific. The [verifier output](long-horizon-enterprise-trials/grok45/paigo-top-up-billing-lifecycle/attempt-08/verifier-test-stdout.txt)
+therefore observes `customer-1` and `customer-2` as different scheduler IDs.
+Opus instead changes the shared lifecycle boundary:
+
+```ts
+// Opus
+if (this.isTopUp()) {
+    await this.registerTopUpSchedule(subject);
+    return;
+}
+```
+
+Its schedule helper then fixes identity at offering scope:
+
+```ts
+static getTopUpSchedulerID(offeringId: string): string {
+    return offeringId;
+}
+```
+
+The other failed check has the same shape. Grok places non-top-up field
+rejection inline in one service path; the verifier finds no reusable
+`validateTopUpFields` boundary. Opus extracts that validator and calls it from
+both create and update. The gap is state-machine composition, not the refill
+math: Grok implements correct pieces in parallel paths, while Opus makes the
+invariant authoritative at the shared boundary.
+
+**Where to improve:** identify the lowest shared lifecycle boundary before
+editing, centralize each invariant there, and test it through at least two
+entry points. For this task, a two-customer scheduler test plus create/update
+validation tests would expose both residual failures before grading.
+
+#### S3: correct architecture, non-canonical output string
+
+[Grok attempt 1](long-horizon-enterprise-trials/grok45/paigo-s3-datastore-measurement/attempt-01/trajectory.json)
+passes 8/10, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/paigo-s3-datastore-measurement/attempt-01/trajectory.json)
+passes 10/10. Grok provisions the IAM role, preserves trust identity, persists
+the generated fields, ingests valid records, and mirrors malformed records. Its
+two failures share one string-format decision:
+
+```ts
+// Grok
+dbAccessInformation.ingestion = `s3://${ingestionBucket}/${businessID}/`;
+dbAccessInformation.dlq = `s3://${dlqBucket}/${businessID}/`;
+
+// Opus
+public static ingestionLocation(businessID: string) {
+    return `s3://${process.env.DB_MEASUREMENT_BUCKET_NAME}/${businessID}`;
+}
+public static dlqLocation(businessID: string) {
+    return `s3://${process.env.DB_MEASUREMENT_DLQ_BUCKET_NAME}/${businessID}`;
+}
+```
+
+The [verifier output](long-horizon-enterprise-trials/grok45/paigo-s3-datastore-measurement/attempt-01/verifier-test-stdout.txt)
+shows the received trailing slash against the required no-slash location in
+both `setupAccess` and create-persist-return checks. One non-canonical value
+therefore closes two otherwise correct cross-boundary paths. Opus defines one
+location helper and reuses its exact result through provisioning, persistence,
+and response construction.
+
+**Where to improve:** treat returned identifiers and locations as exact API
+types, not presentation strings. Build one canonical constructor and add strict
+equality checks at setup, persistence round-trip, and API return boundaries.
+
+Across the three pairs, the separating capability is final contract closure.
+Grok's closest attempts are substantial and usually build, but their final
+summaries stop at plausible feature completeness. The successful Opus traces
+more often centralize the invariant, retain an explicit task checklist, and
+exercise the final boundary object. The most direct training target is therefore
+not more repository exploration; it is repeated prompt-to-diff reconciliation,
+shared-boundary selection, and exact final-state verification.
 
 ### Fairness and validity
 
@@ -407,135 +531,19 @@ that verifier was frozen. Regrade provenance is explicit in every packaged
 trial index, and the prompt-to-test audit is preserved under
 `long-horizon-controls/fairness-audit.md`.
 
-## Grok's win conditions
-
-### 1. A small number of named helpers with behaviorally direct symptoms
-
-Credit-normalize and phone-invites account for **17 of Grok's 21 solves**.
-Both tasks localize to a few small Python helpers, and each symptom maps to a
-case-fold, slice, regex anchor, or canonicalization branch that can be replayed
-directly.
-
-The representative credit trace reaches the correct `normalize.py` and
-`junk_filter.py` helpers, tests the reported shapes, and fixes all five hidden
-defects in 11 steps. Eight attempts do this completely. The only miss in the
-other two attempts is the digit-leading-creditor end anchor.
-
-Phone-invites is even more stable: nine attempts fix the default-region order,
-the `00` prefix slice, legacy loan labels, and canonical IDs. The one failed
-attempt is exactly one hidden test short: it does not preserve the default
-interpretation when no candidate region validates.
-
-### 2. Cross-file work succeeds when every defect leaves a strong local anomaly
-
-Two FIU attempts solve all five Java defects. The selected solve changes five
-distinct behaviors: UUID width, 24-hour timestamp formatting, URL-safe Base64,
-the segment after `@`, and whitespace emptiness. The trajectory searches
-utilities first, follows usages, runs Maven, and checks each family rather than
-stopping after the two ticket examples.
-
-The successful txenrich attempts similarly fix all five literal/index defects
-across HDFC and ICICI. They are not just lucky final patches: their traces
-construct DataFrame replays for the statement layouts and explicitly check the
-adjacent non-regression boundaries.
-
-### 3. Fast hypothesis-to-replay loops
-
-The successful small-task traces are short: credit solves take 9–16 steps and
-phone solves 7–11. Grok is effective when it can turn the symptom into a
-single-input replay, observe the wrong output, change one localized rule, and
-rerun the replay. This is a real capability separation from Nova Premier's
-zero-solve row: Grok changes behavior on every task and reaches reward on four;
-Nova's representative traces mostly edit plausible nearby code and trust the
-already-green visible suite.
-
-## Load-bearing failures
-
-### Doc-extractors: every reported defect fixed, every attempt over-corrects
-
-All ten attempts pass all **4/4 fail-to-pass tests**, yet all ten score zero
-because they break a pass-to-pass boundary. Every attempt changes the rent-roll
-minimum to accept a single rent line. The instruction says the smallest valid
-roll has two rows; the correct edit is `count >= 2`. Grok's selected trace uses
-`count >= 1`, so the hidden single-line pin fails.
-
-Seven attempts also admit sub-floor appraisals, and seven admit sub-minimum HUD
-loans. This is the clearest failure mode in the set: Grok recognizes the right
-functions and the inclusive-boundary theme, but generalizes “accept the edge”
-past the domain floor. GPT-5.6 and Opus representative solves both explicitly
-derive the two-row minimum and test the value immediately below each floor.
-
-### Financial-tools: one universal needle
-
-Every attempt finishes at **8/9 f2p and 14/14 p2p**. All ten miss the same
-test: a single 90-day-late item must count as severe delinquency. The planted
-guard is `late_90 > 1`; the correct boundary is `> 0`. Grok consistently fixes
-the other four families, including the two-observation volatility and 75%
-utilization boundaries, but its traces do not follow the severe-delinquency
-signal to the sibling call sites that pin this last operator.
-
-### Txenrich3: right symptom family, wrong bank
-
-All ten attempts miss the one-rupee mandate sentinel, and eight also miss the
-six-digit cheque width. The closest trace claims to fix the mandate comparison
-in Bank of Maharashtra, but the planted defect is the adjacent `eq(2)` rule in
-IndusInd. That attempt ends 4/5 with no regressions: it understood the failure
-class yet localized the patch to a different bank implementation. By contrast,
-the GPT and Opus solving traces edit the IndusInd and IDBI rules named by the
-actual narration shapes.
-
-### Txenrich4: breadth without the decisive PNB edit
-
-No attempt solves the broadest task. The PNB NEFT payee test fails in **10/10**
-attempts, the Canara UPI payee in 7/10, the cheque-width boundary in 5/10, and
-the cleared-cheque segment in 2/10. The selected 18-step trace is revealing: it
-builds many Canara and PNB replays, modifies both files, and confidently reports
-all five findings fixed, but it never changes PNB's single-capture-group
-`py_extract(..., index=1)` defect. Its added PNB work instead expands several
-UPI heuristics. More exploration did not produce better localization; the
-34-step attempt also scores 0.
-
-### Txenrich: repair plus restraint is the gate
-
-Grok repairs most of the five target defects, but eight attempts break the
-15-character cheque-remark pin and three break the non-zero 16-character pin.
-Only attempts 9 and 10 both repair the target boundary and preserve those
-adjacent cases. This is the same precision problem as doc-extractors, expressed
-through a regex/length rule instead of an inequality.
-
-## Trace comparison: Grok vs GPT-5.6 vs Opus 4.8
-
-The models separate less on whether they find relevant code than on what they
-use as a stopping condition.
-
-- **Grok** often stops after every named symptom has a plausible patch and its
-  self-written examples pass. Its final summaries are confident even on the
-  zero-reward traces. The unseen failures come from an adjacent boundary it did
-  not test or from patching the right pattern in the wrong bank.
-- **GPT-5.6** is less repeatable on Grok's two best tasks, but its representative
-  solves more often include direct checks on both sides of a boundary. That is
-  why it covers doc-extractors and txenrich3 while Grok does not, producing the
-  stronger pass@3/pass@10 despite the lower pass@1.
-- **Opus 4.8** uses longer repository-reading traces and has the lowest of the
-  three pass@1 values. Its coverage is complementary to Grok: Opus solves
-  doc-extractors and txenrich3, where Grok is 0/20, while Grok dominates credit,
-  phone, and FIU, where the OpenCode+Opus row has no solves.
-
-The practical ensemble implication is straightforward: Grok is a strong first
-attempt for localized normalization/canonicalization work, while a GPT retry is
-more valuable than another Grok sample after Grok has repeatedly failed a
-semantic-boundary or multi-bank task.
-
 ## Caveats
 
-- The runtime, turn, and token totals above cover the 80 valid graded debugging
-  trajectories. Infrastructure/auth failures are excluded from both scores and
-  valid-trial totals.
-- Ten attempts per task are enough to expose systematic zero rows and strong
-  concentration, but each individual solve rate still has binomial uncertainty.
+- The bug-injection runtime, turn, and token totals cover 80 valid graded
+  trajectories. The enterprise effort table covers its separate 48-attempt
+  Grok/Opus cohort. Infrastructure/auth failures are excluded from both scores
+  and valid-trial totals.
+- Ten attempts per bug-injection task and eight per enterprise task expose
+  systematic zero rows and strong concentration, but each individual solve
+  rate still has binomial uncertainty.
 - `pass@10` is 1 for any n=10 cell with at least one solve and 0 otherwise. Its
   macro mean is therefore task coverage at this sample size, not an additional
-  measure of within-task repeatability.
+  measure of within-task repeatability. The same interpretation applies to
+  `pass@8` in the enterprise cohort.
 - Hidden tests assert behavior, not oracle patch identity. Alternative correct
   implementations pass; the failures above are observable output failures, not
   textual-diff mismatches.
