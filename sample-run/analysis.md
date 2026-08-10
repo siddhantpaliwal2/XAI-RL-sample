@@ -11,6 +11,7 @@
   - [Turn, tool, and wall-clock profile](#turn-tool-and-wall-clock-profile)
 - [Long-horizon definition and evaluation bar](#long-horizon-definition-and-evaluation-bar)
 - [Long-horizon capability-gap results](#long-horizon-capability-gap-results)
+  - [Pass@k results](#passk-results)
   - [Measured effort](#measured-effort)
   - [Trace-backed capability gaps](#trace-backed-capability-gaps)
   - [Fairness and validity](#fairness-and-validity)
@@ -250,6 +251,27 @@ claim rests on coupled behavioral boundaries, source history, agent traces, and
 verifier scope rather than LOC alone. A reward of 1 requires every configured
 fail-to-pass and pass-to-pass assertion to pass; partial implementations receive
 reward 0.
+
+### Pass@k results
+
+Using the unbiased estimator `1 − C(n−c, k) / C(n, k)`, the largest supported
+`k` is 8 because each task/model cell has eight valid attempts:
+
+| Task | Required checks | Model | c/n | pass@1 | pass@3 | pass@8 |
+|---|---:|---|---:|---:|---:|---:|
+| Customer billing-schedule migration | 8 | Grok 4.5 | 0/8 | 0.0000 | 0.0000 | 0.0000 |
+| Customer billing-schedule migration | 8 | Claude Opus 5 | 7/8 | 0.8750 | 1.0000 | 1.0000 |
+| Top-up billing lifecycle | 11 | Grok 4.5 | 0/8 | 0.0000 | 0.0000 | 0.0000 |
+| Top-up billing lifecycle | 11 | Claude Opus 5 | 7/8 | 0.8750 | 1.0000 | 1.0000 |
+| S3 datastore measurement | 10 | Grok 4.5 | 0/8 | 0.0000 | 0.0000 | 0.0000 |
+| S3 datastore measurement | 10 | Claude Opus 5 | 5/8 | 0.6250 | 0.9821 | 1.0000 |
+| **Macro mean** | N/A | **Grok 4.5** | **0/24** | **0.0000** | **0.0000** | **0.0000** |
+| **Macro mean** | N/A | **Claude Opus 5** | **19/24** | **0.7917** | **0.9940** | **1.0000** |
+
+The summary c/n values are sums across task cells; the pass@k summary is the
+unweighted macro mean of the three task-level estimators, not a pooled
+24-attempt estimator. At n=8, pass@8 is task coverage: it is 1 for any cell
+with at least one solve and 0 for a zero-solve cell.
 
 ### Measured effort
 
