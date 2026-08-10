@@ -143,6 +143,23 @@ cleanup pattern exposed missing `destroy` methods in the verifier mocks. The
 full controls, checksums, costs, historical denominators, and exclusion reason
 are frozen in `sample-run/enterprise-fairness-v4-summary.json`.
 
+A four-attempt current-checksum Grok 4.5 checkpoint then ran all 16 trials at
+once, one isolated Daytona sandbox per trial. All 16 produced complete verifier
+output with no infrastructure failures. The wave took **21m 10s** wall-clock
+and cost **$18.54**.
+
+| Task | Current Opus 5 | Current Grok 4.5 | Grok required tests by attempt | Gap assessment |
+|---|---:|---:|---|---|
+| `paigo-customer-billing-schedule-migration` | 4/8 | 0/4 | 7/8, 7/8, 7/8, 7/8 | strong candidate |
+| `paigo-top-up-billing-lifecycle` | 4/4 | 0/4 | 3/11, 3/11, 8/11, 3/11 | strong candidate |
+| `paigo-s3-datastore-measurement` | 3/4 | 0/4 | 8/10, 6/10, 7/10, 6/10 | strong candidate |
+| `paigo-customer-identity-migration` | 4/4 | 3/4 | 8/9, 9/9, 9/9, 9/9 | Grok-too-easy risk |
+
+These are calibration checkpoints, not substitutes for XAI's final eight Grok
+rollouts per task. Attempt metrics, recurring failure names, checksums, cost,
+and the excluded pre-funding 402 launch are recorded in
+`sample-run/enterprise-grok4-checkpoint.json`.
+
 These three tasks remain long-horizon—their historical changes span 17–44 files
 and 1,450–1,823 changed lines across coupled persistence, service, API, billing,
 migration, AWS, and failure-recovery boundaries. Their next step is difficulty

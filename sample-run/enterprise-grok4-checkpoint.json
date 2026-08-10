@@ -1,0 +1,143 @@
+{
+  "generated_at": "2026-08-10T02:18:18Z",
+  "run_id": "enterprise-corrected-grok4-r1",
+  "purpose": "Four-attempt Grok 4.5 checkpoint on four current-checksum long-horizon enterprise tasks.",
+  "evaluation": {
+    "model": "Grok 4.5",
+    "model_route": "openrouter/x-ai/grok-4.5",
+    "agent": "OpenCode 1.18.13",
+    "environment": "Daytona",
+    "isolated_sandboxes": 16,
+    "concurrency": 16,
+    "valid_attempts": 16,
+    "passes": 3,
+    "cost_usd": 18.539099,
+    "wall_clock_seconds": 1269.608,
+    "started_at": "2026-08-10T01:56:09.226734+00:00",
+    "finished_at": "2026-08-10T02:17:18.834409+00:00",
+    "validity_policy": "Only complete per-test verifier output on the stated task checksum enters the denominator. Provider, transport, and partial-output failures are excluded.",
+    "excluded_preflight": "An earlier launch before OpenRouter funding returned HTTP 402 before the first model token on every sandbox. It cost $0.00, produced no scoreable output, and was replaced rather than counted."
+  },
+  "xai_gate": {
+    "status": "checkpoint-only",
+    "reason": "XAI requested eight Grok rollouts per task. These four-attempt results identify direction and variance but do not replace the final eight-attempt denominator.",
+    "rule": "One to six Grok passes out of eight, or zero Grok passes when a comparable model such as Opus 5 completes the task."
+  },
+  "tasks": [
+    {
+      "task": "paigo-customer-billing-schedule-migration",
+      "task_sha256": "8855b1ec4ef923e5a3e8e272e89562d34c96a60ba67313195577c5219a4a4ebb",
+      "grok45": {
+        "passes": 0,
+        "valid_attempts": 4,
+        "required_tests_passed": [
+          "7/8",
+          "7/8",
+          "7/8",
+          "7/8"
+        ],
+        "cost_usd": 1.45579,
+        "wall_time_seconds": [
+          563.256,
+          815.647,
+          812.087,
+          198.092
+        ],
+        "failed_test_frequency": {
+          "Customer billing schedule migration replaces the billing schedule when an enrolled customer changes offering": 4
+        }
+      },
+      "opus5_comparison": "4/8",
+      "classification": "strong-opus-grok-gap-candidate"
+    },
+    {
+      "task": "paigo-top-up-billing-lifecycle",
+      "task_sha256": "6f4175275a7e2da3eb53dc4a610abed9ca009632493e29b1bdd6c6e8d441f4c0",
+      "grok45": {
+        "passes": 0,
+        "valid_attempts": 4,
+        "required_tests_passed": [
+          "3/11",
+          "3/11",
+          "8/11",
+          "3/11"
+        ],
+        "cost_usd": 9.528627,
+        "wall_time_seconds": [
+          1269.516,
+          905.724,
+          719.471,
+          1186.962
+        ],
+        "failed_test_frequency": {
+          "accepts topUp for usage-based offerings and rejects it for subscriptions": 4,
+          "rejects top-up fields on a non-top-up billing cycle": 4,
+          "creates one hourly offering-level scheduler with a stable id": 4,
+          "does not top up a wallet at or above its threshold": 3,
+          "charges only the gap to the configured balance and stores payment as credit": 3,
+          "deducts full hourly usage without issuing a usage invoice": 3,
+          "records usage beyond the current balance before evaluating refill": 3,
+          "does no wallet mutation when the hour has no billable usage": 3
+        }
+      },
+      "opus5_comparison": "4/4",
+      "classification": "strong-opus-grok-gap-candidate"
+    },
+    {
+      "task": "paigo-s3-datastore-measurement",
+      "task_sha256": "90c6f4ffe3a3635480af1332d23be5cf232345dcedb8bc362b6cd6b8b34dcd05",
+      "grok45": {
+        "passes": 0,
+        "valid_attempts": 4,
+        "required_tests_passed": [
+          "8/10",
+          "6/10",
+          "7/10",
+          "6/10"
+        ],
+        "cost_usd": 2.680294,
+        "wall_time_seconds": [
+          974.238,
+          387.838,
+          1134.609,
+          350.421
+        ],
+        "failed_test_frequency": {
+          "provisions a scoped IAM role and returns ingestion and DLQ locations": 4,
+          "creates, persists, and returns provisioned datastore configuration": 4,
+          "writes malformed connector records to the mirrored DLQ key": 3,
+          "keeps the generic DLQ writer usable for an already-relative source key": 2
+        }
+      },
+      "opus5_comparison": "3/4",
+      "classification": "strong-opus-grok-gap-candidate"
+    },
+    {
+      "task": "paigo-customer-identity-migration",
+      "task_sha256": "27740008f79a8659496ca72f56df2408af9f58a7b3b218a5fcb88574e6b0e2e7",
+      "grok45": {
+        "passes": 3,
+        "valid_attempts": 4,
+        "required_tests_passed": [
+          "8/9",
+          "9/9",
+          "9/9",
+          "9/9"
+        ],
+        "cost_usd": 4.874389,
+        "wall_time_seconds": [
+          569.495,
+          590.375,
+          917.44,
+          577.956
+        ],
+        "failed_test_frequency": {
+          "queries usage through the customer offering and preserves time and interval overrides": 1
+        }
+      },
+      "opus5_comparison": "4/4",
+      "classification": "grok-too-easy-risk"
+    }
+  ],
+  "conclusion": "Billing schedule, top-up billing, and S3 datastore measurement show a strong current-checksum Opus-versus-Grok gap. Customer identity is highly solvable by both models and may exceed the desired Grok difficulty after eight attempts."
+}
