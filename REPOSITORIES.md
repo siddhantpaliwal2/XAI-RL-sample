@@ -2,7 +2,7 @@
 
 The original task bank was built on four real, private production codebases
 (two Python, two Java) from the fintech-lending domain. The historical
-enterprise extension adds Paigo, Champ, and Finbit substrates in TypeScript
+enterprise extension adds anonymized production substrates in TypeScript
 and Groovy. Every environment is pinned to an immutable base commit and sealed
 without usable Git history; hidden tests arrive only at grading time.
 
@@ -91,7 +91,7 @@ systems.
   API representation and persistence. A complete implementation cannot be
   reduced to grepping for a handful of nearby boundary defects.
 
-## paigo-backend - five historical snapshots
+## Metering and billing service - five historical snapshots
 
 - **Language / stack:** TypeScript, NestJS, TypeORM, Jest.
 - **Domain:** usage metering and billing, offering/customer ownership,
@@ -103,12 +103,12 @@ systems.
   dependencies are preinstalled in the Daytona snapshot, Git history is
   collapsed, and only unit tests run during grading.
 
-## Champ state-machine - one historical snapshot
+## Email-infrastructure state machine - one historical snapshot
 
 - **Language / stack:** TypeScript, Jest, document-database repositories.
 - **Domain:** managed email inboxes, campaign associations, deliverability,
   reputation, ranking, and Smartlead lifecycle integration.
-- **Task built on it (1):** `champ-email-inbox-infrastructure`.
+- **Task built on it (1):** managed email-inbox infrastructure.
 - **Environment notes:** external providers are mocked at their existing
   repository/service boundaries; no live email or Smartlead calls occur.
 

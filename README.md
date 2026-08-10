@@ -1,11 +1,11 @@
 # Coding RL from Enterprise Codebases
 
-Eight fail-to-pass debugging tasks, one long-horizon feature migration, and
-eight historical enterprise tasks mined from real production codebases in
-Python, Java, TypeScript, and Groovy. The original debugging tasks plant latent
-boundary defects; the migrations and features preserve real base commits and
-historical multi-file changes. Agents receive only the repository and an
-engineering ticket, while gold tests enter the sandbox only at grade time.
+Eight fail-to-pass debugging tasks and four highlighted long-horizon enterprise
+tasks mined from real production codebases in Python, Java, TypeScript, and
+Groovy. The original debugging tasks plant latent boundary defects; the
+migrations and features preserve real base commits and historical multi-file
+changes. Agents receive only the repository and an engineering ticket, while
+gold tests enter the sandbox only at grade time.
 
 This XAI evaluation package includes the 80-attempt Grok 4.5 debugging pass,
 fresh OpenCode measurements for Claude Opus 5 and Claude Fable 5, and a
@@ -58,29 +58,26 @@ finds that one. Every other task gates all five of its defects.
 
 ## Historical enterprise task set
 
-The 2026 enterprise extension adds eight repository-scale tasks from Paigo,
-Champ, and Finbit. Unlike the latent tasks, these do not plant synthetic bugs:
-each task starts at the exact parent commit of a real feature or migration and
-uses a filtered historical change as its solvability oracle. Prompts state
-behavioral contracts without commit messages, ticket IDs, file lists, or
-implementation hints.
+The public sample highlights four repository-scale tasks derived from
+authorized production history. Unlike the latent tasks, they do not plant
+synthetic bugs: each starts at the exact parent commit of a real feature or
+migration and uses a filtered historical change as its solvability oracle.
+Prompts state behavioral contracts without company names, commit messages,
+ticket IDs, file lists, or implementation hints.
 
-| Task | Change family | Oracle files | Changed LOC | Hidden F2P / P2P |
-|---|---|---:|---:|---:|
-| `paigo-dimension-pricing-tiers` | tiered billing | 12 | 512 | 18 / 3 |
-| `paigo-top-up-billing-lifecycle` | wallet and billing lifecycle | 28 | 1,450 | 9 / 2 |
-| `paigo-s3-datastore-measurement` | AWS usage ingestion | 17 | 1,809 | 9 / 1 |
-| `paigo-customer-identity-migration` | ownership-model migration | 44 | 1,823 | 8 / 1 |
-| `paigo-customer-billing-schedule-migration` | billing-schedule migration | 23 | 343 | 6 / 2 |
-| `champ-email-inbox-infrastructure` | email-infrastructure feature | 16 | 846 | 10 / 2 |
-| `finbit-bank-parser-consolidation` | parser consolidation | 20 | 1,134 | 5 / 2 |
-| `finbit-google-cloud-storage-migration` | cloud-storage migration | 4 | 70 | 5 / 2 |
+| Task | Change family | Historical scope | Calibration status |
+|---|---|---:|---|
+| Customer billing-schedule migration | billing and identity migration | 23 oracle files / 343 LOC | XAI-qualified |
+| Top-up billing lifecycle | wallet and billing lifecycle | 28 oracle files / 1,450 LOC | XAI-qualified |
+| S3 datastore measurement | AWS usage ingestion | 17 oracle files / 1,809 LOC | XAI-qualified |
+| Native table migration | document-extraction migration | 62 commits / 70 production files / ~13,000 added LOC | too hard: all four models 0/3 |
 
-Every package clears the two mandatory mechanical gates in an independent
-Daytona sandbox: untouched base reward 0, historical oracle reward 1, and zero
-control exceptions. The selected job IDs and patch statistics are recorded in
-`sample-run/enterprise-controls-summary.json`; rerun the complete boundary,
-control, and credential audit with:
+Each highlighted task clears the two mandatory mechanical controls: untouched
+base reward 0 and historical oracle reward 1. The first three also clear XAI's
+learnability gate. The native-table migration is retained as an informative
+too-hard control, not presented as XAI-qualified, because no evaluated
+comparator solved it. Rerun the enterprise boundary, control, and credential
+audit with:
 
 ```sh
 python3 harness/audit_enterprise_tasks.py
@@ -100,15 +97,16 @@ All verifier fixtures are synthetic.
 ### Enterprise calibration results
 
 The final long-horizon enterprise study freezes eight valid Grok 4.5 and eight
-valid Claude Opus 5 attempts for three Paigo tasks. Every attempt used the exact
-route, OpenCode 1.18.13, a denied task/subagent tool, the frozen checksum, one
-isolated Daytona sandbox, and complete hidden-verifier output.
+valid Claude Opus 5 attempts for three anonymized production tasks. Every
+attempt used the exact route, OpenCode 1.18.13, a denied task/subagent tool, the
+frozen checksum, one isolated Daytona sandbox, and complete hidden-verifier
+output.
 
 | Task | Grok 4.5 | Claude Opus 5 | XAI learnability gate |
 |---|---:|---:|---|
-| `paigo-customer-billing-schedule-migration` | 0/8 | 7/8 | qualifies |
-| `paigo-top-up-billing-lifecycle` | 0/8 | 7/8 | qualifies |
-| `paigo-s3-datastore-measurement` | 0/8 | 5/8 | qualifies |
+| Customer billing-schedule migration | 0/8 | 7/8 | qualifies |
+| Top-up billing lifecycle | 0/8 | 7/8 | qualifies |
+| S3 datastore measurement | 0/8 | 5/8 | qualifies |
 | **Total** | **0/24** | **19/24** | **3/3 qualify** |
 
 XAI's meeting rule was Grok solving one to six of eight, or zero when a
@@ -131,10 +129,9 @@ alignment to transcript lines 20, 27, 30, and 34:
 One billing verifier assertion was found to grade positional Nest constructor
 order rather than behavior. It was repaired, fresh null/oracle controls passed,
 and all 16 attempts on the old checksum were excluded. The final billing rates
-above use only the fair checksum. Historical exploratory matrices and CHAMP,
-identity, Finbit, and GPT-5.6 Sol checkpoints remain in their existing
-`sample-run/enterprise-*.json` evidence files; they are not mixed into this
-current-checksum denominator.
+above use only the fair checksum. Other historical exploratory matrices and
+GPT-5.6 Sol checkpoints remain in their existing `sample-run/enterprise-*.json`
+evidence files; they are not mixed into this current-checksum denominator.
 
 ## Gates and measured results
 
@@ -237,12 +234,13 @@ patch with the 62-commit oracle.
 | Historical oracle | 4/4 fail-to-pass, 2/2 pass-to-pass | reward 1 |
 | Alternate field-wired oracle | 4/4 fail-to-pass, 2/2 pass-to-pass | reward 1 |
 
-The long-horizon acceptance gate omits Sonnet. It requires at least one of
-Opus 5 or Fable 5 to fail 50% or more of independent valid attempts. The
-70–100 tool-call band is retained as a reference point, not a maximum or a
-hard gate: longer traces are welcome when the verifier remains fair. Model
-outcomes and trace statistics are packaged separately from the eight-task
-latent-debugging matrix.
+The native-table study originally used a difficulty-only acceptance gate: at
+least one of Opus 5 or Fable 5 had to fail 50% or more of independent valid
+attempts. The current XAI gate additionally requires evidence of learnability
+when Grok is 0/8, so this task is now retained as a too-hard control rather than
+an XAI-qualified training task. The 70–100 tool-call band remains a reference
+point, not a maximum or a hard gate. Model outcomes and trace statistics are
+packaged separately from the eight-task latent-debugging matrix.
 
 All four long-horizon models use OpenCode 1.18.13 and the same Daytona snapshot.
 The scored trials use their exact OpenRouter routes. [AWS's endpoint
@@ -269,8 +267,10 @@ All 12 candidates executed the final six-test verifier and all scored 0, so
 Opus 5 and Fable 5 each clear the requested 50% failure gate with a 100%
 failure rate. Across the matrix, tool calls ranged from **80 to 179**, with a
 median of **127**; nine attempts exceeded the original 70–100 reference band.
-The packaged `qualifies` field is `true`, and the longer traces are retained
-rather than rejected.
+The legacy packaged `qualifies` field is `true` under that study's original
+difficulty-only rule. Under the current XAI learnability rule, the task is too
+hard because no comparator solved it. The longer traces remain useful failure
+evidence and are retained rather than rejected.
 
 pass@k uses the unbiased estimator `1 − C(n−c, k) / C(n, k)`. Here every
 model has `n=3` and `c=0`, so pass@1, pass@2, and pass@3 are all measured zeros.

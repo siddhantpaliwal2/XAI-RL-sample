@@ -2,11 +2,11 @@
 
 ## Executive result
 
-This study freezes three enterprise-derived Paigo tasks at eight independent
-Grok 4.5 attempts and eight independent Claude Opus 5 attempts per task. Every
-accepted attempt used the exact model route, OpenCode 1.18.13, one isolated
-Daytona sandbox, the frozen task checksum, a denied subagent/task tool, and a
-complete hidden-verifier result.
+This study freezes three enterprise-derived production tasks at eight
+independent Grok 4.5 attempts and eight independent Claude Opus 5 attempts per
+task. Every accepted attempt used the exact model route, OpenCode 1.18.13, one
+isolated Daytona sandbox, the frozen task checksum, a denied subagent/task
+tool, and a complete hidden-verifier result.
 
 | Task | Grok 4.5 | Claude Opus 5 | Opus minus Grok | XAI gate |
 |---|---:|---:|---:|---|
@@ -219,10 +219,7 @@ specific enterprise capability gaps with demonstrated learnability.
   [`sample-run/long-horizon-enterprise-trials/`](sample-run/long-horizon-enterprise-trials/)
 - Artifact sizes and SHA-256 hashes:
   [`sample-run/long-horizon-enterprise-artifacts-manifest.json`](sample-run/long-horizon-enterprise-artifacts-manifest.json)
-- Task prompts and fairness notes:
-  [`tasks/paigo-customer-billing-schedule-migration/`](tasks/paigo-customer-billing-schedule-migration/),
-  [`tasks/paigo-top-up-billing-lifecycle/`](tasks/paigo-top-up-billing-lifecycle/), and
-  [`tasks/paigo-s3-datastore-measurement/`](tasks/paigo-s3-datastore-measurement/)
+- Anonymized task prompts and fairness notes: [`tasks/`](tasks/)
 
 Rebuild the selected cohort summary and artifact package with:
 
