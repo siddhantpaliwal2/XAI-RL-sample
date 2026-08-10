@@ -160,10 +160,37 @@ rollouts per task. Attempt metrics, recurring failure names, checksums, cost,
 and the excluded pre-funding 402 launch are recorded in
 `sample-run/enterprise-grok4-checkpoint.json`.
 
-These three tasks remain long-horizon—their historical changes span 17–44 files
-and 1,450–1,823 changed lines across coupled persistence, service, API, billing,
-migration, AWS, and failure-recovery boundaries. Their next step is difficulty
-rebalancing with additional historically supported integration behavior,
+CHAMP-2197 was then recalibrated from its original **1/8 Opus** result by
+auditing the agent traces before changing the verifier. The failures exposed
+architecture-specific assumptions around constructor injection, repository and
+entity placement, pagination envelopes, datastore mocks, `id` versus the
+documented `smartleadInboxId`, deliverability-band aliases, and whether
+Smartlead hydration lives in the service or entity. The replacement assertions
+check observable behavior while preserving all identity, persistence,
+association, ranking, pool-sizing, hydration, deletion, wiring, script, and
+regression requirements.
+
+| CHAMP checkpoint | Opus 5 | Required tests by selected attempt | Cost | Classification |
+|---|---:|---|---:|---|
+| Historical checksum | 1/8 | 12/12, 9/12, 6/12, 10/12, 7/12, 8/12, 9/12, 3/12 | recorded in historical matrix | too hard and verifier-coupled |
+| Current checksum | 3/4 | 8/12, 12/12, 12/12, 12/12 | $20.82 | fair, but above the target Opus checkpoint |
+
+The current checksum cleared fresh local and Daytona controls (null 0, oracle
+1) and the full boundary/secret audit. One zero-cost NVM download failure was
+excluded before model execution and replaced. Three superseded diagnostic
+checksums cost **$56.62**; all diagnostic and selected calibration runs cost
+**$77.44**, leaving the project ledger at **$1,790.47**. The trace findings,
+selected jobs, checksums, costs, and exclusion reasons are frozen in
+`sample-run/enterprise-champ-fairness-checkpoint.json`. A formal eight-attempt
+gate should wait until historically supported integration or migration
+complexity moves the four-attempt Opus checkpoint closer to 2/4; the verifier
+should not be tightened around the historical implementation.
+
+The three repaired Paigo tasks remain long-horizon—their historical changes
+span 17–44 files and 1,450–1,823 changed lines across coupled persistence,
+service, API, billing, migration, AWS, and failure-recovery boundaries. Their
+next step is difficulty rebalancing with additional historically supported
+integration behavior,
 followed by fresh controls and four-attempt Opus probes. Only after the checksum
 is frozen should the final eight-rollout Grok, Opus, and Sol matrices run.
 

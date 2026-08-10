@@ -35,8 +35,8 @@ CONTROL_JOBS = {
         "eng504b-oracle-daytona-r3",
     ),
     "champ-email-inbox-infrastructure": (
-        "champ2197-null-daytona-r5",
-        "champ2197-oracle-daytona-r5",
+        "champ2197-null-daytona-r10",
+        "champ2197-oracle-daytona-r10",
     ),
     "finbit-bank-parser-consolidation": (
         "finbit-parser-null-daytona-r2",
@@ -277,6 +277,7 @@ def secret_findings(task_names: list[str]) -> list[dict]:
         ROOT / "gold-tests",
         ROOT / "harness",
         ROOT / "sample-run" / "enterprise-controls-summary.json",
+        ROOT / "sample-run" / "enterprise-champ-fairness-checkpoint.json",
         ROOT / "sample-run" / "enterprise-model-results.json",
         ROOT / "sample-run" / "enterprise-trials",
         *(ROOT / "tasks" / task for task in task_names),

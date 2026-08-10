@@ -19,6 +19,6 @@
 
 ## Verifier design
 
-The hidden verifier runs entirely against mocked datastore and HTTP boundaries. It checks returned domain objects and datastore calls rather than MongoDB internals, concrete collection objects, source text, or commit identity. The prompt publishes the ranking order, score bands, and error semantics that the tests require. Existing pure email-template tests provide regression coverage.
+The hidden verifier runs entirely against mocked datastore and HTTP boundaries. It checks returned domain objects and observable persisted state rather than MongoDB internals, repository or entity file placement, pagination-envelope shape, an `id` alias for the documented `smartleadInboxId` key, exact no-op write counts, or a particular mapped-band property alias. Nest constructor metadata selects the candidate's actual datastore or repository dependency instead of guessing from export names. The fake datastore supports exact, `$in`, and `$exists` inbox-ID queries, page-count requests, missing-ID lookups, and Smartlead hydration during either service- or entity-level persistence. The prompt publishes the ranking order, numeric-score/band distinction, duplicate-ID behavior, and atomic rejection semantics that the tests require. Existing pure email-template tests provide regression coverage.
 
 The historical PR's service spec required a live MongoDB process. It is intentionally not used for grading; the replacement contract tests exercise the same service/entity behavior without network or daemon dependencies.

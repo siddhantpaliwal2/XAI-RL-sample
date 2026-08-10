@@ -5,9 +5,32 @@ import { EmailinfraService } from './emailinfra.service';
 // The contract intentionally does not require the historical implementation's
 // enum or repository-wrapper names. Both an injected repository and a domain
 // entity with static persistence methods are valid designs.
-const emailAccountModule = require('./entities/emailAccount.entity') as any;
-const EmailAccount = emailAccountModule.EmailAccount as any;
-const EmailAccountRepository = emailAccountModule.EmailAccountEntity as any;
+let emailAccountModule: any = {};
+let emailInfraModule: any = {};
+try {
+  emailAccountModule = require('./entities/emailAccount.entity');
+} catch {
+  // A separate account module is convenient, but the task does not prescribe
+  // file placement. Some valid implementations extend the existing entity.
+}
+try {
+  emailInfraModule = require('./entities/emailinfra.entity');
+} catch {
+  // The historical implementation deleted this placeholder and colocated the
+  // repository with EmailAccount. Keeping it is an equally valid design.
+}
+const EmailAccount =
+  emailAccountModule.EmailAccount ?? emailInfraModule.EmailAccount;
+if (!EmailAccount) {
+  throw new Error(
+    'Expected EmailAccount from emailAccount.entity or emailinfra.entity',
+  );
+}
+const EmailAccountRepository = [
+  emailAccountModule.EmailAccountEntity,
+  emailInfraModule.EmailAccountEntity,
+  emailInfraModule.EmailInfraEntity,
+].find((candidate) => candidate && candidate !== EmailAccount) as any;
 
 type StoredAccount = Record<string, any>;
 
@@ -52,9 +75,15 @@ function memoryDatastore(initial: StoredAccount[] = []): any {
   }));
   const getByField = jest.fn(async (request: any) => {
     let data = [...records.values()];
-    if (request.fieldKey === 'id' && request.fieldValue?.$in) {
-      const ids = new Set(request.fieldValue.$in.map(String));
-      data = data.filter((record) => ids.has(`${record.id}`));
+    if (request.fieldKey === 'id' || request.fieldKey === 'data.id') {
+      if (request.fieldValue?.$in) {
+        const ids = new Set(request.fieldValue.$in.map(String));
+        data = data.filter((record) => ids.has(`${record.id}`));
+      } else {
+        data = data.filter(
+          (record) => `${record.id}` === `${request.fieldValue}`,
+        );
+      }
     } else if (request.fieldKey === 'data.email') {
       data = data.filter((record) => record.email === request.fieldValue);
     } else if (request.fieldKey === 'data.smartleadClientId') {
@@ -62,7 +91,23 @@ function memoryDatastore(initial: StoredAccount[] = []): any {
         (record) => `${record.smartleadClientId}` === `${request.fieldValue}`,
       );
     } else if (request.fieldKey === 'data.smartleadInboxId') {
-      data = data.filter((record) => Boolean(record.smartleadInboxId));
+      if (request.fieldValue?.$exists !== undefined) {
+        data = data.filter(
+          (record) =>
+            Boolean(record.smartleadInboxId !== undefined) ===
+            Boolean(request.fieldValue.$exists),
+        );
+      } else if (request.fieldValue?.$in) {
+        const ids = new Set(request.fieldValue.$in.map(String));
+        data = data.filter((record) =>
+          ids.has(`${record.smartleadInboxId}`),
+        );
+      } else {
+        data = data.filter(
+          (record) =>
+            `${record.smartleadInboxId}` === `${request.fieldValue}`,
+        );
+      }
     }
     if (request.pagination) {
       const start = request.pagination.page * request.pagination.pageSize;
@@ -94,18 +139,104 @@ function memoryDatastore(initial: StoredAccount[] = []): any {
   const remove = jest.fn(async (request: any) => {
     records.delete(`${request.id}`);
   });
+  const getPageCount = jest.fn(async () => records.size);
 
-  return { store, getById, getByField, getManyAndAggregate, remove, records };
+  return {
+    store,
+    getById,
+    getByField,
+    getManyAndAggregate,
+    getPageCount,
+    remove,
+    records,
+  };
 }
 
 function subject(db: any): { service: any; repository?: any } {
   const repository = EmailAccountRepository
     ? new EmailAccountRepository(db)
     : undefined;
+  const parameterTypes =
+    (Reflect as any).getMetadata?.('design:paramtypes', EmailinfraService) ?? [];
+  const dependency = parameterTypes[0];
+  const expectsRepository =
+    repository &&
+    dependency &&
+    (dependency === EmailAccountRepository ||
+      /Email(?:Account|Infra).*(?:Entity|Repository)/i.test(
+        `${dependency.name ?? ''}`,
+      ));
   return {
     repository,
-    service: new (EmailinfraService as any)(repository ?? db),
+    service: new (EmailinfraService as any)(expectsRepository ? repository : db),
   };
+}
+
+function accountList(value: any): any[] {
+  if (Array.isArray(value)) return value;
+  for (const key of ['emailAccounts', 'items', 'records', 'data']) {
+    if (Array.isArray(value?.[key])) return value[key];
+  }
+  throw new Error('Expected an email-account list or pagination envelope');
+}
+
+function deliverabilityOf(account: any): unknown {
+  for (const key of [
+    'deliverability',
+    'deliverabilityBand',
+    'deliverabilityScoreBand',
+    'mappedDeliverabilityScore',
+    'deliverabilityStatus',
+    'deliverabilityRating',
+    'reputationBand',
+  ]) {
+    if (typeof account?.[key] === 'string') return account[key];
+  }
+  if (typeof account?.deliverabilityScore === 'string') {
+    return account.deliverabilityScore;
+  }
+  for (const method of [
+    'getDeliverability',
+    'getDeliverabilityBand',
+    'getDeliverabilityScore',
+  ]) {
+    if (typeof account?.[method] === 'function') {
+      const value = account[method]();
+      if (typeof value === 'string') return value;
+    }
+  }
+  return undefined;
+}
+
+function numericDeliverabilityOf(account: any): unknown {
+  return (
+    (typeof account?.deliverabilityScore === 'number'
+      ? account.deliverabilityScore
+      : undefined) ?? account?.warmupReputation ?? account?.reputation
+  );
+}
+
+function storedId(request: any): string {
+  return `${
+    request?.context?.uniqueId ??
+    request?.data?.smartleadInboxId ??
+    request?.data?.id
+  }`;
+}
+
+async function persistAccount(db: any, account: any): Promise<void> {
+  if (typeof account.save === 'function') {
+    await account.save(db);
+    return;
+  }
+  const { repository } = subject(db);
+  for (const method of ['createEmailAccount', 'create', 'save']) {
+    if (typeof repository?.[method] === 'function') {
+      await repository[method](account);
+      return;
+    }
+  }
+  throw new Error('No supported email-account persistence entry point found');
 }
 
 function clientLookup(service: any, smartleadClientId: string): Promise<any[]> {
@@ -135,16 +266,28 @@ describe('Email inbox infrastructure contract', () => {
         campaignIds: ['campaign-1'],
         deliverabilityScore: score,
       });
-      expect(account.id).toBe('inbox-1');
+      expect(account.id ?? account.smartleadInboxId).toBe('inbox-1');
       expect(account.domain).toBe('example.com');
       expect(account.numberOfCampaignAssociated).toBe(1);
-      expect(account.deliverability).toBe(expected);
+      expect(deliverabilityOf(account)).toBe(expected);
       expect(account.tags).toEqual([]);
     }
   });
 
   it('persists the normalized email account in the dedicated collection', async () => {
     const db = memoryDatastore();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        id: 'inbox-1',
+        client_id: 'client-1',
+        from_email: 'owner@example.com',
+        createdAt: '2025-01-01T00:00:00.000Z',
+        created_at: '2025-01-01T00:00:00.000Z',
+        warmup_details: { warmup_reputation: 100 },
+      }),
+    } as any);
     const account = new EmailAccount({
       email: 'owner@example.com',
       smartleadClientId: 'client-1',
@@ -153,18 +296,19 @@ describe('Email inbox infrastructure contract', () => {
       createdAt: '2025-01-01T00:00:00.000Z',
     });
 
-    await account.save(db);
+    await persistAccount(db, account);
     expect(db.store).toHaveBeenCalledTimes(1);
     const request = db.store.mock.calls[0][0];
     expect(request.context.uniqueId).toBe('inbox-1');
     expect(`${request.context.documentType}`).toBe('EMAIL_ACCOUNT');
     expect(request.data).toEqual(
       expect.objectContaining({
-        id: 'inbox-1',
         domain: 'example.com',
-        deliverability: 'High',
       }),
     );
+    expect(request.data.id ?? request.data.smartleadInboxId).toBe('inbox-1');
+    expect(deliverabilityOf(request.data)).toBe('High');
+    expect(numericDeliverabilityOf(request.data)).toBe(100);
   });
 
   it('looks up accounts through inbox-specific datastore fields', async () => {
@@ -184,16 +328,13 @@ describe('Email inbox infrastructure contract', () => {
     ]);
     const { service } = subject(db);
 
-    await expect(service.getEmailAccount('1')).resolves.toEqual(
-      expect.objectContaining({ id: '1' }),
-    );
-    await expect(service.getEmailAccountByEmail('a@example.com')).resolves.toEqual(
-      expect.objectContaining({ id: '1' }),
-    );
+    const byId = await service.getEmailAccount('1');
+    expect(byId.id ?? byId.smartleadInboxId).toBe('1');
+    const byEmail = await service.getEmailAccountByEmail('a@example.com');
+    expect(byEmail.id ?? byEmail.smartleadInboxId).toBe('1');
     await expect(clientLookup(service, 'client-1')).resolves.toHaveLength(2);
-    await expect(
-      service.getAllEmailAccounts({ page: 0, pageSize: 1 }),
-    ).resolves.toHaveLength(1);
+    const page = await service.getAllEmailAccounts({ page: 0, pageSize: 1 });
+    expect(accountList(page)).toHaveLength(1);
   });
 
   it('rejects a lookup when no account has the requested email', async () => {
@@ -213,19 +354,28 @@ describe('Email inbox infrastructure contract', () => {
       emailAccountIds: ['1', '1', '2'],
       campaignId: 'campaign-1',
     });
-    expect(db.store).toHaveBeenCalledTimes(2);
+    expect(db.records.get('1')?.campaignIds).toEqual(['campaign-1']);
+    expect(db.records.get('2')?.campaignIds).toEqual(['campaign-1']);
+    expect(
+      new Set(db.store.mock.calls.map(([request]: any[]) => storedId(request))),
+    ).toEqual(new Set(['1', '2']));
 
     const partialDb = memoryDatastore([
       { id: '1', smartleadInboxId: '1', email: 'a@example.com', campaignIds: [] },
     ]);
     const partial = subject(partialDb).service;
-    await expect(
-      partial.associateEmailAccountsWithCampaign({
+    let rejection: unknown;
+    try {
+      await partial.associateEmailAccountsWithCampaign({
         emailAccountIds: ['1', 'missing'],
         campaignId: 'campaign-1',
-      }),
-    ).rejects.toBeInstanceOf(NotFoundException);
+      });
+    } catch (error) {
+      rejection = error;
+    }
+    expect(rejection).toBeDefined();
     expect(partialDb.store).not.toHaveBeenCalled();
+    expect(partialDb.records.get('1')?.campaignIds).toEqual([]);
   });
 
   it('skips existing campaign links and persists each new association once', async () => {
@@ -244,14 +394,18 @@ describe('Email inbox infrastructure contract', () => {
       campaignId: 'campaign-1',
     });
 
-    expect(db.store).toHaveBeenCalledTimes(1);
-    expect(db.store.mock.calls[0][0].data).toEqual(
-      expect.objectContaining({
-        id: '2',
-        campaignIds: ['campaign-1'],
-        numberOfCampaignAssociated: 1,
-      }),
+    expect(db.records.get('1')?.campaignIds).toEqual(['campaign-1']);
+    expect(db.records.get('2')?.campaignIds).toEqual(['campaign-1']);
+    const persistedNewAccount = db.store.mock.calls
+      .map(([request]: any[]) => request)
+      .find((request: any) => storedId(request) === '2');
+    expect(persistedNewAccount?.data).toEqual(
+      expect.objectContaining({ campaignIds: ['campaign-1'] }),
     );
+    expect(
+      persistedNewAccount.data.numberOfCampaignAssociated ??
+        persistedNewAccount.data.campaignIds.length,
+    ).toBe(1);
   });
 
   const rankingFixture = () => [
@@ -294,7 +448,9 @@ describe('Email inbox infrastructure contract', () => {
       numberOfEmailsPerInboxPerDay: 20,
     } as any);
 
-    const applicationOrder = returned.map((account: any) => account.id);
+    const applicationOrder = returned.map(
+      (account: any) => account.id ?? account.smartleadInboxId,
+    );
     let aggregationIsCorrect = false;
     if (db.getManyAndAggregate.mock.calls.length) {
       const [filter, _context, pipeline, pagination] =
@@ -351,12 +507,9 @@ describe('Email inbox infrastructure contract', () => {
       smartleadInboxId: 'inbox-1',
     });
     const stored = db.records.get('inbox-1');
-    expect(stored).toEqual(
-      expect.objectContaining({
-        deliverabilityScore: 99,
-        createdAt: '2025-04-21T04:51:14.026Z',
-      }),
-    );
+    expect(stored?.createdAt).toBe('2025-04-21T04:51:14.026Z');
+    expect(numericDeliverabilityOf(stored)).toBe(99);
+    expect(deliverabilityOf(stored)).toBe('Medium');
   });
 
   it('surfaces a missing Smartlead inbox and delegates deletion safely', async () => {
