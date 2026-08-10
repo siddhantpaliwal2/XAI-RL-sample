@@ -65,12 +65,12 @@ migration and uses a filtered historical change as its solvability oracle.
 Prompts state behavioral contracts without company names, commit messages,
 ticket IDs, file lists, or implementation hints.
 
-| Task | Change family | Historical scope | Measured model pass rates |
-|---|---|---:|---|
-| Customer billing-schedule migration | billing and identity migration | 23 oracle files / 343 LOC | Opus 5: 7/8; GPT-5.6 Sol: historical 0/8; Grok 4.5: 0/8 |
-| Top-up billing lifecycle | wallet and billing lifecycle | 28 oracle files / 1,450 LOC | Opus 5: 7/8; GPT-5.6 Sol: historical 0/2; Grok 4.5: 0/8 |
-| S3 datastore measurement | AWS usage ingestion | 17 oracle files / 1,809 LOC | Opus 5: 5/8; GPT-5.6 Sol: historical 0/1; Grok 4.5: 0/8 |
-| Native table migration | document-extraction migration | 62 commits / 70 production files / ~13,000 added LOC | Opus 5: 0/3; GPT-5.6 Sol: 0/3; Grok 4.5: 0/3 |
+| Task | Change family | Historical scope | Opus 5 | GPT-5.6 Sol | Grok 4.5 |
+|---|---|---:|---:|---:|---:|
+| Customer billing-schedule migration | billing and identity migration | 23 oracle files / 343 LOC | 7/8 | historical 0/8 | 0/8 |
+| Top-up billing lifecycle | wallet and billing lifecycle | 28 oracle files / 1,450 LOC | 7/8 | historical 0/2 | 0/8 |
+| S3 datastore measurement | AWS usage ingestion | 17 oracle files / 1,809 LOC | 5/8 | historical 0/1 | 0/8 |
+| Native table migration | document-extraction migration | 62 commits / 70 production files / ~13,000 added LOC | 0/3 | 0/3 | 0/3 |
 
 The GPT-5.6 Sol results labeled `historical` predate the final verifier
 checksums used by the eight-run Grok/Opus cohort and are diagnostic only. GPT
