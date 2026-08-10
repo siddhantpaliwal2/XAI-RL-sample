@@ -48,8 +48,8 @@ under `long-horizon-enterprise-trials/`.
 
 `long-native-table-migration` is also a production-derived feature migration,
 but it remains separate from the three-task capability-gap cohort. Opus 5,
-Fable 5, Grok 4.5, and GPT-5.6 Sol each scored 0/3, so it establishes shared
-frontier difficulty rather than a Grok-specific gap.
+Grok 4.5, and GPT-5.6 Sol each scored 0/3, so it establishes shared frontier
+difficulty rather than a Grok-specific gap.
 
 ## Headline result
 
@@ -108,58 +108,37 @@ leader: Opus 5 is both more repeatable and more broadly capable than either.
 | OpenCode model | Solves | Mean pass@1 | Mean pass@3 | Mean pass@10 | Tasks with a solve |
 |---|---:|---:|---:|---:|---:|
 | **Claude Opus 5** | **55/80** | **0.688** | **0.834** | **0.875** | **7/8** |
-| Claude Fable 5 | 18/63 | 0.290 | 0.582 | 0.667† | 5/7 measured |
 | **Grok 4.5** | **21/80** | **0.263** | 0.383 | 0.500 | 4/8 |
 | GPT-5.6 Sol | 16/80 | 0.200 | **0.435** | **0.750** | **6/8** |
 | Claude Opus 4.8 | 8/79 | 0.100 | 0.244 | 0.375 | 3/8 |
 | Nova Premier | 0/80 | 0.000 | 0.000 | 0.000 | 0/8 |
 
-† Fable's pass@10 macro uses its six n=10 cells. Doc extraction is
-provider-limited at n=3 and FIU is excluded before inference. This is why a
-single aggregate pass@1 should not be read without denominators and task
-coverage: Fable edges Grok on pass@1 but not on like-for-like eight-task
-coverage, while Grok is more repeatable on its strongest localized tasks.
+## August 2026 Claude Opus 5 pass@10
 
-## August 2026 Claude frontier pass@10
-
-Claude Opus 5 and Claude Fable 5 were evaluated with OpenCode 1.18.13 in the
-same Daytona task snapshots. Each available n=10 cell combines the original
-exact OpenRouter attempt with nine independently graded attempts on the exact
-Bedrock global route. Bedrock fallback was disabled, Fable provider data share
-was enabled with approval, and only trials with real hidden-verifier verdicts
-enter n.
+Claude Opus 5 was evaluated with OpenCode 1.18.13 in the same Daytona task
+snapshots. Each n=10 cell combines the original exact OpenRouter attempt with
+nine independently graded attempts on the exact Bedrock global route. Bedrock
+fallback was disabled, and only trials with real hidden-verifier verdicts enter
+n.
 
 | Model | credit | doc | fin-tools | phone | FIU | txenr | txenr3 | txenr4 | Solves / valid | pass@1 | pass@3 | pass@10 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | Claude Opus 5 | 8/10 | 6/10 | 3/10 | 9/10 | 10/10 | 9/10 | 10/10 | 0/10 | **55/80** | **0.6875** | **0.8344** | **0.8750** |
-| Claude Fable 5 | 4/10 | 1/3* | 0/10 | 3/10 | excluded | 8/10 | 2/10 | 0/10 | **18/63** | **0.2905** | **0.5821** | **0.6667†** |
 
 The strongest result is Opus's breadth: it solves seven of eight task families,
 including 10/10 FIU and txenrich3, while the older OpenCode models solved at
-most six. Its one systematic zero is txenrich4. Fable is much less consistent:
-it is strong on base txenrich (8/10), but 0/10 on both financial-tools and
-txenrich4 and only 2/10 on txenrich3.
-
-Fable FIU is excluded, not scored zero. OpenRouter and Bedrock consistently
-filtered the prompt before inference and verification. Fable doc extraction is
-provider-limited at n=3, c=1: after a bounded exact-harness sweep across the
-OpenRouter, global Bedrock, and U.S. Bedrock routes, more than 100 provider
-attempts were filtered before inference and only three produced verifier-valid
-trials. pass@10 is therefore undefined for doc; Fable's pass@10 macro uses only
-the six cells that reached n=10.
+most six. Its one systematic zero is txenrich4.
 
 | Model | Valid trials | Model turns | Tool calls | Mean wall time | Median | p90 | Range |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Claude Opus 5 | 80 | 3,061 | 3,316 | 12m 46.1s | 10m 14.5s | 23m 28.3s | 5m 04.3s–30m 28.0s |
-| Claude Fable 5 | 63 | 1,391 | 1,830 | 16m 01.8s | 12m 37.6s | 35m 24.7s | 3m 47.0s–57m 33.8s |
 
 Those durations are Harbor `started_at`→`finished_at` trial wall times,
 including environment setup, agent setup, execution, and verification. The
 trials ran concurrently, so independently running durations are not summed.
 Filtered calls with no inference contribute no scored failure. The per-attempt
 routes, provider attempt IDs, scores, turns, tool calls, tokens, wall time, and
-packaged evidence are in `opus5_trials.json`,
-`fable5_trials.json`, and `frontier-trials/`.
+packaged evidence are in `opus5_trials.json` and `frontier-trials/`.
 
 ## Long-horizon definition and evaluation bar
 
@@ -203,7 +182,7 @@ provenance and dependency depth, not human labor time.
 The capability-gap cohort uses eight valid attempts per model and task. A task
 is learnable when Grok solves one to six attempts, or when Grok solves zero and
 a comparable model completes the task. The native-table control instead asks
-whether Opus 5 or Fable 5 fails at least half of its independent valid attempts.
+whether Opus 5 fails at least half of its independent valid attempts.
 In both cohorts, only trials whose hidden verifier returns complete per-test
 verdicts enter the denominator; provider, verifier, network, and operator
 failures without verdicts are excluded.
@@ -305,16 +284,16 @@ The complete evidence is available in
 
 The earlier `long-native-table-migration` study is retained as a shared
 difficulty control rather than a Grok-specific capability gap. Its final
-matrix contains 12 valid attempts, three each for Opus 5, Fable 5, Grok 4.5,
-and GPT-5.6 Sol. All four models solved **0/3**, so Opus and Fable each
-independently exceed the 50% difficulty threshold. Tool calls ranged
-from **80 to 179**, with a conventional 12-trial median of **127**. Nine traces
+comparison contains nine valid attempts, three each for Opus 5, Grok 4.5, and
+GPT-5.6 Sol. All three models solved **0/3**, so Opus independently exceeds the
+50% difficulty threshold. Tool calls ranged from **80 to 169**, with a
+conventional nine-trial median of **116**. Six traces
 exceeded the original 70–100 reference band; the checked-in
 `long_horizon_results.json` correctly treats that band as descriptive, reports
 the difficulty gate as true, and sets overall `qualifies: true`.
 
 The control keeps OpenCode 1.18.13 and the Daytona snapshot fixed. Valid scored
-trials use the exact OpenRouter routes for all four models. Zero-turn transport
+trials use the exact OpenRouter routes for all three models. Zero-turn transport
 attempts are excluded as infrastructure failures rather than counted as model
 failures.
 
@@ -323,7 +302,6 @@ pass@k uses `1 − C(n−c, k) / C(n, k)`. Every row has `n=3`, `c=0`:
 | Model | Solves | pass@1 | pass@2 | pass@3 | Model turns | Tool calls, median (range) | Trial wall time, mean / median (range) |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Claude Opus 5 | 0/3 | 0.000 | 0.000 | 0.000 | 437 | 168 (148–169) | 56m 52.7s / 50m 07.4s (41m 46.6s–78m 44.2s) |
-| Claude Fable 5 | 0/3 | 0.000 | 0.000 | 0.000 | 367 | 148 (120–179) | 71m 22.0s / 75m 06.9s (61m 13.5s–77m 45.4s) |
 | Grok 4.5 | 0/3 | 0.000 | 0.000 | 0.000 | 110 | 116 (108–134) | 11m 41.9s / 11m 09.2s (10m 11.9s–13m 44.7s) |
 | GPT-5.6 Sol | 0/3 | 0.000 | 0.000 | 0.000 | 113 | 90 (80–90) | 8m 24.9s / 8m 41.1s (7m 35.9s–8m 57.8s) |
 
@@ -332,9 +310,6 @@ pass@k uses `1 − C(n−c, k) / C(n, k)`. Every row has `n=3`, `c=0`:
 | Opus 5 / 1 | 0 | 0/4 | 1/2 | 150 | 169 | 50m 07.4s | 34.89M (34.89M) / 143.9k | regraded final verifier |
 | Opus 5 / 2 | 0 | 1/4 | 1/2 | 154 | 168 | 78m 44.2s | 38.24M (38.24M) / 150.7k | regraded final verifier |
 | Opus 5 / 3 | 0 | 0/4 | 1/2 | 133 | 148 | 41m 46.6s | 26.20M (26.20M) / 125.0k | regraded final verifier |
-| Fable 5 / 1 | 0 | 0/4 | 2/2 | 89 | 120 | 75m 06.9s | 15.06M (15.06M) / 82.4k | regraded final verifier |
-| Fable 5 / 2 | 0 | 0/4 | 1/2 | 165 | 179 | 77m 45.4s | 38.15M (38.15M) / 148.3k | regraded final verifier |
-| Fable 5 / 3 | 0 | 0/4 | 2/2 | 113 | 148 | 61m 13.5s | 25.33M (25.33M) / 138.8k | regraded final verifier |
 | Grok 4.5 / 1 | 0 | 1/4 | 2/2 | 39 | 134 | 11m 09.2s | 2.80M (2.67M) / 32.7k | original Harbor verifier |
 | Grok 4.5 / 2 | 0 | 1/4 | 1/2 | 36 | 116 | 13m 44.7s† | 2.72M (2.52M) / 31.4k | recovered + regraded final verifier |
 | Grok 4.5 / 3 | 0 | 1/4 | 2/2 | 35 | 108 | 10m 11.9s | 2.71M (2.50M) / 28.2k | original Harbor verifier |
@@ -342,11 +317,11 @@ pass@k uses `1 − C(n−c, k) / C(n, k)`. Every row has `n=3`, `c=0`:
 | GPT-5.6 Sol / 2 | 0 | 1/4 | 1/2 | 40 | 90 | 8m 41.1s | 2.73M (2.73M) / 14.1k | original Harbor verifier |
 | GPT-5.6 Sol / 3 | 0 | 1/4 | 1/2 | 36 | 90 | 8m 57.8s | 2.73M (2.73M) / 15.1k | original Harbor verifier |
 
-The matrix used **1,027 model turns**, **1,550 tool calls**, **193.80M input
-tokens** (193.26M cached), and **923.8k output tokens**. Independently running
+The comparison used **660 model turns**, **1,103 tool calls**, **115.26M input
+tokens** (114.72M cached), and **554.3k output tokens**. Independently running
 trial durations are not summed.
 
-† Eleven durations are full Harbor `started_at`→`finished_at` wall time,
+† Eight durations are full Harbor `started_at`→`finished_at` wall time,
 including environment setup, agent setup, agent execution, and verification.
 In one Grok trial the agent command exited successfully but Harbor stalled while
 collecting the finished Daytona sandbox. Its 13m 44.7s value is Harbor start to
@@ -360,8 +335,8 @@ class itself to fail compilation. The repaired helper discovers compatible
 services and injects dependencies by type through either setters or fields.
 The untouched base still scores 0, the historical oracle still scores 1, and
 an alternate oracle with all seven concrete dependency setters removed also
-scores 1. All six Opus/Fable candidate worktrees then executed the final
-six-test suite and remained reward 0; the Grok and Sol trials ran only after
+scores 1. All three Opus candidate worktrees then executed the final six-test
+suite and remained reward 0; the Grok and Sol trials ran only after
 that verifier was frozen. Regrade provenance is explicit in every packaged
 trial index, and the prompt-to-test audit is preserved under
 `long-horizon-controls/fairness-audit.md`.
