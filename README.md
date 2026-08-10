@@ -99,100 +99,42 @@ All verifier fixtures are synthetic.
 
 ### Enterprise calibration results
 
-The enterprise runner now has a historical frontier matrix plus a separate
-fairness checkpoint for three Paigo tasks whose first hidden tests encoded
-oracle-specific assumptions. A result enters the denominator only when the
-requested model produces complete, scoreable verifier output on the stated
-task checksum. Provider failures and silent partial output are excluded.
+The final long-horizon enterprise study freezes eight valid Grok 4.5 and eight
+valid Claude Opus 5 attempts for three Paigo tasks. Every attempt used the exact
+route, OpenCode 1.18.13, a denied task/subagent tool, the frozen checksum, one
+isolated Daytona sandbox, and complete hidden-verifier output.
 
-The historical matrix predates the repaired checksums for top-up billing, S3
-datastore measurement, and customer identity. It remains useful diagnostic
-evidence, but it is not current-checksum qualification evidence for those three
-tasks.
+| Task | Grok 4.5 | Claude Opus 5 | XAI learnability gate |
+|---|---:|---:|---|
+| `paigo-customer-billing-schedule-migration` | 0/8 | 7/8 | qualifies |
+| `paigo-top-up-billing-lifecycle` | 0/8 | 7/8 | qualifies |
+| `paigo-s3-datastore-measurement` | 0/8 | 5/8 | qualifies |
+| **Total** | **0/24** | **19/24** | **3/3 qualify** |
 
-| Task | Opus 5 | Grok 4.5 | GPT-5.6 Sol |
-|---|---:|---:|---:|
-| `paigo-dimension-pricing-tiers` | 7/8 | 2/3 | 1/2 |
-| `paigo-top-up-billing-lifecycle` | 0/8 | 0/3 | 0/2 |
-| `paigo-s3-datastore-measurement` | 0/8 | 0/2 | 0/1 |
-| `paigo-customer-identity-migration` | 0/8 | 0/2 | 0/2 |
-| `paigo-customer-billing-schedule-migration` | 4/8 | 0/8 | 0/8 |
-| `champ-email-inbox-infrastructure` | 1/8 | 0/8 | 0/8 |
-| `finbit-bank-parser-consolidation` | 0/8 | 1/2 | 0/3 |
-| `finbit-google-cloud-storage-migration` | 3/8 | 0/3 | 0/1 |
-| **Total valid** | **15/64** | **3/31** | **1/27** |
+XAI's meeting rule was Grok solving one to six of eight, or zero when a
+comparable model such as Opus can complete the task. All three qualify through
+the explicit zero-with-comparator-completion branch. The selected cohort cost
+**$270.47**; the 32 accepted finalization attempts cost **$148.24** and ran in
+**59m 44s** of overlapping wall clock. Conservative all-project spend is
+**$1,940.18**.
 
-Grok launched 43 jobs and GPT-5.6 Sol launched 42, but only 31 and 27
-respectively produced valid verifier outcomes. The smaller denominators are
-intentional: transport, credit, and incomplete-output failures are not model
-failures.
+The complete analysis covers structural and measured horizon, binary win
+conditions, pass rates and confidence intervals, cost, turns, tool calls,
+agent/trial wall time, trace-backed failure modes, fairness repairs, and direct
+alignment to transcript lines 20, 27, 30, and 34:
 
-The repaired tasks each cleared fresh Daytona controls before model spend:
-untouched base reward 0, historical oracle reward 1, and zero exceptions. Four
-fresh Opus 5 attempts then measured the effect of the verifier repairs.
+- [`LONG_HORIZON_ENTERPRISE.md`](LONG_HORIZON_ENTERPRISE.md)
+- [`sample-run/long-horizon-enterprise-results.json`](sample-run/long-horizon-enterprise-results.json)
+- [`sample-run/long-horizon-enterprise-trials/`](sample-run/long-horizon-enterprise-trials/)
+- [`sample-run/long-horizon-enterprise-artifacts-manifest.json`](sample-run/long-horizon-enterprise-artifacts-manifest.json)
 
-| Repaired task | Historical Opus | Corrected Opus | Required tests by attempt | Classification |
-|---|---:|---:|---|---|
-| `paigo-top-up-billing-lifecycle` | 0/8 | 4/4 | 11/11, 11/11, 11/11, 11/11 | too easy |
-| `paigo-s3-datastore-measurement` | 0/8 | 3/4 | 10/10, 9/10, 10/10, 10/10 | too easy |
-| `paigo-customer-identity-migration` | 0/8 | 4/4 | 9/9, 9/9, 9/9, 9/9 | too easy |
-
-The 12 selected current-checksum attempts cost **$172.17**. An earlier four-run
-S3 checkpoint costing **$36.44** is excluded because a valid AWS SDK v3 client
-cleanup pattern exposed missing `destroy` methods in the verifier mocks. The
-full controls, checksums, costs, historical denominators, and exclusion reason
-are frozen in `sample-run/enterprise-fairness-v4-summary.json`.
-
-A four-attempt current-checksum Grok 4.5 checkpoint then ran all 16 trials at
-once, one isolated Daytona sandbox per trial. All 16 produced complete verifier
-output with no infrastructure failures. The wave took **21m 10s** wall-clock
-and cost **$18.54**.
-
-| Task | Current Opus 5 | Current Grok 4.5 | Grok required tests by attempt | Gap assessment |
-|---|---:|---:|---|---|
-| `paigo-customer-billing-schedule-migration` | 4/8 | 0/4 | 7/8, 7/8, 7/8, 7/8 | strong candidate |
-| `paigo-top-up-billing-lifecycle` | 4/4 | 0/4 | 3/11, 3/11, 8/11, 3/11 | strong candidate |
-| `paigo-s3-datastore-measurement` | 3/4 | 0/4 | 8/10, 6/10, 7/10, 6/10 | strong candidate |
-| `paigo-customer-identity-migration` | 4/4 | 3/4 | 8/9, 9/9, 9/9, 9/9 | Grok-too-easy risk |
-
-These are calibration checkpoints, not substitutes for XAI's final eight Grok
-rollouts per task. Attempt metrics, recurring failure names, checksums, cost,
-and the excluded pre-funding 402 launch are recorded in
-`sample-run/enterprise-grok4-checkpoint.json`.
-
-CHAMP-2197 was then recalibrated from its original **1/8 Opus** result by
-auditing the agent traces before changing the verifier. The failures exposed
-architecture-specific assumptions around constructor injection, repository and
-entity placement, pagination envelopes, datastore mocks, `id` versus the
-documented `smartleadInboxId`, deliverability-band aliases, and whether
-Smartlead hydration lives in the service or entity. The replacement assertions
-check observable behavior while preserving all identity, persistence,
-association, ranking, pool-sizing, hydration, deletion, wiring, script, and
-regression requirements.
-
-| CHAMP checkpoint | Opus 5 | Required tests by selected attempt | Cost | Classification |
-|---|---:|---|---:|---|
-| Historical checksum | 1/8 | 12/12, 9/12, 6/12, 10/12, 7/12, 8/12, 9/12, 3/12 | recorded in historical matrix | too hard and verifier-coupled |
-| Current checksum | 3/4 | 8/12, 12/12, 12/12, 12/12 | $20.82 | fair, but above the target Opus checkpoint |
-
-The current checksum cleared fresh local and Daytona controls (null 0, oracle
-1) and the full boundary/secret audit. One zero-cost NVM download failure was
-excluded before model execution and replaced. Three superseded diagnostic
-checksums cost **$56.62**; all diagnostic and selected calibration runs cost
-**$77.44**, leaving the project ledger at **$1,790.47**. The trace findings,
-selected jobs, checksums, costs, and exclusion reasons are frozen in
-`sample-run/enterprise-champ-fairness-checkpoint.json`. A formal eight-attempt
-gate should wait until historically supported integration or migration
-complexity moves the four-attempt Opus checkpoint closer to 2/4; the verifier
-should not be tightened around the historical implementation.
-
-The three repaired Paigo tasks remain long-horizon—their historical changes
-span 17–44 files and 1,450–1,823 changed lines across coupled persistence,
-service, API, billing, migration, AWS, and failure-recovery boundaries. Their
-next step is difficulty rebalancing with additional historically supported
-integration behavior,
-followed by fresh controls and four-attempt Opus probes. Only after the checksum
-is frozen should the final eight-rollout Grok, Opus, and Sol matrices run.
+One billing verifier assertion was found to grade positional Nest constructor
+order rather than behavior. It was repaired, fresh null/oracle controls passed,
+and all 16 attempts on the old checksum were excluded. The final billing rates
+above use only the fair checksum. Historical exploratory matrices and CHAMP,
+identity, Finbit, and GPT-5.6 Sol checkpoints remain in their existing
+`sample-run/enterprise-*.json` evidence files; they are not mixed into this
+current-checksum denominator.
 
 ## Gates and measured results
 
