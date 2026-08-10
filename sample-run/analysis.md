@@ -2,11 +2,24 @@
 
 ## Setup
 
-Grok 4.5 was evaluated with OpenCode on all eight latent-defect tasks. Each
-task received ten independent attempts in an isolated 2-CPU/4-GB AMD64 Daytona
-sandbox. The route was `openrouter/x-ai/grok-4.5`; Harbor injected the hidden
-tests only after the agent stopped. All 80 cells produced complete verifier
-verdicts. No exception or vacuous trial is included in the scores.
+This analysis contains two primary evaluation tracks with different task
+construction methods, plus one separate difficulty control. Their denominators
+and conclusions are reported separately rather than pooled.
+
+### Bug-injection debugging track — eight tasks
+
+These eight tasks begin with working production code into which narrow latent
+boundary defects were deliberately introduced. Agents receive symptom-style
+engineering tickets and must repair the planted behavior without breaking
+existing functionality. This track measures defect localization, boundary
+reasoning, and regression-safe repair; it does not ask agents to implement a
+historical feature from scratch.
+
+Grok 4.5 received ten independent OpenCode attempts per task in isolated
+2-CPU/4-GB AMD64 Daytona sandboxes. The route was
+`openrouter/x-ai/grok-4.5`; Harbor injected the hidden tests only after the
+agent stopped. All 80 attempts produced complete verifier verdicts. No
+exception or vacuous trial is included in the scores.
 
 The run used a global 12-sandbox worker pool. Valid attempts are packaged under
 `grok-trials/`, including their full trajectory, Harbor result, parsed verifier
@@ -14,13 +27,29 @@ output, and raw verifier stdout. `grok_trials.json` is the compact per-attempt
 index. A solving trajectory is selected when one exists; otherwise the closest
 graded attempt is copied into `trajectories-matrix/` and `trajectories/`.
 
-The long-horizon capability study adds three anonymized production tasks. Each
-received eight independent Grok 4.5 attempts and eight independent Claude Opus
-5 attempts through OpenCode 1.18.13. Only runs matching the frozen task
-checksum, exact route, isolated Daytona environment, single-agent policy, and
-complete hidden-verifier output enter the denominator. The earlier
-`long-native-table-migration` matrix remains a separate four-model difficulty
-control because no measured model solved it.
+### Enterprise long-horizon track — three tasks
+
+These three anonymized tasks do not plant synthetic defects. Each starts from a
+pre-feature production revision and asks the agent to implement a real feature
+or migration across multiple coupled subsystems. Independently authored hidden
+tests grade the behavioral contract; the authorized production change serves
+only as a solvability oracle. This track measures requirement retention,
+state-machine composition, and cross-boundary implementation over a longer
+dependency chain.
+
+Each task received eight independent Grok 4.5 attempts and eight independent
+Claude Opus 5 attempts through OpenCode 1.18.13. Only runs matching the frozen
+task checksum, exact route, isolated Daytona environment, single-agent policy,
+and complete hidden-verifier output enter the denominator. The 48 accepted
+attempts are indexed in `long-horizon-enterprise-results.json` and packaged
+under `long-horizon-enterprise-trials/`.
+
+### Separate native-table difficulty control
+
+`long-native-table-migration` is also a production-derived feature migration,
+but it remains separate from the three-task capability-gap cohort. Opus 5,
+Fable 5, Grok 4.5, and GPT-5.6 Sol each scored 0/3, so it establishes shared
+frontier difficulty rather than a Grok-specific gap.
 
 ## Headline result
 
