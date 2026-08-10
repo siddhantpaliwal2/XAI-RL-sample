@@ -111,17 +111,15 @@ output.
 | S3 datastore measurement | 0/8 | 5/8 | qualifies |
 | **Total** | **0/24** | **19/24** | **3/3 qualify** |
 
-XAI's meeting rule was Grok solving one to six of eight, or zero when a
-comparable model such as Opus can complete the task. All three qualify through
-the explicit zero-with-comparator-completion branch. The selected cohort cost
-**$270.47**; the 32 accepted finalization attempts cost **$148.24** and ran in
-**59m 44s** of overlapping wall clock. Conservative all-project spend is
-**$1,940.18**.
+The learnability criterion accepts tasks where Grok solves one to six of eight
+attempts, or where Grok solves zero and a comparable model completes the task.
+All three qualify through the comparator-completion path: Claude Opus 5 solves
+19 of 24 attempts while Grok solves 0 of 24, demonstrating that the tasks are
+solvable while preserving a clear capability gap.
 
-The complete analysis covers structural and measured horizon, binary win
-conditions, pass rates and confidence intervals, cost, turns, tool calls,
-agent/trial wall time, trace-backed failure modes, fairness repairs, and direct
-alignment to transcript lines 20, 27, 30, and 34:
+The complete evidence package covers structural and measured horizon, binary
+win conditions, pass rates and confidence intervals, turns, tool calls,
+agent/trial wall time, trace-backed failure modes, and verifier fairness:
 
 - [`LONG_HORIZON_ENTERPRISE.md`](LONG_HORIZON_ENTERPRISE.md)
 - [`sample-run/long-horizon-enterprise-results.json`](sample-run/long-horizon-enterprise-results.json)
@@ -131,9 +129,8 @@ alignment to transcript lines 20, 27, 30, and 34:
 One billing verifier assertion was found to grade positional Nest constructor
 order rather than behavior. It was repaired, fresh null/oracle controls passed,
 and all 16 attempts on the old checksum were excluded. The final billing rates
-above use only the fair checksum. Other historical exploratory matrices and
-GPT-5.6 Sol checkpoints remain in their existing `sample-run/enterprise-*.json`
-evidence files; they are not mixed into this current-checksum denominator.
+above use only the fair checksum. Exploratory attempts and runs on superseded
+checksums are not included in the reported denominator.
 
 ## Gates and measured results
 
