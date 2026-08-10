@@ -366,49 +366,6 @@ rejects, so every attempt died on the first call). Neither zero is a model
 result, so neither is reported as one. Amazon's Nova 2 Pro is preview-gated
 (not on OpenRouter or generally on Bedrock) and could not be included.
 
-### Claude frontier pass@10 — OpenCode (c/n)
-
-[Claude Opus 5](https://platform.claude.com/docs/en/about-claude/models/whats-new-opus-5)
-and [Claude Fable 5](https://platform.claude.com/docs/en/about-claude/models/introducing-claude-fable-5-and-claude-mythos-5)
-were completed to pass@10 in August 2026 with OpenCode 1.18.13 and the same
-Daytona snapshots. Each available n=10 cell combines its original exact-route
-OpenRouter attempt with nine independently graded attempts on the exact Bedrock
-global model route. Every Bedrock trajectory records fallback disabled; Fable's
-approved provider-data-share setting was enabled for its calls. Only attempts
-with real hidden-verifier verdicts enter n.
-
-| Model | credit-norm | doc-extract | fin-tools | phone-inv | fiu | txenr | txenr3 | txenr4 | solves / valid | macro pass@1 | macro pass@3 | macro pass@10 |
-|---|---|---|---|---|---|---|---|---|---:|---:|---:|---:|
-| **claude-opus-5** | **8/10** | **6/10** | **3/10** | **9/10** | **10/10** | **9/10** | **10/10** | 0/10 | **55/80** | **0.6875** | **0.8344** | **0.8750** |
-| claude-fable-5 | 4/10 | 1/3* | 0/10 | 3/10 | excluded | 8/10 | 2/10 | 0/10 | 18/63 | 0.2905 | 0.5821 | 0.6667† |
-
-Fable's FIU cell is not a zero: OpenRouter and Bedrock consistently stopped on
-the provider content filter before inference or verification, so the cell has
-n=0 and remains excluded. Fable doc extraction is provider-limited at n=3,
-c=1: a bounded exact-harness sweep across OpenRouter and Bedrock produced only
-three verifier-valid trials while more than 100 provider attempts were filtered
-before inference. Those blocked calls are not scored as failures. Accordingly,
-Fable's pass@1/pass@3 macro uses seven measured tasks, while its pass@10 macro
-uses the six tasks that actually reached n=10. At n=10, pass@10 is task coverage:
-1 for a cell with any solve and 0 for a zero-solve cell.
-
-The per-trial duration is full Harbor wall time from `started_at` to
-`finished_at`, including environment setup, agent setup, execution, and
-verification. No independently running durations are summed.
-
-| Model | Valid trials | Model turns | Tool calls | Mean wall time | Median | p90 | Range |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| claude-opus-5 | 80 | 3,061 | 3,316 | 12m 46.1s | 10m 14.5s | 23m 28.3s | 5m 04.3s–30m 28.0s |
-| claude-fable-5 | 63 | 1,391 | 1,830 | 16m 01.8s | 12m 37.6s | 35m 24.7s | 3m 47.0s–57m 33.8s |
-
-The 143 scored trials report **$620.94** of model usage: **$76.55** on the
-original OpenRouter screen and **$544.39** of Bedrock list-price-equivalent
-usage charged against the AWS account/credits. Provider-filtered calls without
-inference are excluded from model cost as well as score. Full per-attempt data,
-provider attempt IDs, routes, durations, turns, calls, and packaged artifacts
-are in `sample-run/opus5_trials.json`, `sample-run/fable5_trials.json`, and
-`sample-run/frontier-trials/`.
-
 ### OpenCode harness — 11 models, n≈10 attempts per cell (c/n)
 
 | Model | credit-norm | doc-extract | fin-tools | phone-inv | fiu | txenr | txenr3 | txenr4 | mean pass@1 | mean pass@10 |
