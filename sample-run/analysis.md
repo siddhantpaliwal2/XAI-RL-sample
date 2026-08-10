@@ -1,5 +1,32 @@
 # Analysis: Grok 4.5, the current Claude frontier, and long-horizon behavior
 
+## Table of contents
+
+- [Setup](#setup)
+  - [Bug-injection debugging track — eight tasks](#bug-injection-debugging-track--eight-tasks)
+  - [Enterprise long-horizon track — three tasks](#enterprise-long-horizon-track--three-tasks)
+  - [Separate native-table difficulty control](#separate-native-table-difficulty-control)
+- [Headline result](#headline-result)
+- [Long-horizon definition and evaluation bar](#long-horizon-definition-and-evaluation-bar)
+- [Long-horizon capability-gap results](#long-horizon-capability-gap-results)
+  - [Measured effort](#measured-effort)
+  - [Trace-backed capability gaps](#trace-backed-capability-gaps)
+  - [Fairness and validity](#fairness-and-validity)
+- [Native-table migration difficulty control](#native-table-migration-difficulty-control)
+- [Turn, tool, and wall-clock profile](#turn-tool-and-wall-clock-profile)
+- [Grok's win conditions](#groks-win-conditions)
+  - [A small number of named helpers with behaviorally direct symptoms](#1-a-small-number-of-named-helpers-with-behaviorally-direct-symptoms)
+  - [Cross-file work succeeds when every defect leaves a strong local anomaly](#2-cross-file-work-succeeds-when-every-defect-leaves-a-strong-local-anomaly)
+  - [Fast hypothesis-to-replay loops](#3-fast-hypothesis-to-replay-loops)
+- [Load-bearing failures](#load-bearing-failures)
+  - [Doc-extractors: every reported defect fixed, every attempt over-corrects](#doc-extractors-every-reported-defect-fixed-every-attempt-over-corrects)
+  - [Financial-tools: one universal needle](#financial-tools-one-universal-needle)
+  - [Txenrich3: right symptom family, wrong bank](#txenrich3-right-symptom-family-wrong-bank)
+  - [Txenrich4: breadth without the decisive PNB edit](#txenrich4-breadth-without-the-decisive-pnb-edit)
+  - [Txenrich: repair plus restraint is the gate](#txenrich-repair-plus-restraint-is-the-gate)
+- [Trace comparison: Grok vs GPT-5.6 vs Opus 4.8](#trace-comparison-grok-vs-gpt-56-vs-opus-48)
+- [Caveats](#caveats)
+
 ## Setup
 
 This analysis contains two primary evaluation tracks with different task
