@@ -115,12 +115,14 @@ describe('Customer billing schedule migration', () => {
         const loadPoints = jest.fn();
         const getPoint = jest.fn(point);
         const generateInvoiceForUsageTotal = jest.fn(async () => ({ invoiceId: 'invoice-1' }));
+        const migratedDependencies = {
+            findOne: jest.fn(async () => ({ data: [{ offering: { billingCycle: 'monthly' } }] })),
+            generateInvoiceForUsageTotal,
+        };
         const service = new BillingService(
             { getPoint, loadPoints } as any,
-            {
-                findOne: jest.fn(async () => ({ data: [{ offering: { billingCycle: 'monthly' } }] })),
-            } as any,
-            { generateInvoiceForUsageTotal } as any,
+            migratedDependencies as any,
+            migratedDependencies as any,
         );
         jest.spyOn(Billing, 'billingCycleToTimeRange').mockReturnValue({
             startTime: '2023-02-01T00:00:00.000Z',

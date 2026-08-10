@@ -31,8 +31,8 @@ CONTROL_JOBS = {
         "eng504a-oracle-daytona-r3",
     ),
     "paigo-customer-billing-schedule-migration": (
-        "eng504b-null-daytona-r3",
-        "eng504b-oracle-daytona-r3",
+        "eng504b-null-daytona-r6",
+        "eng504b-oracle-daytona-r6",
     ),
     "champ-email-inbox-infrastructure": (
         "champ2197-null-daytona-r10",

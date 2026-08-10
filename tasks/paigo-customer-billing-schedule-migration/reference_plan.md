@@ -18,4 +18,4 @@
 
 ## Verifier design
 
-The hidden verifier uses offline service tests with mocked Influx, queues, customers, invoices, and schedules. It grades scheduler conditions and payloads, invoice boundaries, persisted billing identity, queue selection, and unenrolled usage behavior. Exact log or error text, helper names, source layout, and historical code shape are not graded.
+The hidden verifier uses offline service tests with mocked Influx, queues, customers, invoices, and schedules. It grades scheduler conditions and payloads, invoice boundaries, persisted billing identity, queue selection, and unenrolled usage behavior. The migrated customer and invoice mocks expose both boundary methods in either constructor position so Nest dependency ordering is not graded. Exact log or error text, helper names, source layout, and historical code shape are not graded.
