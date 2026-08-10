@@ -19,16 +19,16 @@ CONTROL_JOBS = {
         "eng830-oracle-daytona-r10",
     ),
     "paigo-top-up-billing-lifecycle": (
-        "eng1167-null-daytona-r5",
-        "eng1167-oracle-daytona-r5",
+        "eng1167-null-daytona-r6",
+        "eng1167-oracle-daytona-r6",
     ),
     "paigo-s3-datastore-measurement": (
-        "eng411-null-daytona-r3",
-        "eng411-oracle-daytona-r3",
+        "eng411-null-daytona-r5",
+        "eng411-oracle-daytona-r5",
     ),
     "paigo-customer-identity-migration": (
-        "eng504a-null-daytona-r2",
-        "eng504a-oracle-daytona-r2",
+        "eng504a-null-daytona-r3",
+        "eng504a-oracle-daytona-r3",
     ),
     "paigo-customer-billing-schedule-migration": (
         "eng504b-null-daytona-r3",

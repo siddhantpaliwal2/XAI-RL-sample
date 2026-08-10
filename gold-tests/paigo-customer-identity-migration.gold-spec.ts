@@ -15,6 +15,19 @@ import { UsageService } from '../usage/usage.service';
 describe('Customer identity migration', () => {
     afterEach(() => jest.restoreAllMocks());
 
+    // These services use Nest constructor injection, whose positional order is
+    // not part of the public migration contract. Give every non-Influx slot a
+    // capability-complete double so equivalent dependency layouts are graded
+    // by behavior rather than by matching the historical constructor exactly.
+    const serviceDependencies = (overrides: Record<string, unknown> = {}) => ({
+        create: jest.fn(),
+        findOne: jest.fn(),
+        findUsageForCustomer: jest.fn(),
+        findAllCustomersWithOfferingId: jest.fn(async () => ({ data: [] })),
+        findAllServicesWithCustomerId: jest.fn(async () => ({ data: [] })),
+        ...overrides,
+    });
+
     it('persists and restores the offering attached to a customer', () => {
         const point = { tag: jest.fn(), stringField: jest.fn() };
         const entity = new CustomerEntity({
@@ -85,17 +98,19 @@ describe('Customer identity migration', () => {
 
     it('queries usage through the customer offering and preserves time and interval overrides', async () => {
         const aggregate = jest.fn(async () => [{ dimensionId: 'dimension-1', usage: [] }]);
-        const customer = {
+        const dependencies = serviceDependencies({
             findOne: jest.fn(async () => ({
                 data: [{ offering: { offeringId: 'offering-1', dimensions: [{ dimensionId: 'dimension-1' }] } }],
             })),
-        };
+        });
         const service = new UsageService(
             { getAggregateUsageForDimension: aggregate } as any,
-            {} as any,
-            {} as any,
-            customer as any,
-            {} as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
         );
         await expect(
             service.findUsageForCustomer(
@@ -107,7 +122,7 @@ describe('Customer identity migration', () => {
                 } as any,
             ),
         ).resolves.toEqual([{ dimensionId: 'dimension-1', usage: [] }]);
-        expect(customer.findOne).toHaveBeenCalledWith({ customerId: 'customer-1', businessID: 'business-1' });
+        expect(dependencies.findOne).toHaveBeenCalledWith({ customerId: 'customer-1', businessID: 'business-1' });
         expect(aggregate).toHaveBeenCalledWith(
             expect.objectContaining({
                 customerId: 'customer-1',
@@ -133,8 +148,17 @@ describe('Customer identity migration', () => {
             ]),
             getInvoicesForCustomer: jest.fn(async () => []),
         };
-        const offering = { findOne: jest.fn(async () => ({ data: [{ offeringId: 'offering-1', dimensions: [] }] })) };
-        const service = new CustomerService(influx as any, {} as any, {} as any, offering as any, {} as any);
+        const dependencies = serviceDependencies({
+            findOne: jest.fn(async () => ({ data: [{ offeringId: 'offering-1', dimensions: [] }] })),
+        });
+        const service = new CustomerService(
+            influx as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
+        );
         const result = await service.findOne({ customerId: 'customer-1', businessID: 'business-1' });
         expect(result.data[0]).toEqual(
             expect.objectContaining({
@@ -158,10 +182,16 @@ describe('Customer identity migration', () => {
     });
 
     it('prevents deleting an offering while customers still reference it', async () => {
+        const dependencies = serviceDependencies({
+            findAllCustomersWithOfferingId: jest.fn(async () => ({ data: [{ customerId: 'customer-1' }] })),
+        });
         const service = new OfferingService(
             { getLatestOfferingConfig: jest.fn(async () => [{}]) } as any,
-            {} as any,
-            { findAllCustomersWithOfferingId: jest.fn(async () => ({ data: [{ customerId: 'customer-1' }] })) } as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
         );
         await expect(service.delete({ businessID: 'business-1', offeringId: 'offering-1' })).rejects.toBeInstanceOf(
             ConflictException,
@@ -170,12 +200,16 @@ describe('Customer identity migration', () => {
 
     it('wraps customer usage results without changing their records', async () => {
         const usage = [{ dimensionId: 'dimension-1', usage: [{ value: '3' }] }];
+        const dependencies = serviceDependencies({
+            findUsageForCustomer: jest.fn(async () => usage),
+        });
         const service = new CustomerService(
             {} as any,
-            {} as any,
-            {} as any,
-            {} as any,
-            { findUsageForCustomer: jest.fn(async () => usage) } as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
+            dependencies as any,
         );
         await expect(
             service.findUsageForCustomer(

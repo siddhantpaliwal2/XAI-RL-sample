@@ -211,7 +211,10 @@ describe('Top-up offering contract', () => {
         expect(firstSchedule.schedulerID).toBe(secondSchedule.schedulerID);
     });
 
-    const topUpOffering = (balance: string, invoiceCreate = jest.fn()) =>
+    const topUpOffering = (
+        balance: string,
+        invoiceCreate = jest.fn(async () => ({ invoiceId: 'top-up-invoice' })),
+    ) =>
         makeOffering({ invoiceCreate, balance });
 
     it('does not top up a wallet at or above its threshold', async () => {

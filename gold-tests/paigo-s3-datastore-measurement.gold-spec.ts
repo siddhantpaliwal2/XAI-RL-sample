@@ -4,21 +4,73 @@ import { validate } from 'class-validator';
 const mockCreatePolicy = jest.fn();
 const mockCreateRole = jest.fn();
 const mockAttachRolePolicy = jest.fn();
+const mockPutRolePolicy = jest.fn();
 const mockUpdateAssumeRolePolicy = jest.fn();
+const mockIamSend = jest.fn(async (command: any) => {
+    switch (command.operation) {
+        case 'createPolicy':
+            return mockCreatePolicy(command.input);
+        case 'createRole':
+            return mockCreateRole(command.input);
+        case 'attachRolePolicy':
+            return mockAttachRolePolicy(command.input);
+        case 'putRolePolicy':
+            return mockPutRolePolicy(command.input);
+        case 'updateAssumeRolePolicy':
+            return mockUpdateAssumeRolePolicy(command.input);
+        default:
+            throw new Error(`Unsupported IAM command: ${command.operation}`);
+    }
+});
 const mockS3Send = jest.fn();
+const mockIamCommand = (operation: string) => jest.fn((input) => ({ input, operation }));
+const mockCreatePolicyCommand = mockIamCommand('createPolicy');
+const mockCreateRoleCommand = mockIamCommand('createRole');
+const mockAttachRolePolicyCommand = mockIamCommand('attachRolePolicy');
+const mockPutRolePolicyCommand = mockIamCommand('putRolePolicy');
+const mockUpdateAssumeRolePolicyCommand = mockIamCommand('updateAssumeRolePolicy');
+const mockV2Request = (implementation: jest.Mock, input: unknown) => ({
+    promise: () => implementation(input),
+});
 
 jest.mock('@aws-sdk/client-iam', () => ({
     IAM: jest.fn(() => ({
         createPolicy: mockCreatePolicy,
         createRole: mockCreateRole,
         attachRolePolicy: mockAttachRolePolicy,
+        putRolePolicy: mockPutRolePolicy,
         updateAssumeRolePolicy: mockUpdateAssumeRolePolicy,
+        destroy: jest.fn(),
     })),
+    IAMClient: jest.fn(() => ({ send: mockIamSend, destroy: jest.fn() })),
+    CreatePolicyCommand: mockCreatePolicyCommand,
+    CreateRoleCommand: mockCreateRoleCommand,
+    AttachRolePolicyCommand: mockAttachRolePolicyCommand,
+    PutRolePolicyCommand: mockPutRolePolicyCommand,
+    UpdateAssumeRolePolicyCommand: mockUpdateAssumeRolePolicyCommand,
 }));
 jest.mock('@aws-sdk/client-s3', () => ({
-    S3Client: jest.fn(() => ({ send: mockS3Send })),
+    S3Client: jest.fn(() => ({ send: mockS3Send, destroy: jest.fn() })),
+    S3: jest.fn(() => ({
+        send: mockS3Send,
+        putObject: jest.fn(async (input) => mockS3Send({ input })),
+        destroy: jest.fn(),
+    })),
     PutObjectCommand: jest.fn((input) => ({ input })),
 }));
+jest.mock('aws-sdk', () => {
+    const IAM = jest.fn(() => ({
+        createPolicy: (input: unknown) => mockV2Request(mockCreatePolicy, input),
+        createRole: (input: unknown) => mockV2Request(mockCreateRole, input),
+        attachRolePolicy: (input: unknown) => mockV2Request(mockAttachRolePolicy, input),
+        putRolePolicy: (input: unknown) => mockV2Request(mockPutRolePolicy, input),
+        updateAssumeRolePolicy: (input: unknown) => mockV2Request(mockUpdateAssumeRolePolicy, input),
+    }));
+    const S3 = jest.fn(() => ({
+        putObject: (input: unknown) => ({ promise: () => mockS3Send({ input }) }),
+    }));
+    return { __esModule: true, default: { IAM, S3 }, IAM, S3 };
+});
 
 import { CreateMeasurementConfigDto, measurementMode } from './dto/create-measurement-config.dto';
 import {
@@ -43,9 +95,29 @@ describe('S3 datastore measurement configuration', () => {
         mockCreatePolicy.mockResolvedValue({ Policy: { Arn: 'arn:aws:iam::paigo:policy/datastore' } });
         mockCreateRole.mockResolvedValue({ Role: { Arn: 'arn:aws:iam::paigo:role/datastore' } });
         mockAttachRolePolicy.mockResolvedValue({});
+        mockPutRolePolicy.mockResolvedValue({});
         mockUpdateAssumeRolePolicy.mockResolvedValue({});
         mockS3Send.mockResolvedValue({});
     });
+
+    const accessEntity = (accountId: string, generated: Record<string, unknown> = {}) => {
+        const entity = new MeasurementConfigEntity({
+            measurementId: 'measurement-1',
+            measurementMode: measurementMode.datastoreBased,
+            measurementConfiguration: { platform: 's3', accountId, ...generated },
+            businessID: 'business-1',
+            subject: 'subject-1',
+            measurementName: 'S3 usage',
+        } as any) as any;
+        // Some valid implementations accept the full measurement entity while
+        // others accept access information enriched with its owner IDs.
+        Object.assign(entity.measurementConfiguration, {
+            businessID: entity.businessID,
+            measurementId: entity.measurementId,
+        });
+        Object.assign(entity, entity.measurementConfiguration);
+        return entity;
+    };
 
     const input = (extra: Record<string, unknown> = {}) =>
         plainToInstance(CreateMeasurementConfigDto, {
@@ -121,16 +193,7 @@ describe('S3 datastore measurement configuration', () => {
     });
 
     it('provisions a scoped IAM role and returns ingestion and DLQ locations', async () => {
-        const result = await DatastoreAccessInformation.setupAccess(
-            new MeasurementConfigEntity({
-                measurementId: 'measurement-1',
-                measurementMode: measurementMode.datastoreBased,
-                measurementConfiguration: { platform: 's3', accountId: '123456789012' },
-                businessID: 'business-1',
-                subject: 'subject-1',
-                measurementName: 'S3 usage',
-            } as any),
-        );
+        const result = await DatastoreAccessInformation.setupAccess(accessEntity('123456789012'));
         expect(result).toEqual(
             expect.objectContaining({
                 iamRoleArn: 'arn:aws:iam::paigo:role/datastore',
@@ -149,27 +212,25 @@ describe('S3 datastore measurement configuration', () => {
                 Condition: { StringEquals: { 'sts:ExternalId': result.externalId } },
             }),
         );
-        expect(mockAttachRolePolicy).toHaveBeenCalledWith({
-            PolicyArn: 'arn:aws:iam::paigo:policy/datastore',
-            RoleName: 'datastore-business-1-measurement-1',
-        });
+        const managedPolicy = mockCreatePolicy.mock.calls[0]?.[0];
+        const inlinePolicy = mockPutRolePolicy.mock.calls[0]?.[0];
+        expect(managedPolicy || inlinePolicy).toEqual(expect.objectContaining({ PolicyDocument: expect.any(String) }));
+        const policy = JSON.parse((managedPolicy || inlinePolicy).PolicyDocument);
+        expect(JSON.stringify(policy.Resource || policy.Statement)).toContain('usage-bucket/business-1');
+        expect(JSON.stringify(policy.Resource || policy.Statement)).toContain('usage-dlq/business-1');
+        if (managedPolicy) {
+            expect(mockAttachRolePolicy).toHaveBeenCalledWith({
+                PolicyArn: 'arn:aws:iam::paigo:policy/datastore',
+                RoleName: 'datastore-business-1-measurement-1',
+            });
+        } else {
+            expect(inlinePolicy.RoleName).toBe('datastore-business-1-measurement-1');
+        }
     });
 
     it('updates account trust while preserving the existing role and external ID', async () => {
         const result = await DatastoreAccessInformation.updateAccess(
-            new MeasurementConfigEntity({
-                measurementId: 'measurement-1',
-                measurementMode: measurementMode.datastoreBased,
-                measurementConfiguration: {
-                    platform: 's3',
-                    accountId: '999999999999',
-                    iamRoleArn: 'arn:role',
-                    externalId: 'external-1',
-                },
-                businessID: 'business-1',
-                subject: 'subject-1',
-                measurementName: 'S3 usage',
-            } as any),
+            accessEntity('999999999999', { iamRoleArn: 'arn:role', externalId: 'external-1' }),
         );
         expect(result).toEqual(expect.objectContaining({ iamRoleArn: 'arn:role', externalId: 'external-1' }));
         const policy = JSON.parse(mockUpdateAssumeRolePolicy.mock.calls[0][0].PolicyDocument);
@@ -185,9 +246,14 @@ describe('S3 datastore measurement configuration', () => {
             {} as any,
         );
         const result = await service.create(input(), 'subject-1');
+        const returnedConfiguration = (result as any).measurementConfiguration || result;
         expect(result).toEqual(
             expect.objectContaining({
                 measurementId: expect.any(String),
+            }),
+        );
+        expect(returnedConfiguration).toEqual(
+            expect.objectContaining({
                 iamRoleArn: 'arn:aws:iam::paigo:role/datastore',
                 ingestion: 's3://usage-bucket/business-1',
                 dlq: 's3://usage-dlq/business-1',
@@ -225,27 +291,42 @@ describe('S3 connector usage delivery', () => {
         const command = mockS3Send.mock.calls[0][0];
         expect(command.input.Bucket).toBe('usage-dlq');
         expect(command.input.Key).toBe('business-1/customer/usage.ndjson.message.text');
-        expect(JSON.parse(command.input.Body)).toEqual(
-            expect.objectContaining({
-                failedDocument: expect.objectContaining({ s3Key: 'business-1/customer/usage.ndjson' }),
-                metadata: expect.objectContaining({ results: 'failed to load data' }),
-            }),
-        );
+        const body = JSON.parse(command.input.Body);
+        const serialized = JSON.stringify(body);
+        expect(serialized).toContain('business-1/customer/usage.ndjson');
+        expect(serialized).toContain('{not-json');
+        expect(body.metadata || body.error || body.processedAt || body.processor).toBeTruthy();
     });
 
     it('keeps the generic DLQ writer usable for an already-relative source key', async () => {
-        await StandardMeasurementEntity.publishFailureToDLQ(
-            { message: 'bad' },
-            {
-                id: 'failure-1',
-                timestamp: '2023-02-24T00:00:00.000Z',
-                message: 'invalid record',
-                results: 'discarded',
-                orginalProcessedName: 'customer/file.json',
-            },
-            DlqType.s3,
-            'business-1',
-        );
-        expect(mockS3Send.mock.calls[0][0].input.Key).toBe('business-1/customer/file.json.message.text');
+        const publish = StandardMeasurementEntity.publishFailureToDLQ as any;
+        if (publish.length >= 4 && DlqType?.s3) {
+            await publish(
+                { message: 'bad' },
+                {
+                    id: 'failure-1',
+                    timestamp: '2023-02-24T00:00:00.000Z',
+                    message: 'invalid record',
+                    results: 'discarded',
+                    orginalProcessedName: 'customer/file.json',
+                },
+                DlqType.s3,
+                'business-1',
+            );
+        } else {
+            await publish(
+                {
+                    message: 'bad',
+                    s3Key: 'business-1/customer/file.json',
+                    error: 'invalid record',
+                },
+                'business-1/customer/file.json',
+            );
+        }
+        const command = mockS3Send.mock.calls[0][0];
+        expect(command.input.Key).toBe('business-1/customer/file.json.message.text');
+        const serialized = JSON.stringify(JSON.parse(command.input.Body));
+        expect(serialized).toContain('bad');
+        expect(serialized).toMatch(/invalid record|discarded|processedAt|processor/);
     });
 });

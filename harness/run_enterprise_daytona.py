@@ -118,11 +118,12 @@ def complete_existing(
     checksum: str,
     disable_task_tool: bool,
 ) -> dict | None:
-    """Return a reusable result only when every configured test was reported.
+    """Return a reusable result when its verifier outcome is scoreable.
 
     Harbor can still emit a syntactically valid result when Jest or Gradle
-    aborts after collecting only part of the requested suite. Such trials are
-    transport/build failures, not scored model attempts.
+    aborts after collecting only part of the requested suite. Silent partial
+    output is not scoreable. An explicit candidate-caused suite-load failure,
+    however, is a legitimate zero rather than an infrastructure retry.
     """
     result = valid_existing(
         job_dir,
@@ -135,22 +136,46 @@ def complete_existing(
     if result is None:
         return None
 
-    config = json.loads((ROOT / "tasks" / task / "tests" / "config.json").read_text())
-    required = set(config["fail_to_pass"]) | set(config["pass_to_pass"])
     for result_path in sorted(job_dir.glob("*/result.json")):
         try:
             candidate = json.loads(result_path.read_text())
-            verifier = json.loads(
-                (result_path.parent / "verifier" / "output.json").read_text()
-            )
         except (OSError, json.JSONDecodeError):
             continue
         if candidate != result:
             continue
-        observed = {
-            test.get("name") for test in verifier.get("tests", []) if test.get("name")
-        }
-        return result if required <= observed else None
+        status = verifier_completion_status(result_path.parent, task, candidate)
+        return result if status is not None else None
+    return None
+
+
+def verifier_completion_status(trial_dir: Path, task: str, result: dict) -> str | None:
+    """Classify complete output or an attributable candidate suite-load failure."""
+
+    try:
+        config = json.loads(
+            (ROOT / "tasks" / task / "tests" / "config.json").read_text()
+        )
+        verifier = json.loads((trial_dir / "verifier" / "output.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    required = set(config["fail_to_pass"]) | set(config["pass_to_pass"])
+    observed = {
+        test.get("name") for test in verifier.get("tests", []) if test.get("name")
+    }
+    if required <= observed:
+        return "complete_verifier_output"
+
+    reward = result.get("verifier_result", {}).get("rewards", {}).get("reward")
+    stdout_paths = (
+        trial_dir / "verifier" / "test-stdout.txt",
+        trial_dir / "verifier" / "stdout.txt",
+    )
+    stdout = "\n".join(
+        path.read_text(errors="replace") for path in stdout_paths if path.is_file()
+    )
+    if reward == 0 and "Test suite failed to run" in stdout:
+        return "candidate_suite_failed_before_assertions"
     return None
 
 
