@@ -17,7 +17,7 @@ verifier verdicts, turn/tool counts, wall time, and full trajectory under
 ## Table of contents
 
 - [Task format](#task-format)
-- [Long-horizon coding task results](#long-horizon-coding-task-results)
+- [Enterprise long-horizon tasks](#enterprise-long-horizon-tasks)
 - [Gates and measured results](#gates-and-measured-results)
 - [Long-horizon migration task](#long-horizon-migration-task)
 - [Frontier-model pass@k matrix](#frontier-model-passk-matrix)
@@ -67,7 +67,7 @@ planted and reversed by the oracle, but no graded test distinguishes it - an
 agent that fixes the four gated boundaries scores 1 whether or not it also
 finds that one. Every other task gates all five of its defects.
 
-## Long-horizon coding task results
+## Enterprise long-horizon tasks
 
 The public sample highlights four repository-scale tasks derived from
 authorized production history. Unlike the latent tasks, they do not plant
