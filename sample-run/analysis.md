@@ -113,33 +113,6 @@ leader: Opus 5 is both more repeatable and more broadly capable than either.
 | Claude Opus 4.8 | 8/79 | 0.100 | 0.244 | 0.375 | 3/8 |
 | Nova Premier | 0/80 | 0.000 | 0.000 | 0.000 | 0/8 |
 
-## August 2026 Claude Opus 5 pass@10
-
-Claude Opus 5 was evaluated with OpenCode 1.18.13 in the same Daytona task
-snapshots. Each n=10 cell combines the original exact OpenRouter attempt with
-nine independently graded attempts on the exact Bedrock global route. Bedrock
-fallback was disabled, and only trials with real hidden-verifier verdicts enter
-n.
-
-| Model | credit | doc | fin-tools | phone | FIU | txenr | txenr3 | txenr4 | Solves / valid | pass@1 | pass@3 | pass@10 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Claude Opus 5 | 8/10 | 6/10 | 3/10 | 9/10 | 10/10 | 9/10 | 10/10 | 0/10 | **55/80** | **0.6875** | **0.8344** | **0.8750** |
-
-The strongest result is Opus's breadth: it solves seven of eight task families,
-including 10/10 FIU and txenrich3, while the older OpenCode models solved at
-most six. Its one systematic zero is txenrich4.
-
-| Model | Valid trials | Model turns | Tool calls | Mean wall time | Median | p90 | Range |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Claude Opus 5 | 80 | 3,061 | 3,316 | 12m 46.1s | 10m 14.5s | 23m 28.3s | 5m 04.3s–30m 28.0s |
-
-Those durations are Harbor `started_at`→`finished_at` trial wall times,
-including environment setup, agent setup, execution, and verification. The
-trials ran concurrently, so independently running durations are not summed.
-Filtered calls with no inference contribute no scored failure. The per-attempt
-routes, provider attempt IDs, scores, turns, tool calls, tokens, wall time, and
-packaged evidence are in `opus5_trials.json` and `frontier-trials/`.
-
 ## Long-horizon definition and evaluation bar
 
 There is no standard 70-turn or raw-token threshold for a long-horizon task.
