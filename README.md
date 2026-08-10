@@ -18,7 +18,7 @@ verifier verdicts, turn/tool counts, wall time, and full trajectory under
 
 - [Task format](#task-format)
 - [Enterprise long-horizon tasks](#enterprise-long-horizon-tasks)
-- [Gates and measured results](#gates-and-measured-results)
+- [Gates and measured results for other enterprise tasks](#gates-and-measured-results-for-other-enterprise-tasks)
 - [Long-horizon migration task](#long-horizon-migration-task)
 - [Frontier-model pass@k matrix](#frontier-model-passk-matrix)
 - [How the harness works](#how-the-harness-works)
@@ -143,7 +143,7 @@ and all 16 attempts on the old checksum were excluded. The final billing rates
 above use only the fair checksum. Exploratory attempts and runs on superseded
 checksums are not included in the reported denominator.
 
-## Gates and measured results
+## Gates and measured results for other enterprise tasks
 
 Each latent debugging task clears four gates **in order** - two mechanical
 checks, then two model probes. Each gate must pass before the next runs:
