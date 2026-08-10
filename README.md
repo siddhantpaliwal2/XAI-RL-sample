@@ -14,6 +14,17 @@ valid trial runs in an isolated Daytona sandbox and includes its result,
 verifier verdicts, turn/tool counts, wall time, and full trajectory under
 `sample-run/`.
 
+## Table of contents
+
+- [Task format](#task-format)
+- [Long-horizon coding task results](#long-horizon-coding-task-results)
+- [Gates and measured results](#gates-and-measured-results)
+- [Long-horizon migration task](#long-horizon-migration-task)
+- [Frontier-model pass@k matrix](#frontier-model-passk-matrix)
+- [How the harness works](#how-the-harness-works)
+- [Reproducing these numbers](#reproducing-these-numbers)
+- [Optional: verifier sanity check](#optional-verifier-sanity-check-no-agent)
+
 ## Task format
 
 Each directory under `tasks/` is a
