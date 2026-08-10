@@ -56,7 +56,7 @@ planted and reversed by the oracle, but no graded test distinguishes it - an
 agent that fixes the four gated boundaries scores 1 whether or not it also
 finds that one. Every other task gates all five of its defects.
 
-## Historical enterprise task set
+## Long-horizon coding task results
 
 The public sample highlights four repository-scale tasks derived from
 authorized production history. Unlike the latent tasks, they do not plant
@@ -65,17 +65,14 @@ migration and uses a filtered historical change as its solvability oracle.
 Prompts state behavioral contracts without company names, commit messages,
 ticket IDs, file lists, or implementation hints.
 
-| Task | Change family | Historical scope | Opus 5 | GPT-5.6 Sol | Grok 4.5 |
-|---|---|---:|---:|---:|---:|
-| Customer billing-schedule migration | billing and identity migration | 23 oracle files / 343 LOC | 7/8 | historical 0/8 | 0/8 |
-| Top-up billing lifecycle | wallet and billing lifecycle | 28 oracle files / 1,450 LOC | 7/8 | historical 0/2 | 0/8 |
-| S3 datastore measurement | AWS usage ingestion | 17 oracle files / 1,809 LOC | 5/8 | historical 0/1 | 0/8 |
-| Native table migration | document-extraction migration | 62 commits / 70 production files / ~13,000 added LOC | 0/3 | 0/3 | 0/3 |
+| Task | Change family | Task scope | Opus 5 | Grok 4.5 |
+|---|---|---:|---:|---:|
+| Customer billing-schedule migration | billing and identity migration | 23 oracle files / 343 LOC | 7/8 | 0/8 |
+| Top-up billing lifecycle | wallet and billing lifecycle | 28 oracle files / 1,450 LOC | 7/8 | 0/8 |
+| S3 datastore measurement | AWS usage ingestion | 17 oracle files / 1,809 LOC | 5/8 | 0/8 |
+| Native table migration | document-extraction migration | 62 commits / 70 production files / ~13,000 added LOC | 0/3 | 0/3 |
 
-The GPT-5.6 Sol results labeled `historical` predate the final verifier
-checksums used by the eight-run Grok/Opus cohort and are diagnostic only. GPT
-was not rerun on those three final checksums. The native-table rates were all
-measured on the same frozen three-attempt suite.
+The native-table rates were measured on the same frozen three-attempt suite.
 
 Each highlighted task clears the two mandatory mechanical controls: untouched
 base reward 0 and historical oracle reward 1. The first three also clear XAI's
