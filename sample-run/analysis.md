@@ -3,8 +3,8 @@
 ## Table of contents
 
 - [Setup](#setup)
-  - [Bug-injection debugging track — eight tasks](#bug-injection-debugging-track--eight-tasks)
-  - [Enterprise long-horizon track — three tasks](#enterprise-long-horizon-track--three-tasks)
+  - [Bug-injection debugging track: eight tasks](#bug-injection-debugging-track-eight-tasks)
+  - [Enterprise long-horizon track: three tasks](#enterprise-long-horizon-track-three-tasks)
   - [Separate native-table difficulty control](#separate-native-table-difficulty-control)
 - [Headline result](#headline-result)
 - [Long-horizon definition and evaluation bar](#long-horizon-definition-and-evaluation-bar)
@@ -33,7 +33,7 @@ This analysis contains two primary evaluation tracks with different task
 construction methods, plus one separate difficulty control. Their denominators
 and conclusions are reported separately rather than pooled.
 
-### Bug-injection debugging track — eight tasks
+### Bug-injection debugging track: eight tasks
 
 These eight tasks begin with working production code into which narrow latent
 boundary defects were deliberately introduced. Agents receive symptom-style
@@ -54,7 +54,7 @@ output, and raw verifier stdout. `grok_trials.json` is the compact per-attempt
 index. A solving trajectory is selected when one exists; otherwise the closest
 graded attempt is copied into `trajectories-matrix/` and `trajectories/`.
 
-### Enterprise long-horizon track — three tasks
+### Enterprise long-horizon track: three tasks
 
 These three anonymized tasks do not plant synthetic defects. Each starts from a
 pre-feature production revision and asks the agent to implement a real feature
@@ -95,8 +95,8 @@ Using the unbiased estimator `1 − C(n−c, k) / C(n, k)`, the largest supporte
 | Top-up billing lifecycle | 11 | Claude Opus 5 | 7/8 | 0.8750 | 1.0000 | 1.0000 |
 | S3 datastore measurement | 10 | Grok 4.5 | 0/8 | 0.0000 | 0.0000 | 0.0000 |
 | S3 datastore measurement | 10 | Claude Opus 5 | 5/8 | 0.6250 | 0.9821 | 1.0000 |
-| **Macro mean** | — | **Grok 4.5** | **0/24** | **0.0000** | **0.0000** | **0.0000** |
-| **Macro mean** | — | **Claude Opus 5** | **19/24** | **0.7917** | **0.9940** | **1.0000** |
+| **Macro mean** | N/A | **Grok 4.5** | **0/24** | **0.0000** | **0.0000** | **0.0000** |
+| **Macro mean** | N/A | **Claude Opus 5** | **19/24** | **0.7917** | **0.9940** | **1.0000** |
 
 The summary c/n values are sums across task cells; the pass@k summary is the
 unweighted macro mean of the three task-level estimators, not a pooled
@@ -209,14 +209,14 @@ reward 0.
 Agent wall time excludes sandbox setup and grading. Trial wall time includes
 those phases and remote scheduling/provider latency.
 
-| Model / task | Turns, mean | Tool calls, mean | Agent time, median (range) | Trial time, range |
-|---|---:|---:|---:|---:|
-| Grok / billing | 17.3 | 64.4 | 2.9m (2.8–3.7m) | 3.3m–25.3m |
-| Opus / billing | 62.3 | 67.1 | 10.5m (7.9–12.2m) | 8.7m–22.8m |
-| Grok / top-up | 54.6 | 161.4 | 13.6m (10.6–19.2m) | 12.0m–58.6m |
-| Opus / top-up | 149.9 | 149.6 | 27.5m (21.6–40.2m) | 22.2m–59.7m |
-| Grok / S3 | 22.1 | 74.0 | 5.7m (5.2–18.4m) | 5.8m–18.9m |
-| Opus / S3 | 109.0 | 111.5 | 25.1m (19.7–36.3m) | 20.3m–37.6m |
+| Model | Task | Turns, mean | Tool calls, mean | Agent time, median (range) | Trial time, range |
+|---|---|---:|---:|---:|---:|
+| Grok | Billing | 17.3 | 64.4 | 2.9m (2.8–3.7m) | 3.3m–25.3m |
+| Opus | Billing | 62.3 | 67.1 | 10.5m (7.9–12.2m) | 8.7m–22.8m |
+| Grok | Top-up | 54.6 | 161.4 | 13.6m (10.6–19.2m) | 12.0m–58.6m |
+| Opus | Top-up | 149.9 | 149.6 | 27.5m (21.6–40.2m) | 22.2m–59.7m |
+| Grok | S3 | 22.1 | 74.0 | 5.7m (5.2–18.4m) | 5.8m–18.9m |
+| Opus | S3 | 109.0 | 111.5 | 25.1m (19.7–36.3m) | 20.3m–37.6m |
 
 Across the 48 valid attempts, the agents produced 3,321 model turns and 5,024
 tool calls. Top-up produces the deepest measured trajectories. Billing is
@@ -225,7 +225,7 @@ runs reach the same nearly complete but behaviorally incorrect implementation.
 
 ### Trace-backed capability gaps
 
-**Billing — requirement retention across a migration.** All eight Grok attempts
+**Billing: requirement retention across a migration.** All eight Grok attempts
 pass 7/8 checks and fail schedule replacement. The representative trace
 restates that subject and business identity must be preserved, yet both the
 create and replacement paths write only `customerId` into
@@ -233,14 +233,14 @@ create and replacement paths write only `customerId` into
 one cross-module field invariant across a larger migration, not repository
 localization or inability to build the code.
 
-**Top-up — state-machine and exact-boundary composition.** Grok's attempts pass
+**Top-up: state-machine and exact-boundary composition.** Grok's attempts pass
 between 3/11 and 9/11 required checks. Every run misses the stable hourly
 scheduler ID, while most also lose at least one validation, charging, usage, or
 overdraft-ordering invariant. The best run reaches 9/11. Opus solves 7/8
 attempts, showing that the complete wallet/scheduler state machine is difficult
 but learnable.
 
-**S3 — cross-boundary API-contract precision.** Every Grok attempt misses both
+**S3: cross-boundary API-contract precision.** Every Grok attempt misses both
 the scoped IAM provisioning/returned-location contract and the
 create-persist-return configuration contract; six also miss the mirrored DLQ
 behavior. The best runs reach 8/10 checks. Opus solves 5/8 attempts, including
