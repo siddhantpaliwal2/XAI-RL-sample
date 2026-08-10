@@ -7,13 +7,14 @@
   - [Enterprise long-horizon track: three tasks](#enterprise-long-horizon-track-three-tasks)
   - [Separate native-table difficulty control](#separate-native-table-difficulty-control)
 - [Headline result](#headline-result)
+- [Eight latent-defect debugging tasks](#eight-latent-defect-debugging-tasks)
+  - [Turn, tool, and wall-clock profile](#turn-tool-and-wall-clock-profile)
 - [Long-horizon definition and evaluation bar](#long-horizon-definition-and-evaluation-bar)
 - [Long-horizon capability-gap results](#long-horizon-capability-gap-results)
   - [Measured effort](#measured-effort)
   - [Trace-backed capability gaps](#trace-backed-capability-gaps)
   - [Fairness and validity](#fairness-and-validity)
 - [Native-table migration difficulty control](#native-table-migration-difficulty-control)
-- [Turn, tool, and wall-clock profile](#turn-tool-and-wall-clock-profile)
 - [Grok's win conditions](#groks-win-conditions)
   - [A small number of named helpers with behaviorally direct symptoms](#1-a-small-number-of-named-helpers-with-behaviorally-direct-symptoms)
   - [Cross-file work succeeds when every defect leaves a strong local anomaly](#2-cross-file-work-succeeds-when-every-defect-leaves-a-strong-local-anomaly)
@@ -112,6 +113,8 @@ API precision. A task-level 0/8 estimate still has a 95% Wilson interval of
 0–32.4%, so the claim rests on the complete eight-attempt evidence and the
 comparator result rather than the point estimate alone.
 
+## Eight latent-defect debugging tasks
+
 On the eight latent-defect debugging tasks, Grok solved **21/80 attempts** for
 a macro mean **pass@1 of 0.2625**, **pass@3 of 0.3833**, and **pass@10 of
 0.5000**. Its task-level result is:
@@ -139,6 +142,50 @@ leader: Opus 5 is both more repeatable and more broadly capable than either.
 | GPT-5.6 Sol | 16/80 | 0.200 | **0.435** | **0.750** | **6/8** |
 | Claude Opus 4.8 | 8/79 | 0.100 | 0.244 | 0.375 | 3/8 |
 | Nova Premier | 0/80 | 0.000 | 0.000 | 0.000 | 0/8 |
+
+### Turn, tool, and wall-clock profile
+
+The packaged artifacts retain enough timing and trajectory metadata to measure
+the run directly. A **model turn** here is an agent-sourced OpenCode trajectory
+step; every such step records exactly one LLM call. Each attempt also has one
+initial user instruction step, so the 80 trajectories contain **967 model
+turns** and **1,047 total trajectory steps**. They contain **2,521 tool calls**.
+
+The per-trial `duration_seconds` value is full trial wall time from Harbor's
+`started_at` to `finished_at`, including environment setup, agent setup, agent
+execution, and verification. The mean trial took **4m 27.9s**, the median **3m
+52.0s**, and the 90th percentile **8m 33.5s**; the range was **1m 28.5s to 15m
+14.5s**.
+
+Because the trials ran concurrently, end-to-end elapsed time is measured from
+the first valid trial start at `2026-08-05T01:55:54.926Z` to the last finish at
+`2026-08-05T03:04:23.728Z`. That observed valid-trial wall-clock envelope was
+**1h 08m 28.8s**. Peak observed concurrency was **12**, matching the
+worker-pool limit. This envelope does not include
+infrastructure/auth failures excluded from the valid set or any operator time
+before the first valid trial and after the last.
+
+| Task | Model turns | Mean turns / attempt | Mean trial time | Trial-time range |
+|---|---:|---:|---:|---:|
+| credit-normalize | 109 | 10.9 | 3.12m | 2.48-3.95m |
+| doc-extractors | 91 | 9.1 | 1.89m | 1.59-2.39m |
+| financial-tools | 82 | 8.2 | 1.70m | 1.48-1.85m |
+| phone-invites | 80 | 8.0 | 2.09m | 1.80-2.32m |
+| fiu | 154 | 15.4 | 5.44m | 4.14-7.49m |
+| txenrich | 142 | 14.2 | 6.77m | 5.51-10.20m |
+| txenrich3 | 143 | 14.3 | 4.89m | 3.78-5.82m |
+| txenrich4 | 166 | 16.6 | 9.81m | 7.53-15.24m |
+| **All trials** | **967** | **12.1** | **4.47m** | **1.48-15.24m** |
+
+The phase timestamps put the mean trial at 2.2s of environment setup, 20.5s
+of agent setup, 234.6s of agent execution, and 6.6s of verification, with the
+small remainder in handoffs between phases. Solved attempts were shorter on
+average than unsolved attempts (**10.6 vs. 12.6 model turns** and **3.07m vs.
+4.96m**), though that comparison is confounded by task difficulty rather than
+being a causal measure of solution efficiency.
+
+The same valid trajectories report **46,841,681 input tokens**, including
+**39,586,944 cached tokens** and **467,658 output tokens**.
 
 ## Long-horizon definition and evaluation bar
 
@@ -340,50 +387,6 @@ suite and remained reward 0; the Grok and Sol trials ran only after
 that verifier was frozen. Regrade provenance is explicit in every packaged
 trial index, and the prompt-to-test audit is preserved under
 `long-horizon-controls/fairness-audit.md`.
-
-## Turn, tool, and wall-clock profile
-
-The packaged artifacts retain enough timing and trajectory metadata to measure
-the run directly. A **model turn** here is an agent-sourced OpenCode trajectory
-step; every such step records exactly one LLM call. Each attempt also has one
-initial user instruction step, so the 80 trajectories contain **967 model
-turns** and **1,047 total trajectory steps**. They contain **2,521 tool calls**.
-
-The per-trial `duration_seconds` value is full trial wall time from Harbor's
-`started_at` to `finished_at`, including environment setup, agent setup, agent
-execution, and verification. The mean trial took **4m 27.9s**, the median **3m
-52.0s**, and the 90th percentile **8m 33.5s**; the range was **1m 28.5s to 15m
-14.5s**.
-
-Because the trials ran concurrently, end-to-end elapsed time is measured from
-the first valid trial start at `2026-08-05T01:55:54.926Z` to the last finish at
-`2026-08-05T03:04:23.728Z`. That observed valid-trial wall-clock envelope was
-**1h 08m 28.8s**. Peak observed concurrency was **12**, matching the
-worker-pool limit. This envelope does not include
-infrastructure/auth failures excluded from the valid set or any operator time
-before the first valid trial and after the last.
-
-| Task | Model turns | Mean turns / attempt | Mean trial time | Trial-time range |
-|---|---:|---:|---:|---:|
-| credit-normalize | 109 | 10.9 | 3.12m | 2.48-3.95m |
-| doc-extractors | 91 | 9.1 | 1.89m | 1.59-2.39m |
-| financial-tools | 82 | 8.2 | 1.70m | 1.48-1.85m |
-| phone-invites | 80 | 8.0 | 2.09m | 1.80-2.32m |
-| fiu | 154 | 15.4 | 5.44m | 4.14-7.49m |
-| txenrich | 142 | 14.2 | 6.77m | 5.51-10.20m |
-| txenrich3 | 143 | 14.3 | 4.89m | 3.78-5.82m |
-| txenrich4 | 166 | 16.6 | 9.81m | 7.53-15.24m |
-| **All trials** | **967** | **12.1** | **4.47m** | **1.48-15.24m** |
-
-The phase timestamps put the mean trial at 2.2s of environment setup, 20.5s
-of agent setup, 234.6s of agent execution, and 6.6s of verification, with the
-small remainder in handoffs between phases. Solved attempts were shorter on
-average than unsolved attempts (**10.6 vs. 12.6 model turns** and **3.07m vs.
-4.96m**), though that comparison is confounded by task difficulty rather than
-being a causal measure of solution efficiency.
-
-The same valid trajectories report **46,841,681 input tokens**, including
-**39,586,944 cached tokens** and **467,658 output tokens**.
 
 ## Grok's win conditions
 
