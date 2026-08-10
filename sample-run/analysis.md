@@ -117,6 +117,19 @@ API precision. A task-level 0/8 estimate still has a 95% Wilson interval of
 0–32.4%, so the claim rests on the complete eight-attempt evidence and the
 comparator result rather than the point estimate alone.
 
+The same cohort's measured effort is shown below. Agent time excludes sandbox
+setup and grading; trial time includes those phases and remote
+scheduling/provider latency.
+
+| Model | Task | Turns, mean | Tool calls, mean | Agent time, median (range) | Trial time, range |
+|---|---|---:|---:|---:|---:|
+| Grok | Billing | 17.3 | 64.4 | 2.9m (2.8–3.7m) | 3.3m–25.3m |
+| Opus | Billing | 62.3 | 67.1 | 10.5m (7.9–12.2m) | 8.7m–22.8m |
+| Grok | Top-up | 54.6 | 161.4 | 13.6m (10.6–19.2m) | 12.0m–58.6m |
+| Opus | Top-up | 149.9 | 149.6 | 27.5m (21.6–40.2m) | 22.2m–59.7m |
+| Grok | S3 | 22.1 | 74.0 | 5.7m (5.2–18.4m) | 5.8m–18.9m |
+| Opus | S3 | 109.0 | 111.5 | 25.1m (19.7–36.3m) | 20.3m–37.6m |
+
 ### Bug-injection debugging tasks
 
 On the eight latent-defect debugging tasks, Grok solved **21/80 attempts** for
