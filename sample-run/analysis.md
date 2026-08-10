@@ -14,10 +14,38 @@ output, and raw verifier stdout. `grok_trials.json` is the compact per-attempt
 index. A solving trajectory is selected when one exists; otherwise the closest
 graded attempt is copied into `trajectories-matrix/` and `trajectories/`.
 
+The long-horizon capability study adds three anonymized production tasks. Each
+received eight independent Grok 4.5 attempts and eight independent Claude Opus
+5 attempts through OpenCode 1.18.13. Only runs matching the frozen task
+checksum, exact route, isolated Daytona environment, single-agent policy, and
+complete hidden-verifier output enter the denominator. The earlier
+`long-native-table-migration` matrix remains a separate four-model difficulty
+control because no measured model solved it.
+
 ## Headline result
 
-Grok solved **21/80 attempts** for a macro mean **pass@1 of 0.2625**,
-**pass@3 of 0.3833**, and **pass@10 of 0.5000**. Its task-level result is:
+The strongest capability separation appears on the three new long-horizon
+tasks. Grok solves **0/24** attempts while Opus solves **19/24**:
+
+| Task | Required checks | Grok 4.5 | Claude Opus 5 | Opus minus Grok | Learnability result |
+|---|---:|---:|---:|---:|---|
+| Customer billing-schedule migration | 8 | 0/8 | 7/8 | +87.5 pp | qualifies |
+| Top-up billing lifecycle | 11 | 0/8 | 7/8 | +87.5 pp | qualifies |
+| S3 datastore measurement | 10 | 0/8 | 5/8 | +62.5 pp | qualifies |
+| **Total** | **29** | **0/24** | **19/24** | **+79.2 pp** | **3/3 qualify** |
+
+The learnability criterion accepts tasks where Grok solves one to six of eight
+attempts, or where Grok solves zero and a comparable model completes the task.
+All three qualify through the comparator-completion path. Opus's repeated
+success establishes solvability, while Grok's near-miss traces isolate distinct
+gaps in requirement retention, state-machine composition, and cross-boundary
+API precision. A task-level 0/8 estimate still has a 95% Wilson interval of
+0–32.4%, so the claim rests on the complete eight-attempt evidence and the
+comparator result rather than the point estimate alone.
+
+On the eight latent-defect debugging tasks, Grok solved **21/80 attempts** for
+a macro mean **pass@1 of 0.2625**, **pass@3 of 0.3833**, and **pass@10 of
+0.5000**. Its task-level result is:
 
 | Task | c/n | pass@1 | pass@3 | pass@10 | Mean f2p passed |
 |---|---:|---:|---:|---:|---:|
@@ -78,19 +106,17 @@ attempts were filtered before inference and only three produced verifier-valid
 trials. pass@10 is therefore undefined for doc; Fable's pass@10 macro uses only
 the six cells that reached n=10.
 
-| Model | Valid trials | Model turns | Tool calls | Mean wall time | Median | p90 | Range | Reported cost |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Claude Opus 5 | 80 | 3,061 | 3,316 | 12m 46.1s | 10m 14.5s | 23m 28.3s | 5m 04.3s–30m 28.0s | $294.05 |
-| Claude Fable 5 | 63 | 1,391 | 1,830 | 16m 01.8s | 12m 37.6s | 35m 24.7s | 3m 47.0s–57m 33.8s | $326.88 |
+| Model | Valid trials | Model turns | Tool calls | Mean wall time | Median | p90 | Range |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Claude Opus 5 | 80 | 3,061 | 3,316 | 12m 46.1s | 10m 14.5s | 23m 28.3s | 5m 04.3s–30m 28.0s |
+| Claude Fable 5 | 63 | 1,391 | 1,830 | 16m 01.8s | 12m 37.6s | 35m 24.7s | 3m 47.0s–57m 33.8s |
 
 Those durations are Harbor `started_at`→`finished_at` trial wall times,
 including environment setup, agent setup, execution, and verification. The
 trials ran concurrently, so independently running durations are not summed.
-The 143 scored trials report $620.94 of model usage: $76.55 on OpenRouter and
-$544.39 of Bedrock list-price-equivalent usage against the AWS account/credits.
-Filtered calls with no inference contribute neither cost nor a scored failure.
-The per-attempt routes, provider attempt IDs, scores, turns, tool calls, tokens,
-wall time, and packaged evidence are in `opus5_trials.json`,
+Filtered calls with no inference contribute no scored failure. The per-attempt
+routes, provider attempt IDs, scores, turns, tool calls, tokens, wall time, and
+packaged evidence are in `opus5_trials.json`,
 `fable5_trials.json`, and `frontier-trials/`.
 
 ## Long-horizon definition and evaluation bar
@@ -100,8 +126,8 @@ The term is used along at least two independent axes:
 
 - [DeepSWE](https://arxiv.org/abs/2607.07946) treats long horizon as a structural
   property: short, natural prompts whose solutions require substantial codebase
-  exploration and large, multi-file implementations. It reports tokens, trial
-  time, and cost as efficiency measurements, not as the definition.
+  exploration and large, multi-file implementations. It reports tokens and
+  trial time as efficiency measurements, not as the definition.
 - [SWE-Bench Pro](https://arxiv.org/abs/2509.16941) uses an estimated professional
   engineering horizon of hours to days together with multi-file, substantial
   code modifications.
@@ -119,77 +145,164 @@ to [318 on average in OSWorld 2.0](https://arxiv.org/abs/2606.29537), while
 150+ tool calls and 200k+ context tokens. Turn, tool, and token counts are
 harness- and domain-dependent diagnostics, not portable cutoffs.
 
-For `long-native-table-migration`, the primary bar is therefore repository-scale
-structure: a short six-requirement prompt condenses 62 production commits across
-70 files and several dependent subsystems, with an implementation-agnostic
-functional verifier. The 70–100 tool-call band is retained as a local
-descriptive reference, paired with the requested frontier difficulty gate:
-Opus 5 or Fable 5 must fail at least 50% of independent valid attempts. It is
-not a maximum or a hard gate; longer traces are welcome. Per-trial model turns,
-input/cache/output tokens, cost, and full Harbor wall time are reported
-alongside the outcome rather than substituted for it.
-No controlled human completion-time baseline was collected, so the task is not
-assigned a METR-style hour value. The 62-commit branch establishes real scope,
-but commit count and calendar span are not treated as human labor time.
-The final jobs use a 9,000-second safety timeout with no step or cost cap, the
-same published upper bound used by DeepSWE. This sample's stricter artifact rule
-counts only trials whose hidden verifier returned real per-test verdicts;
-provider, verifier, network, or operator-timeout runs without verdicts are
-excluded from the model denominator.
+The primary bar for this package is therefore repository-scale structure. The
+three capability-gap tasks cross persistence, validation, scheduling, billing,
+queueing, IAM, connector, and failure-recovery boundaries. Their packaged
+oracles span 17–28 files, and their source evidence covers multi-day production
+changes. The separate native-table task condenses 62 production commits across
+70 files and several dependent subsystems into a six-requirement prompt.
 
-The four-model long-horizon matrix keeps OpenCode 1.18.13 and the Daytona
-snapshot fixed. The valid scored trials use the exact OpenRouter routes for
-Opus 5, Fable 5, Grok 4.5, and GPT-5.6 Sol. [AWS's endpoint
-catalog](https://docs.aws.amazon.com/bedrock/latest/userguide/models-endpoint-availability.html)
-identifies Sol as a [Mantle-only Responses
-model](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-56-sol.html)
-with ID `openai.gpt-5.6-sol`; a direct streaming and non-streaming probe in
-`us-east-1` succeeded with a short-lived
-bearer token derived from the existing AWS CLI credentials. OpenCode 1.18.13,
-however, closed the Bedrock transport before its first model turn. Those
-zero-turn attempts are excluded as infrastructure failures, and the valid Sol
-denominator uses `openrouter/openai/gpt-5.6-sol`. No persistent IAM user or
-long-lived API key was created. AWS's same catalog currently lists Grok 4.3,
-not Grok 4.5, so Bedrock could not supply the requested exact Grok model.
+Turn, tool, token, and wall-time measurements describe the resulting agent
+behavior; they are not substituted for structural scope or verifier outcome.
+No controlled human completion-time baseline was collected, so the tasks are
+not assigned METR-style hour values. Commit count and calendar span establish
+provenance and dependency depth, not human labor time.
 
-## Long-horizon measured result
+The capability-gap cohort uses eight valid attempts per model and task. A task
+is learnable when Grok solves one to six attempts, or when Grok solves zero and
+a comparable model completes the task. The native-table control instead asks
+whether Opus 5 or Fable 5 fails at least half of its independent valid attempts.
+In both cohorts, only trials whose hidden verifier returns complete per-test
+verdicts enter the denominator; provider, verifier, network, and operator
+failures without verdicts are excluded.
 
-One finalized task was evaluated: `long-native-table-migration`. The final
+## Long-horizon capability-gap results
+
+The three new tasks pair authentic multi-boundary implementation scope with a
+clear comparator result:
+
+| Task | Packaged oracle | Production evidence | Coupled surface |
+|---|---:|---|---|
+| Billing schedule | 23 files / 343 LOC | 56 files over 4 days | customer enrollment, invoice periods, ledger, queues, empty usage |
+| Top-up lifecycle | 28 files / 1,450 LOC | 21 commits over 6 days | DTO/entity/persistence, hourly scheduling, wallet credit, invoice and overdraft ordering |
+| S3 measurement | 17 files / 1,809 LOC | four PRs over 3 days | nested configuration, IAM trust/policy, persistence, connector routing, mirrored DLQ writes |
+
+The S3 changed-LOC count includes a dependency lockfile, so the long-horizon
+claim rests on coupled behavioral boundaries, source history, agent traces, and
+verifier scope rather than LOC alone. A reward of 1 requires every configured
+fail-to-pass and pass-to-pass assertion to pass; partial implementations receive
+reward 0.
+
+### Measured effort
+
+Agent wall time excludes sandbox setup and grading. Trial wall time includes
+those phases and remote scheduling/provider latency.
+
+| Model / task | Turns, mean | Tool calls, mean | Agent time, median (range) | Trial time, range |
+|---|---:|---:|---:|---:|
+| Grok / billing | 17.3 | 64.4 | 2.9m (2.8–3.7m) | 3.3m–25.3m |
+| Opus / billing | 62.3 | 67.1 | 10.5m (7.9–12.2m) | 8.7m–22.8m |
+| Grok / top-up | 54.6 | 161.4 | 13.6m (10.6–19.2m) | 12.0m–58.6m |
+| Opus / top-up | 149.9 | 149.6 | 27.5m (21.6–40.2m) | 22.2m–59.7m |
+| Grok / S3 | 22.1 | 74.0 | 5.7m (5.2–18.4m) | 5.8m–18.9m |
+| Opus / S3 | 109.0 | 111.5 | 25.1m (19.7–36.3m) | 20.3m–37.6m |
+
+Across the 48 valid attempts, the agents produced 3,321 model turns and 5,024
+tool calls. Top-up produces the deepest measured trajectories. Billing is
+structurally long-horizon even though Grok converges quickly, because all eight
+runs reach the same nearly complete but behaviorally incorrect implementation.
+
+### Trace-backed capability gaps
+
+**Billing — requirement retention across a migration.** All eight Grok attempts
+pass 7/8 checks and fail schedule replacement. The representative trace
+restates that subject and business identity must be preserved, yet both the
+create and replacement paths write only `customerId` into
+`scheduleParameters`. Opus solves 7/8 attempts. This isolates failure to retain
+one cross-module field invariant across a larger migration, not repository
+localization or inability to build the code.
+
+**Top-up — state-machine and exact-boundary composition.** Grok's attempts pass
+between 3/11 and 9/11 required checks. Every run misses the stable hourly
+scheduler ID, while most also lose at least one validation, charging, usage, or
+overdraft-ordering invariant. The best run reaches 9/11. Opus solves 7/8
+attempts, showing that the complete wallet/scheduler state machine is difficult
+but learnable.
+
+**S3 — cross-boundary API-contract precision.** Every Grok attempt misses both
+the scoped IAM provisioning/returned-location contract and the
+create-persist-return configuration contract; six also miss the mirrored DLQ
+behavior. The best runs reach 8/10 checks. Opus solves 5/8 attempts, including
+complete implementations across IAM, persistence, connector routing, and
+failure handling.
+
+These failures are complementary to the latent-task boundary errors below. In
+the long-horizon cohort, Grok usually finds the relevant subsystems and builds a
+substantial implementation, but does not preserve every dependent contract
+through the final state transition or returned object. The repeated Opus solves
+make those omissions useful training signals rather than evidence that the
+tasks are unsatisfiable.
+
+Selected trace pairs:
+
+- Billing: [Grok near miss](long-horizon-enterprise-trials/grok45/paigo-customer-billing-schedule-migration/attempt-01/trajectory.json) and [Opus solve](long-horizon-enterprise-trials/opus5/paigo-customer-billing-schedule-migration/attempt-02/trajectory.json)
+- Top-up: [Grok best near miss](long-horizon-enterprise-trials/grok45/paigo-top-up-billing-lifecycle/attempt-08/trajectory.json) and [Opus solve](long-horizon-enterprise-trials/opus5/paigo-top-up-billing-lifecycle/attempt-01/trajectory.json)
+- S3: [Grok near miss](long-horizon-enterprise-trials/grok45/paigo-s3-datastore-measurement/attempt-01/trajectory.json) and [Opus solve](long-horizon-enterprise-trials/opus5/paigo-s3-datastore-measurement/attempt-01/trajectory.json)
+
+### Fairness and validity
+
+- Untouched bases score 0 and authorized solvability oracles score 1 for all
+  three tasks.
+- Every selected attempt matches the exact model route, OpenCode version,
+  Daytona snapshot, single-agent policy, frozen checksum, and complete verifier
+  output.
+- A billing audit found an older assertion coupled to positional Nest
+  constructor order. It was replaced with a behavioral assertion, fresh
+  controls passed, and all 16 attempts on the superseded checksum were excluded.
+- Hidden AWS and database assertions run against offline mocks; no external
+  operation leaves the verifier process.
+- Trajectories are credential-redacted and the published artifact manifest
+  records SHA-256 hashes.
+
+The complete evidence is available in
+[`long-horizon-enterprise-results.json`](long-horizon-enterprise-results.json),
+[`long-horizon-enterprise-trials/`](long-horizon-enterprise-trials/), and
+[`long-horizon-enterprise-artifacts-manifest.json`](long-horizon-enterprise-artifacts-manifest.json).
+
+## Native-table migration difficulty control
+
+The earlier `long-native-table-migration` study is retained as a shared
+difficulty control rather than a Grok-specific capability gap. Its final
 matrix contains 12 valid attempts, three each for Opus 5, Fable 5, Grok 4.5,
 and GPT-5.6 Sol. All four models solved **0/3**, so Opus and Fable each
-independently exceed the requested 50% failure threshold. Tool calls ranged
+independently exceed the 50% difficulty threshold. Tool calls ranged
 from **80 to 179**, with a conventional 12-trial median of **127**. Nine traces
 exceeded the original 70–100 reference band; the checked-in
 `long_horizon_results.json` correctly treats that band as descriptive, reports
 the difficulty gate as true, and sets overall `qualifies: true`.
 
+The control keeps OpenCode 1.18.13 and the Daytona snapshot fixed. Valid scored
+trials use the exact OpenRouter routes for all four models. Zero-turn transport
+attempts are excluded as infrastructure failures rather than counted as model
+failures.
+
 pass@k uses `1 − C(n−c, k) / C(n, k)`. Every row has `n=3`, `c=0`:
 
-| Model | Solves | pass@1 | pass@2 | pass@3 | Model turns | Tool calls, median (range) | Trial wall time, mean / median (range) | Cost |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Claude Opus 5 | 0/3 | 0.000 | 0.000 | 0.000 | 437 | 168 (148–169) | 56m 52.7s / 50m 07.4s (41m 46.6s–78m 44.2s) | $68.42 |
-| Claude Fable 5 | 0/3 | 0.000 | 0.000 | 0.000 | 367 | 148 (120–179) | 71m 22.0s / 75m 06.9s (61m 13.5s–77m 45.4s) | $126.01 |
-| Grok 4.5 | 0/3 | 0.000 | 0.000 | 0.000 | 110 | 116 (108–134) | 11m 41.9s / 11m 09.2s (10m 11.9s–13m 44.7s) | $4.00 |
-| GPT-5.6 Sol | 0/3 | 0.000 | 0.000 | 0.000 | 113 | 90 (80–90) | 8m 24.9s / 8m 41.1s (7m 35.9s–8m 57.8s) | $7.20 |
+| Model | Solves | pass@1 | pass@2 | pass@3 | Model turns | Tool calls, median (range) | Trial wall time, mean / median (range) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Claude Opus 5 | 0/3 | 0.000 | 0.000 | 0.000 | 437 | 168 (148–169) | 56m 52.7s / 50m 07.4s (41m 46.6s–78m 44.2s) |
+| Claude Fable 5 | 0/3 | 0.000 | 0.000 | 0.000 | 367 | 148 (120–179) | 71m 22.0s / 75m 06.9s (61m 13.5s–77m 45.4s) |
+| Grok 4.5 | 0/3 | 0.000 | 0.000 | 0.000 | 110 | 116 (108–134) | 11m 41.9s / 11m 09.2s (10m 11.9s–13m 44.7s) |
+| GPT-5.6 Sol | 0/3 | 0.000 | 0.000 | 0.000 | 113 | 90 (80–90) | 8m 24.9s / 8m 41.1s (7m 35.9s–8m 57.8s) |
 
-| Model / attempt | Reward | f2p | p2p | Model turns | Tool calls | Full trial wall time | Input (cached) / output tokens | Cost | Grading |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| Opus 5 / 1 | 0 | 0/4 | 1/2 | 150 | 169 | 50m 07.4s | 34.89M (34.89M) / 143.9k | $23.82 | regraded final verifier |
-| Opus 5 / 2 | 0 | 1/4 | 1/2 | 154 | 168 | 78m 44.2s | 38.24M (38.24M) / 150.7k | $25.95 | regraded final verifier |
-| Opus 5 / 3 | 0 | 0/4 | 1/2 | 133 | 148 | 41m 46.6s | 26.20M (26.20M) / 125.0k | $18.65 | regraded final verifier |
-| Fable 5 / 1 | 0 | 0/4 | 2/2 | 89 | 120 | 75m 06.9s | 15.06M (15.06M) / 82.4k | $36.00 | regraded final verifier |
-| Fable 5 / 2 | 0 | 0/4 | 1/2 | 165 | 179 | 77m 45.4s | 38.15M (38.15M) / 148.3k | $51.43 | regraded final verifier |
-| Fable 5 / 3 | 0 | 0/4 | 2/2 | 113 | 148 | 61m 13.5s | 25.33M (25.33M) / 138.8k | $38.58 | regraded final verifier |
-| Grok 4.5 / 1 | 0 | 1/4 | 2/2 | 39 | 134 | 11m 09.2s | 2.80M (2.67M) / 32.7k | $1.27 | original Harbor verifier |
-| Grok 4.5 / 2 | 0 | 1/4 | 1/2 | 36 | 116 | 13m 44.7s† | 2.72M (2.52M) / 31.4k | $1.36 | recovered + regraded final verifier |
-| Grok 4.5 / 3 | 0 | 1/4 | 2/2 | 35 | 108 | 10m 11.9s | 2.71M (2.50M) / 28.2k | $1.36 | original Harbor verifier |
-| GPT-5.6 Sol / 1 | 0 | 1/4 | 1/2 | 37 | 80 | 7m 35.9s | 2.24M (2.24M) / 13.4k | $2.13 | original Harbor verifier |
-| GPT-5.6 Sol / 2 | 0 | 1/4 | 1/2 | 40 | 90 | 8m 41.1s | 2.73M (2.73M) / 14.1k | $2.50 | original Harbor verifier |
-| GPT-5.6 Sol / 3 | 0 | 1/4 | 1/2 | 36 | 90 | 8m 57.8s | 2.73M (2.73M) / 15.1k | $2.57 | original Harbor verifier |
+| Model / attempt | Reward | f2p | p2p | Model turns | Tool calls | Full trial wall time | Input (cached) / output tokens | Grading |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| Opus 5 / 1 | 0 | 0/4 | 1/2 | 150 | 169 | 50m 07.4s | 34.89M (34.89M) / 143.9k | regraded final verifier |
+| Opus 5 / 2 | 0 | 1/4 | 1/2 | 154 | 168 | 78m 44.2s | 38.24M (38.24M) / 150.7k | regraded final verifier |
+| Opus 5 / 3 | 0 | 0/4 | 1/2 | 133 | 148 | 41m 46.6s | 26.20M (26.20M) / 125.0k | regraded final verifier |
+| Fable 5 / 1 | 0 | 0/4 | 2/2 | 89 | 120 | 75m 06.9s | 15.06M (15.06M) / 82.4k | regraded final verifier |
+| Fable 5 / 2 | 0 | 0/4 | 1/2 | 165 | 179 | 77m 45.4s | 38.15M (38.15M) / 148.3k | regraded final verifier |
+| Fable 5 / 3 | 0 | 0/4 | 2/2 | 113 | 148 | 61m 13.5s | 25.33M (25.33M) / 138.8k | regraded final verifier |
+| Grok 4.5 / 1 | 0 | 1/4 | 2/2 | 39 | 134 | 11m 09.2s | 2.80M (2.67M) / 32.7k | original Harbor verifier |
+| Grok 4.5 / 2 | 0 | 1/4 | 1/2 | 36 | 116 | 13m 44.7s† | 2.72M (2.52M) / 31.4k | recovered + regraded final verifier |
+| Grok 4.5 / 3 | 0 | 1/4 | 2/2 | 35 | 108 | 10m 11.9s | 2.71M (2.50M) / 28.2k | original Harbor verifier |
+| GPT-5.6 Sol / 1 | 0 | 1/4 | 1/2 | 37 | 80 | 7m 35.9s | 2.24M (2.24M) / 13.4k | original Harbor verifier |
+| GPT-5.6 Sol / 2 | 0 | 1/4 | 1/2 | 40 | 90 | 8m 41.1s | 2.73M (2.73M) / 14.1k | original Harbor verifier |
+| GPT-5.6 Sol / 3 | 0 | 1/4 | 1/2 | 36 | 90 | 8m 57.8s | 2.73M (2.73M) / 15.1k | original Harbor verifier |
 
 The matrix used **1,027 model turns**, **1,550 tool calls**, **193.80M input
-tokens** (193.26M cached), **923.8k output tokens**, and **$205.63** of model
-calls. Independently running trial durations are not summed.
+tokens** (193.26M cached), and **923.8k output tokens**. Independently running
+trial durations are not summed.
 
 † Eleven durations are full Harbor `started_at`→`finished_at` wall time,
 including environment setup, agent setup, agent execution, and verification.
@@ -210,17 +323,6 @@ six-test suite and remained reward 0; the Grok and Sol trials ran only after
 that verifier was frozen. Regrade provenance is explicit in every packaged
 trial index, and the prompt-to-test audit is preserved under
 `long-horizon-controls/fairness-audit.md`.
-
-For cost accounting, direct OpenRouter usage attributable to this XAI extension
-remains **$354.54**: $31.44 for the 80 Grok debugging trials, $76.55 for the
-original eight-task Opus/Fable screen, $40.92 for superseded long-task
-calibration, and $205.63 for the 12 final long-task attempts. The pass@10
-completion added **$544.39** of Bedrock list-price-equivalent model usage
-against the AWS account/credits, bringing total reported model-usage equivalent
-for the extension to **$898.93** without increasing its OpenRouter spend. AWS
-Cost Explorer had not yet posted same-day Bedrock billing when this snapshot
-was finalized. Daytona infrastructure charges and inherited Amazon-sample
-model runs are excluded.
 
 ## Turn, tool, and wall-clock profile
 
@@ -264,8 +366,7 @@ average than unsolved attempts (**10.6 vs. 12.6 model turns** and **3.07m vs.
 being a causal measure of solution efficiency.
 
 The same valid trajectories report **46,841,681 input tokens**, including
-**39,586,944 cached tokens**, **467,658 output tokens**, and **$31.44** in model
-cost.
+**39,586,944 cached tokens** and **467,658 output tokens**.
 
 ## Grok's win conditions
 
@@ -386,11 +487,11 @@ attempt for localized normalization/canonicalization work, while a GPT retry is
 more valuable than another Grok sample after Grok has repeatedly failed a
 semantic-boundary or multi-bank task.
 
-## Cost and caveats
+## Caveats
 
-- The runtime, turn, token, and cost totals above cover the 80 valid graded
-  trajectories. Infrastructure/auth failures encountered while operating the
-  wave are excluded from both scores and those valid-trial totals.
+- The runtime, turn, and token totals above cover the 80 valid graded debugging
+  trajectories. Infrastructure/auth failures are excluded from both scores and
+  valid-trial totals.
 - Ten attempts per task are enough to expose systematic zero rows and strong
   concentration, but each individual solve rate still has binomial uncertainty.
 - `pass@10` is 1 for any n=10 cell with at least one solve and 0 otherwise. Its
