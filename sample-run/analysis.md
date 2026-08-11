@@ -64,26 +64,27 @@ On the eight bug-injection tasks, the same broader pattern appears in Grok's
 The headline table uses the unbiased estimator `1 − C(n−c, k) / C(n, k)`.
 It reports the unweighted macro mean across the three task cells:
 
-| Task | Required checks | Model | Solves (c/n) | pass@1 | pass@3 | Task coverage (pass@n) |
+| Task | Required checks | Model | Solves (c/n) | pass@1 | pass@3 | pass@8 |
 |---|---:|---|---:|---:|---:|---:|
-| **Macro mean** | N/A | **Grok 4.5** | **0/24** | **0.0000** | **0.0000** | **0.0000** |
-| **Macro mean** | N/A | **Claude Opus 5** | **19/24** | **0.7917** | **0.9940** | **1.0000** |
+| **Macro mean** | **29 total** | **Grok 4.5** | **0/24** | **0.0000** | **0.0000** | **0.0000** |
+| **Macro mean** | **29 total** | **Claude Opus 5** | **19/24** | **0.7917** | **0.9940** | **1.0000** |
 
-The solves column sums the three task cells. Task coverage is pass@n, where
-`n=8` for each cell: 1 when a model solves a task at least once and 0 otherwise.
+The solves column sums the three task cells. pass@8 is the task-coverage
+criterion: 1 when a model solves a task at least once across its eight attempts
+and 0 otherwise.
 
 ### Bug-injection debugging tasks
 
 The headline uses the same schema and four-decimal precision as the enterprise
 table. Each model has ten valid attempts on each of eight tasks:
 
-| Task | Required checks | Model | Solves (c/n) | pass@1 | pass@3 | Task coverage (pass@n) |
+| Task | Required checks | Model | Solves (c/n) | pass@1 | pass@3 | pass@10 |
 |---|---:|---|---:|---:|---:|---:|
-| **Macro mean** | N/A | **Grok 4.5** | **21/80** | **0.2625** | **0.3833** | **0.5000** |
-| **Macro mean** | N/A | **Claude Opus 5** | **55/80** | **0.6875** | **0.8344** | **0.8750** |
+| **Macro mean** | **152 total** | **Grok 4.5** | **21/80** | **0.2625** | **0.3833** | **0.5000** |
+| **Macro mean** | **152 total** | **Claude Opus 5** | **55/80** | **0.6875** | **0.8344** | **0.8750** |
 
-The solves column sums the eight task cells. Task coverage is pass@n, where
-`n=10` for each cell.
+The solves column sums the eight task cells. pass@10 is the task-coverage
+measure because each cell has ten attempts.
 
 ## Long-horizon capability-gap results
 
@@ -107,7 +108,7 @@ reward 0.
 Using the unbiased estimator `1 − C(n−c, k) / C(n, k)`, each task/model cell
 has eight valid attempts. The coverage column is therefore pass@8:
 
-| Task | Required checks | Model | Solves (c/n) | pass@1 | pass@3 | Task coverage (pass@n) |
+| Task | Required checks | Model | Solves (c/n) | pass@1 | pass@3 | pass@8 |
 |---|---:|---|---:|---:|---:|---:|
 | Customer billing-schedule migration | 8 | Grok 4.5 | 0/8 | 0.0000 | 0.0000 | 0.0000 |
 | Customer billing-schedule migration | 8 | Claude Opus 5 | 7/8 | 0.8750 | 1.0000 | 1.0000 |
@@ -115,13 +116,13 @@ has eight valid attempts. The coverage column is therefore pass@8:
 | Top-up billing lifecycle | 11 | Claude Opus 5 | 7/8 | 0.8750 | 1.0000 | 1.0000 |
 | S3 datastore measurement | 10 | Grok 4.5 | 0/8 | 0.0000 | 0.0000 | 0.0000 |
 | S3 datastore measurement | 10 | Claude Opus 5 | 5/8 | 0.6250 | 0.9821 | 1.0000 |
-| **Macro mean** | N/A | **Grok 4.5** | **0/24** | **0.0000** | **0.0000** | **0.0000** |
-| **Macro mean** | N/A | **Claude Opus 5** | **19/24** | **0.7917** | **0.9940** | **1.0000** |
+| **Macro mean** | **29 total** | **Grok 4.5** | **0/24** | **0.0000** | **0.0000** | **0.0000** |
+| **Macro mean** | **29 total** | **Claude Opus 5** | **19/24** | **0.7917** | **0.9940** | **1.0000** |
 
 The summary solve values are sums across task cells; the pass@k summary is the
 unweighted macro mean of the three task-level estimators, not a pooled
-24-attempt estimator. Task coverage is pass@n, where `n=8` for each cell: it is
-1 for any cell with at least one solve and 0 for a zero-solve cell.
+24-attempt estimator. pass@8 is 1 for any task cell with at least one solve and
+0 for a zero-solve cell.
 
 ### Measured effort
 
@@ -337,7 +338,7 @@ The complete evidence is available in
 Each model/task cell has ten verifier-valid attempts. Using the unbiased
 estimator `1 − C(n−c, k) / C(n, k)`, the task-level comparison is:
 
-| Task | Required checks | Model | Solves (c/n) | pass@1 | pass@3 | Task coverage (pass@n) |
+| Task | Required checks | Model | Solves (c/n) | pass@1 | pass@3 | pass@10 |
 |---|---:|---|---:|---:|---:|---:|
 | credit-normalize | 19 | Grok 4.5 | 8/10 | 0.8000 | 1.0000 | 1.0000 |
 | credit-normalize | 19 | Claude Opus 5 | 8/10 | 0.8000 | 1.0000 | 1.0000 |
@@ -355,12 +356,12 @@ estimator `1 − C(n−c, k) / C(n, k)`, the task-level comparison is:
 | txenrich3 | 19 | Claude Opus 5 | 10/10 | 1.0000 | 1.0000 | 1.0000 |
 | txenrich4 | 19 | Grok 4.5 | 0/10 | 0.0000 | 0.0000 | 0.0000 |
 | txenrich4 | 19 | Claude Opus 5 | 0/10 | 0.0000 | 0.0000 | 0.0000 |
-| **Macro mean** | N/A | **Grok 4.5** | **21/80** | **0.2625** | **0.3833** | **0.5000** |
-| **Macro mean** | N/A | **Claude Opus 5** | **55/80** | **0.6875** | **0.8344** | **0.8750** |
+| **Macro mean** | **152 total** | **Grok 4.5** | **21/80** | **0.2625** | **0.3833** | **0.5000** |
+| **Macro mean** | **152 total** | **Claude Opus 5** | **55/80** | **0.6875** | **0.8344** | **0.8750** |
 
 The summary solve values are sums across task cells; pass@k is the unweighted
-macro mean of the eight task-level estimators. Task coverage is pass@n, where
-`n=10` for each cell. The comparison therefore shows both a repeatability gap,
+macro mean of the eight task-level estimators. pass@10 is the task-coverage
+measure because each cell has ten attempts. The comparison therefore shows both a repeatability gap,
 21/80 versus 55/80, and a breadth gap, four of eight tasks with a Grok solve
 versus seven of eight with an Opus solve.
 
@@ -624,7 +625,7 @@ failures.
 pass@k uses `1 − C(n−c, k) / C(n, k)`. Every model has three valid attempts on
 the six-check task:
 
-| Task | Required checks | Model | Solves (c/n) | pass@1 | pass@3 | Task coverage (pass@n) |
+| Task | Required checks | Model | Solves (c/n) | pass@1 | pass@3 | Task coverage (pass@3) |
 |---|---:|---|---:|---:|---:|---:|
 | Native-table migration | 6 | Grok 4.5 | 0/3 | 0.0000 | 0.0000 | 0.0000 |
 | Native-table migration | 6 | Claude Opus 5 | 0/3 | 0.0000 | 0.0000 | 0.0000 |
