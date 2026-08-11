@@ -460,27 +460,20 @@ files are what we used to see which planted defect stopped each failed run.
 
 Everything below assumes Docker is running and you are at the repo root.
 
-**0. Base images (read this first).** Every task Dockerfile starts
-`FROM <repo>-repo:v1` (e.g. `loangenus-repo:v1`) - a pre-built image of the
-underlying **private** codebase with dependencies installed. The images
-(linux/amd64) are distributed via a private Amazon ECR registry - request pull
-access from the maintainer, then:
+**0. Base images (read this first).** Every task Dockerfile starts from a
+sealed linux/amd64 image of the pre-task codebase with dependencies installed.
+The original source repositories are not needed. Request private ECR pull
+access from the maintainer, then install all seven digest-pinned bases:
 
 ```sh
-aws ecr get-login-password --region us-east-1 | docker login --username AWS \
-  --password-stdin 237343249281.dkr.ecr.us-east-1.amazonaws.com
-for r in loangenus-repo txenrich-repo fiu-repo bank-statement-parser-repo; do
-  docker pull 237343249281.dkr.ecr.us-east-1.amazonaws.com/rl-images/$r:v1-amd64
-  docker tag  237343249281.dkr.ecr.us-east-1.amazonaws.com/rl-images/$r:v1-amd64 $r:v1
-done
+./harness/bootstrap_base_images.sh
 ```
 
-The images can also be rebuilt from source: the substrate trees live in the
-companion `rl-repositories` share, and the exact image recipes are the
-`Dockerfile` at each substrate root (loangenus, transaction-enrichment-python),
-`tasks/xrepo-fiu-latent/environment/Dockerfile.repo` (fiu_adapter), and
-`tasks/long-native-table-migration/environment/Dockerfile.repo`
-(bank-statement-parser).
+The script verifies the image architecture and assigns the local names expected
+by all eight bug-injection tasks, the three enterprise long-horizon tasks, and
+the separate native-table difficulty control. See [HANDOFF.md](HANDOFF.md) for
+the image map, required access, exact model routes, snapshot names, and complete
+rerun commands.
 
 **1. Get an Anthropic API key into your shell** (a probe attempt typically
 costs $0.40–1.60 and is hard-capped at $3):
@@ -544,31 +537,22 @@ Keep concurrent attempts ≤ 15 machine-wide. A trial that crashes under load
 records `"reward": null` or a non-`Submitted` exit_status - rerun that attempt
 number; never count a crash as a fail.
 
-**4c. Run the long-horizon Daytona gate.** Prepare an env file containing
-`DAYTONA_API_KEY`, `DAYTONA_API_URL`, and `OPENROUTER_API_KEY`, pin the source
-checkout to the task's base commit, then create the sealed snapshot once:
+**4c. Run the enterprise long-horizon gate.** The source-free reproduction
+path uses the three sealed enterprise images, the named global Daytona
+snapshots, OpenCode 1.18.13, exact Grok 4.5 and Claude Opus 5 routes, a denied
+task/subagent tool, and eight attempts per task. The full commands are in
+[HANDOFF.md](HANDOFF.md#6-re-run-the-three-enterprise-long-horizon-tasks).
 
-```sh
-HARBOR_PY="$(uv tool dir)/harbor/bin/python"
-"$HARBOR_PY" harness/create_long_task_daytona_snapshot.py \
-  --repo /path/to/bank-statement-parser-at-base \
-  --env-file /tmp/xai-rl-daytona.env
-```
-
-Run Opus and Fable attempts through one global worker pool. OpenCode's task
-tool is denied so every trajectory is a single-agent run:
+The separate native-table migration difficulty control can be rerun with:
 
 ```sh
 python3 harness/run_frontier_daytona.py \
   --env-file /tmp/xai-rl-daytona.env \
   --model opus5=openrouter/anthropic/claude-opus-5 \
-  --model fable5=openrouter/anthropic/claude-fable-5 \
+  --model grok45=openrouter/x-ai/grok-4.5 \
   --task long-native-table-migration --attempts 3 --concurrency 6 \
-  --run-id long-native-final-r2 --jobs-dir sample-run/long-raw \
-  --agent-version 1.18.13 --disable-task-tool --job-timeout 9000
-
-python3 harness/collect_long_results.py \
-  --run-id long-native-final-r2 --expected-attempts 3
+  --run-id reproduce-native-table --jobs-dir results/native-table \
+  --agent-version 1.18.13 --job-timeout 9000
 ```
 
 The runner reuses a cell only after validating the model route, OpenCode

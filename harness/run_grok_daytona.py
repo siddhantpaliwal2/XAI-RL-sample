@@ -77,6 +77,7 @@ def run_one(
     jobs_dir: Path,
     logs_dir: Path,
     retries: int,
+    agent_version: str,
 ) -> dict:
     job_name = f"grok45-{task}-a{attempt:02d}"
     job_dir = jobs_dir / job_name
@@ -101,6 +102,8 @@ def run_one(
         "opencode",
         "-m",
         MODEL,
+        "--ak",
+        f"version={agent_version}",
         "--env-file",
         str(env_file),
         "-k",
@@ -153,6 +156,7 @@ def main() -> int:
     parser.add_argument("--concurrency", type=int, default=12)
     parser.add_argument("--attempts", type=int, default=10)
     parser.add_argument("--retries", type=int, default=2)
+    parser.add_argument("--agent-version", default="1.18.13")
     parser.add_argument(
         "--jobs-dir", type=Path, default=ROOT / "sample-run" / "grok-raw"
     )
@@ -187,6 +191,7 @@ def main() -> int:
                 jobs_dir=jobs_dir,
                 logs_dir=logs_dir,
                 retries=args.retries,
+                agent_version=args.agent_version,
             ): (task, attempt)
             for task, attempt in jobs
         }
