@@ -1,4 +1,4 @@
-# Analysis: Grok 4.5, the current Claude frontier, and long-horizon behavior
+# Analyzing Grok 4.5 Behaviour on Long Horizon and Enterprise COding Tasks
 
 ## Table of contents
 
