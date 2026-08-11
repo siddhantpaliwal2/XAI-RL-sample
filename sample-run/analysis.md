@@ -30,7 +30,10 @@
     - [Txenrich3: correct symptom family, wrong bank implementation](#txenrich3-correct-symptom-family-wrong-bank-implementation)
     - [Txenrich4: complementary near misses and shared frontier difficulty](#txenrich4-complementary-near-misses-and-shared-frontier-difficulty)
 - [Native-table migration difficulty control](#native-table-migration-difficulty-control)
-- [Caveats](#caveats)
+- [Conclusion](#conclusion)
+  - [Capability gap](#capability-gap)
+  - [Evidence](#evidence)
+  - [Improvement target](#improvement-target)
 
 ## Setup
 
@@ -774,21 +777,36 @@ that verifier was frozen. Regrade provenance is explicit in every packaged
 trial index, and the prompt-to-test audit is preserved under
 `long-horizon-controls/fairness-audit.md`.
 
-## Caveats
+## Conclusion
 
-- The bug-injection pass and effort comparison covers 80 valid Grok attempts
-  and 80 valid Opus attempts. Its phase, token, concurrency, and single-wave
-  envelope measurements are explicitly limited to Grok's 80 attempts. The
-  enterprise effort table covers its separate 48-attempt Grok/Opus cohort.
-  Infrastructure/auth failures are excluded from all scores and valid-trial
-  totals.
-- Ten attempts per bug-injection task and eight per enterprise task expose
-  systematic zero rows and strong concentration, but each individual solve
-  rate still has binomial uncertainty.
-- `pass@10` is 1 for any n=10 cell with at least one solve and 0 otherwise. Its
-  macro mean is therefore task coverage at this sample size, not an additional
-  measure of within-task repeatability. The same interpretation applies to
-  `pass@8` in the enterprise cohort.
-- Hidden tests assert behavior, not oracle patch identity. Alternative correct
-  implementations pass; the failures above are observable output failures, not
-  textual-diff mismatches.
+### Capability gap
+
+The generalizable gap is **boundary-complete repository repair**. Grok usually
+finds the relevant subsystem and produces substantial, locally correct code,
+but it is less reliable at carrying every requirement through the final diff,
+preserving both sides of a boundary, selecting the runtime-owning
+implementation among similar modules, and keeping one invariant exact across
+every lifecycle or serialization path. The result is often a plausible and
+nearly complete implementation that stops one contract check short of a
+binary solve.
+
+### Evidence
+
+- Customer billing-schedule migration
+- Top-up billing lifecycle
+- S3 datastore measurement
+- doc-extractors
+- financial-tools
+- FIU
+- txenrich
+- txenrich3
+
+### Improvement target
+
+The highest-value target is a mandatory final contract-closure loop. The model
+should maintain a requirement-to-diff ledger, trace each reported input to its
+runtime owner, prefer the smallest shared-boundary edit, replay positive and
+negative neighbors for every changed condition, and inspect exact outbound
+objects after persistence or serialization. Completion should require every
+ledger item to be backed by a final-diff location and an observed behavioral
+check, rather than by an intended change recorded in the model's summary.
