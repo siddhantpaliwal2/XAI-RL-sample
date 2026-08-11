@@ -815,30 +815,42 @@ can provide stepwise feedback at each boundary without adding a new task.
 
 ## Nature of the source codebases
 
-The evaluated snapshots come from authorized private production repositories
-selected for established engineering history, not recent demo applications,
-benchmark forks, or code generated for this study. They contain existing domain
-models, persistence layers, integrations, tests, and operational conventions,
-which give each task a real regression surface beyond the requested change.
+The evaluation covers five authorized private production systems. After
+excluding dependencies, generated and build output, and Git metadata, the
+agent-visible snapshots contain **1,789 code files** and **269,074 code LOC**
+across Python, TypeScript, JavaScript, and Java. They also expose **149 test
+files** and **135 PDF fixtures**. Across the two evaluation tracks and the
+separate difficulty control, these systems support **12 task instances** and
+**187 required checks**.
 
-| Source system | Languages | Production characteristics | Tasks represented |
-|---|---|---|---|
-| Financial workflow backend | Python | Normalization, document ingestion, financial calculations, invitation flows, and existing regression tests | credit-normalize, doc-extractors, financial-tools, phone-invites |
-| Financial integration service | Java | Message decoding, identifiers, fixed-width records, and adapter boundaries | FIU |
-| Transaction-enrichment service | Python | Format-specific parsing, classification, normalization, and overlapping rule families | txenrich, txenrich3, txenrich4 |
-| Billing and measurement platform | TypeScript with NestJS | Customer enrollment, schedules, invoices, queues, wallet state, persistence, IAM, and S3 ingestion | Customer billing-schedule migration, Top-up billing lifecycle, S3 datastore measurement |
-| Document-processing platform | Java and Groovy | PDF geometry, structured tables, policy routing, remote extraction fallback, API status, and persisted logs | Native-table migration difficulty control |
+| Source system | Language mix by code LOC | Agent-visible snapshot | Evaluation scope | Tasks represented |
+|---|---|---|---|---|
+| Financial workflow backend | 54.0% Python<br>46.0% TypeScript | 521 code files / 133,848 LOC<br>33 test files / 3,686 test LOC | 4 bug tasks<br>20 planted defects, 19 reward-gated<br>78 required checks | credit-normalize<br>doc-extractors<br>financial-tools<br>phone-invites |
+| Financial integration service | 100% Java | 264 code files / 16,375 LOC<br>17 test files / 2,823 test LOC | 1 bug task<br>5 planted defects<br>19 required checks | FIU |
+| Transaction-enrichment service | 100% Python | 52 code files / 11,179 LOC<br>no candidate-visible test files | 3 bug tasks<br>15 planted defects<br>55 required checks | txenrich<br>txenrich3<br>txenrich4 |
+| Billing and measurement platform | 99.5% TypeScript<br>0.5% JavaScript | 539 code files / 66,319 LOC<br>99 test files / 20,475 test LOC | 3 long-horizon tasks<br>68 oracle files / 3,602 changed LOC<br>29 required checks | Customer billing-schedule migration<br>Top-up billing lifecycle<br>S3 datastore measurement |
+| Document-processing platform | 100% Java | 413 code files / 41,353 LOC<br>135 PDF fixtures | 1 difficulty control<br>62 commits / 70 files / approximately 13,000 added LOC<br>6 required checks | Native-table migration difficulty control |
 
-The long-horizon tasks start from pre-feature production revisions and use
-multi-file historical changes only as solvability oracles; independently
-written hidden tests grade observable behavior rather than source similarity.
-The bug-injection tasks instead alter narrow boundaries in already working
-systems, preserving the surrounding code and regression surface. Company
-names, ticket identifiers, commit messages, credentials, customer records, and
-unrelated configuration are removed, while the architecture and task-relevant
-dependencies remain intact. The evaluation therefore rests on inspectable code
-history, behavior, controls, and traces rather than the reputation of any
-source company.
+Code-file and LOC counts include candidate-visible tests; the test counts are
+subsets shown separately. Dependency trees, compiled output, generated output,
+and Git metadata are excluded. The transaction-enrichment snapshot intentionally
+has no candidate-visible tests, but its three tasks are independently graded by
+55 hidden checks.
+
+The eight bug-injection tasks alter **40 narrow boundaries**, of which **39 are
+reward-gated**, while preserving the surrounding systems. The three enterprise
+long-horizon tasks start from pre-feature production revisions and use
+historical changes spanning **68 oracle files** and **3,602 changed LOC** only
+as solvability references. The separate native-table control condenses **62
+production commits**, **70 files**, and approximately **13,000 added LOC** into
+one six-check task. Independently written hidden tests grade observable behavior
+rather than source similarity.
+
+Company names, ticket identifiers, commit messages, credentials, customer
+records, and unrelated configuration are removed, while the architecture and
+task-relevant dependencies remain intact. The evaluation therefore rests on
+measured code volume, verifier scope, behavior, controls, and traces rather than
+the reputation of any source company.
 
 ## Conclusion
 
