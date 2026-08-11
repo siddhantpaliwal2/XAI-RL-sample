@@ -20,9 +20,14 @@ from run_frontier_daytona import directory_sha256
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "sample-run" / "enterprise-raw"
 PACKAGED = ROOT / "sample-run" / "long-horizon-enterprise-trials"
-OUTPUT = ROOT / "sample-run" / "long-horizon-enterprise-results.json"
-MANIFEST = ROOT / "sample-run" / "long-horizon-enterprise-artifacts-manifest.json"
-LEDGER = ROOT / "sample-run" / "enterprise-budget-ledger.jsonl"
+OUTPUT = ROOT / "sample-run" / "indexes" / "long-horizon-enterprise-results.json"
+MANIFEST = (
+    ROOT
+    / "sample-run"
+    / "manifests"
+    / "long-horizon-enterprise-artifacts-manifest.json"
+)
+LEDGER = ROOT / "sample-run" / "ledgers" / "enterprise-budget-ledger.jsonl"
 AGENT_VERSION = "1.18.13"
 
 TASKS = (
@@ -570,6 +575,8 @@ def main() -> int:
         ],
         "models": models,
     }
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    MANIFEST.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(output, indent=2) + "\n")
     manifest_paths = [OUTPUT, *sorted(path for path in PACKAGED.rglob("*") if path.is_file())]
     manifest = {

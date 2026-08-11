@@ -26,6 +26,7 @@
     - [Txenrich3: correct symptom family, wrong bank implementation](#txenrich3-correct-symptom-family-wrong-bank-implementation)
     - [Txenrich4: complementary near misses and shared frontier difficulty](#txenrich4-complementary-near-misses-and-shared-frontier-difficulty)
 - [Native-table migration difficulty control](#native-table-migration-difficulty-control)
+  - [Native-table verifier contract](#native-table-verifier-contract)
   - [Native-table trace analysis](#native-table-trace-analysis)
     - [Grok: compile success masked an unusable native result](#grok-compile-success-masked-an-unusable-native-result)
     - [GPT-5.6 Sol: policy labels without policy-specific behavior](#gpt-56-sol-policy-labels-without-policy-specific-behavior)
@@ -350,9 +351,9 @@ shared-boundary selection, and exact final-state verification.
   records SHA-256 hashes.
 
 The complete evidence is available in
-[`long-horizon-enterprise-results.json`](long-horizon-enterprise-results.json),
+[`long-horizon-enterprise-results.json`](indexes/long-horizon-enterprise-results.json),
 [`long-horizon-enterprise-trials/`](long-horizon-enterprise-trials/), and
-[`long-horizon-enterprise-artifacts-manifest.json`](long-horizon-enterprise-artifacts-manifest.json).
+[`long-horizon-enterprise-artifacts-manifest.json`](manifests/long-horizon-enterprise-artifacts-manifest.json).
 
 ## Bug-injection debugging analysis
 
@@ -625,7 +626,7 @@ case ledgers, minimal edits, runtime-path localization, and positive plus
 negative replay before completion.
 
 The aggregate indexes and per-attempt evidence are in
-[`grok_trials.json`](grok_trials.json), [`opus5_trials.json`](opus5_trials.json),
+[`grok_trials.json`](indexes/grok_trials.json), [`opus5_trials.json`](indexes/opus5_trials.json),
 [`grok-trials/`](grok-trials/), and [`frontier-trials/opus5/`](frontier-trials/opus5/).
 
 ## Native-table migration difficulty control
@@ -637,7 +638,7 @@ GPT-5.6 Sol. All three models solved **0/3**, so Opus independently exceeds the
 50% difficulty threshold. Tool calls ranged from **80 to 169**, with a
 conventional nine-trial median of **116**. Six traces
 exceeded the original 70–100 reference band; the checked-in
-`long_horizon_results.json` correctly treats that band as descriptive, reports
+`indexes/long_horizon_results.json` correctly treats that band as descriptive, reports
 the difficulty gate as true, and sets overall `qualifies: true`.
 
 The control keeps OpenCode 1.18.13 and the Daytona snapshot fixed. Valid scored
@@ -686,8 +687,29 @@ an alternate oracle with all seven concrete dependency setters removed also
 scores 1. All three Opus candidate worktrees then executed the final six-test
 suite and remained reward 0; the Grok and Sol trials ran only after
 that verifier was frozen. Regrade provenance is explicit in every packaged
-trial index, and the prompt-to-test audit is preserved under
-`long-horizon-controls/fairness-audit.md`.
+trial index.
+
+### Native-table verifier contract
+
+The hidden suite checks behavior rather than candidate file names, class names,
+commit hashes, or similarity to the historical patch. Its six tests map
+directly to the six numbered prompt requirements:
+
+| Prompt requirement | Hidden verifier method | Observable contract |
+|---|---|---|
+| Native grid, box, and text-aligned extraction | `nativeStrategiesProduceStructuredRows` | Three repository PDFs produce the expected structured cells |
+| Bank-family policy selection | `supportedBankFormatsUseCorrectPolicy` | Seven bank and format fixtures select working native policies |
+| Native success bypasses remote extraction | `nativeSuccessSkipsRemoteExtractor` | Native output is nonempty and neither the remote processor nor mapper is called |
+| Unknown input retains remote fallback | `unsupportedFormatsRetainRemoteFallback` | An unknown bank identifier reaches the existing remote processor and mapper |
+| Native, ML, and fallback status is observable | `usageStatusPropagatesToApiAndLogs` | Three semantic states round-trip through API and log objects |
+| Existing date behavior is unchanged | `legacyDateParsingRemainsStable` | Historical date parsing and blank-input behavior stay green |
+
+Three mechanical controls ran in the same Linux/AMD64 image. The untouched base
+scored 0, with all four fail-to-pass checks failing and both preservation checks
+passing. The historical oracle scored 1. An alternate oracle also scored 1 after
+all seven concrete dependency setters were removed; the verifier found compatible
+dependencies by type and injected fields, so it did not require the historical
+wiring shape. Raw control outputs remain under `long-horizon-controls/`.
 
 ### Native-table trace analysis
 

@@ -18,6 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLE_RUN = ROOT / "sample-run"
+INDEXES = SAMPLE_RUN / "indexes"
 TASK = "long-native-table-migration"
 SNAPSHOT = "harbor-probe-long-native-table-migration-4g"
 AGENT_VERSION = "1.18.13"
@@ -413,7 +414,8 @@ def main() -> int:
             "cost_usd": round(sum((row["cost_usd"] or 0) for row in rows), 4),
             "per_attempt_data": f"long_{alias}_trials.json",
         }
-        (SAMPLE_RUN / f"long_{alias}_trials.json").write_text(
+        INDEXES.mkdir(parents=True, exist_ok=True)
+        (INDEXES / f"long_{alias}_trials.json").write_text(
             json.dumps(rows, indent=2) + "\n"
         )
 
@@ -442,7 +444,7 @@ def main() -> int:
         "opus_or_fable_failure_rate_at_least_50_percent": any_model_failure_gate,
     }
     payload["criteria"]["qualifies"] = bool(any_model_failure_gate)
-    (SAMPLE_RUN / "long_horizon_results.json").write_text(
+    (INDEXES / "long_horizon_results.json").write_text(
         json.dumps(payload, indent=2) + "\n"
     )
     print(json.dumps(payload, indent=2))

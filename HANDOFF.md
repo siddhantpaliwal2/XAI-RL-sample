@@ -61,10 +61,53 @@ the score files, so partial or exception trials cannot enter the matrix.
 
 - `README.md` — task format, gates, and the measured 9-model × 5-harness
   pass@k matrix
-- `sample-run/results.md` — Grok task-level pass@1/pass@3/pass@10
-- `sample-run/analysis.md` — Grok vs GPT-5.6/Opus/Nova win conditions
-- `sample-run/grok_trials.json` — compact index of all 80 valid attempts
+- `sample-run/analysis.md` — task-level results, effort, failure modes, and
+  capability conclusions
+- `sample-run/indexes/grok_trials.json` — compact index of all 80 valid attempts
+- `sample-run/indexes/` — compact scored-result and per-attempt indexes
+- `sample-run/controls/` — control and exclusion summaries
+- `sample-run/checkpoints/` — interim calibration and fairness checkpoints
+- `sample-run/manifests/` — packaged-artifact manifests
+- `sample-run/run-summaries/` and `sample-run/ledgers/` — resumable run state
 - `sample-run/grok-trials/` — per-attempt result, verifier output, and trajectory
 - `sample-run/trajectories*/` — full agent trajectories per cell
-- `gold-tests/`, `instructions/` — readable copies of the hidden test suites
-  and agent-facing prompts
+- `tasks/*/instruction.md` — canonical agent-facing prompts
+- `gold-tests/` — readable copies of the hidden test suites
+
+## 5. Historical task authoring
+
+`historical_tasks.json` records immutable base and target commits, narrow
+oracle path allowlists, stable regression-test paths, and hidden behavioral
+test sources. Source repositories are intentionally not part of this Git
+repository.
+
+After reviewing a task's manifest boundary, materialize it with:
+
+```sh
+python3 harness/package_historical_task.py TASK --git-dir /path/to/repository.git
+```
+
+The packager writes only `tasks/TASK/solution/oracle.patch` and the generated
+SWE-bench-style `tests/config.json`. `harness/audit_enterprise_tasks.py` checks
+that oracle and verifier patches stay inside their allowlists, verifies the
+selected remote null/oracle controls, and scans the package for recognized
+credential forms.
+
+Hidden verifier patches must add files under a reserved namespace
+(`*.gold.spec.ts` or `xai-tests/`). They may not edit an existing candidate
+file or add a conventional test filename that an agent could reasonably
+create. The audit enforces this rule.
+
+For tasks whose oracle is already generated, refresh reviewed local synthetic
+tests without reopening the private export:
+
+```sh
+python3 harness/package_historical_task.py TASK --local-tests-only
+```
+
+Previously generated, added-only historical gold files named in
+`extra_git_test_files` are preserved byte-for-byte. Historical edits in
+`test_paths` still require the source Git export. Keep source exports, private
+project context, raw model trajectories, credentials, and Daytona snapshot
+inputs out of this repository. Generated patches reproduce code for evaluation
+and may require source-owner authorization before distribution.

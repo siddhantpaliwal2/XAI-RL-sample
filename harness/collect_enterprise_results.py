@@ -20,8 +20,8 @@ from run_frontier_daytona import directory_sha256
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "sample-run" / "enterprise-raw"
-LEDGER = ROOT / "sample-run" / "enterprise-budget-ledger.jsonl"
-OUTPUT = ROOT / "sample-run" / "enterprise-model-results.json"
+LEDGER = ROOT / "sample-run" / "ledgers" / "enterprise-budget-ledger.jsonl"
+OUTPUT = ROOT / "sample-run" / "indexes" / "enterprise-model-results.json"
 PACKAGED = ROOT / "sample-run" / "enterprise-trials"
 AGENT_VERSION = "1.18.13"
 SENSITIVE_ASSIGNMENT = re.compile(
@@ -392,6 +392,7 @@ def main() -> int:
         },
         "models": model_results,
     }
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(output, indent=2) + "\n")
     print(
         json.dumps(

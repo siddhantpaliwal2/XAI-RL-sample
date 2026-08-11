@@ -15,6 +15,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLE_RUN = ROOT / "sample-run"
+INDEXES = SAMPLE_RUN / "indexes"
+CONTROLS = SAMPLE_RUN / "controls"
 MODELS = {
     "opus5": {
         "route": "openrouter/anthropic/claude-opus-5",
@@ -324,7 +326,9 @@ def main() -> int:
     if missing:
         raise SystemExit(f"incomplete matrix: {missing}")
 
-    matrix_path = SAMPLE_RUN / "passk_matrix.json"
+    INDEXES.mkdir(parents=True, exist_ok=True)
+    CONTROLS.mkdir(parents=True, exist_ok=True)
+    matrix_path = INDEXES / "passk_matrix.json"
     matrix = json.loads(matrix_path.read_text())
     all_results: dict[str, dict] = {}
     for alias, model in MODELS.items():
@@ -401,12 +405,12 @@ def main() -> int:
             "totals": totals,
             "per_attempt_data": f"{alias}_trials.json",
         }
-        (SAMPLE_RUN / f"{alias}_trials.json").write_text(json.dumps(rows, indent=2) + "\n")
-        (SAMPLE_RUN / f"{alias}_results.json").write_text(json.dumps(payload, indent=2) + "\n")
+        (INDEXES / f"{alias}_trials.json").write_text(json.dumps(rows, indent=2) + "\n")
+        (INDEXES / f"{alias}_results.json").write_text(json.dumps(payload, indent=2) + "\n")
         all_results[alias] = payload
 
     matrix_path.write_text(json.dumps(matrix, indent=1) + "\n")
-    (SAMPLE_RUN / "frontier_exclusions.json").write_text(
+    (CONTROLS / "frontier_exclusions.json").write_text(
         json.dumps(exclusions, indent=2) + "\n"
     )
     print(json.dumps(all_results, indent=2))

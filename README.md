@@ -53,13 +53,10 @@ tasks/<name>/
 A task rewards 1 only when **every** `fail_to_pass` and `pass_to_pass` test
 passes - partial fixes score 0.
 
-For convenience, `instructions/` holds a readable copy of every task's
-`instruction.md` (one file per task) so the agent-facing prompts can be
-skimmed side by side, and `gold-tests/` holds the extracted source of every
-task's hidden gold test suite (the exact code the verifier runs). The canonical
-copies remain `tasks/<name>/instruction.md` and the `test_patch` field inside
-`tasks/<name>/tests/config.json`; the gold tests never exist anywhere the agent
-can see them at solve time.
+The canonical prompt for each task is `tasks/<name>/instruction.md`.
+`gold-tests/` holds the extracted source of every task's hidden gold test suite
+(the exact code the verifier runs). The gold tests never exist anywhere the
+agent can see them at solve time.
 
 One calibration note: `latent-doc-extractors` reward-gates four of its five
 planted defects. The fifth (a personal-financial-statement scan floor) is
@@ -132,10 +129,10 @@ The complete evidence package covers structural and measured horizon, binary
 win conditions, pass rates and confidence intervals, turns, tool calls,
 agent/trial wall time, trace-backed failure modes, and verifier fairness:
 
-- [`LONG_HORIZON_ENTERPRISE.md`](LONG_HORIZON_ENTERPRISE.md)
-- [`sample-run/long-horizon-enterprise-results.json`](sample-run/long-horizon-enterprise-results.json)
+- [`sample-run/analysis.md`](sample-run/analysis.md#long-horizon-capability-gap-results)
+- [`sample-run/indexes/long-horizon-enterprise-results.json`](sample-run/indexes/long-horizon-enterprise-results.json)
 - [`sample-run/long-horizon-enterprise-trials/`](sample-run/long-horizon-enterprise-trials/)
-- [`sample-run/long-horizon-enterprise-artifacts-manifest.json`](sample-run/long-horizon-enterprise-artifacts-manifest.json)
+- [`sample-run/manifests/long-horizon-enterprise-artifacts-manifest.json`](sample-run/manifests/long-horizon-enterprise-artifacts-manifest.json)
 
 One billing verifier assertion was found to grade positional Nest constructor
 order rather than behavior. It was repaired, fresh null/oracle controls passed,
@@ -211,9 +208,10 @@ rather than search.
 
 ## Long-horizon migration task
 
-For a focused, standalone treatment of the task, verifier, four-model results,
-failure patterns, cost, and limitations, see
-[`LONG_HORIZON_ANALYSIS.md`](LONG_HORIZON_ANALYSIS.md).
+For the focused treatment of the task, verifier, results, and trace-backed
+failure patterns, see the
+[`Native-table migration difficulty control`](sample-run/analysis.md#native-table-migration-difficulty-control)
+section of the analysis.
 
 `long-native-table-migration` condenses a real 62-commit production branch
 into one feature-development task at its pre-migration base. The branch changed
@@ -306,9 +304,11 @@ null control remains 0, the historical oracle remains 1, and an alternate
 oracle with all seven concrete dependency setters removed also scores 1. All
 six Opus/Fable candidate worktrees were then regraded against that final suite;
 each executed all six tests and remained reward 0. The subsequent Grok and Sol
-runs used that already-frozen verifier. Every packaged attempt
-records `grading_provenance`, and the full audit is in
-`sample-run/long-horizon-controls/fairness-audit.md`.
+runs used that already-frozen verifier. Every packaged attempt records
+`grading_provenance`. The full prompt-to-test mapping and verifier repair
+rationale are in the
+[`Native-table verifier contract`](sample-run/analysis.md#native-table-verifier-contract)
+section; raw controls remain under `sample-run/long-horizon-controls/`.
 
 ### What "long horizon" means here
 

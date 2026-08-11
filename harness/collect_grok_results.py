@@ -15,6 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLE_RUN = ROOT / "sample-run"
+INDEXES = SAMPLE_RUN / "indexes"
 TASKS = [
     "latent-credit-normalize",
     "latent-doc-extractors",
@@ -121,70 +122,13 @@ def representative(rows: list[dict]) -> dict:
     )
 
 
-def markdown_table(task_summaries: list[dict], totals: dict) -> str:
-    lines = [
-        "# sample-run: Grok 4.5 on the OpenCode harness",
-        "",
-        "Ten independent attempts per task, run in isolated 2-CPU/4-GB AMD64",
-        "Daytona sandboxes. The model route was `openrouter/x-ai/grok-4.5`; every",
-        "attempt was graded against the hidden fail-to-pass and pass-to-pass tests.",
-        "",
-        "## pass@k",
-        "",
-        "| Task | Solved (c/n) | pass@1 | pass@3 | pass@10 | Avg f2p fixed |",
-        "|---|---:|---:|---:|---:|---:|",
-    ]
-    for row in task_summaries:
-        lines.append(
-            "| {task} | {c}/{n} | {p1:.3f} | {p3:.3f} | {p10:.3f} | "
-            "{avg:.2f}/{f2p_total} |".format(
-                task=row["task"],
-                c=row["c"],
-                n=row["n"],
-                p1=row["pass@1"],
-                p3=row["pass@3"],
-                p10=row["pass@10"],
-                avg=row["avg_f2p_passed"],
-                f2p_total=row["f2p_total"],
-            )
-        )
-    lines.extend(
-        [
-            "| **Mean** | **{c}/{n}** | **{p1:.3f}** | **{p3:.3f}** | "
-            "**{p10:.3f}** | |".format(
-                c=totals["solves"],
-                n=totals["attempts"],
-                p1=totals["mean_pass@1"],
-                p3=totals["mean_pass@3"],
-                p10=totals["mean_pass@10"],
-            ),
-            "",
-            "Unbiased pass@k is `1 - C(n-c, k) / C(n, k)`. Means are macro",
-            "averages over the eight tasks.",
-            "",
-            "## Run totals",
-            "",
-            f"- Valid graded attempts: {totals['attempts']}",
-            f"- Full solves: {totals['solves']}",
-            f"- Model cost: ${totals['cost_usd']:.2f}",
-            f"- Agent runtime: {totals['duration_seconds'] / 60:.1f} minutes (summed)",
-            f"- Model steps: {totals['steps']}",
-            "",
-            "All per-attempt results, verifier verdicts, and trajectories are under",
-            "`grok-trials/`. Representative traces (a solve where available, otherwise",
-            "the closest graded attempt) are also copied into `trajectories-matrix/`.",
-            "",
-        ]
-    )
-    return "\n".join(lines)
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--jobs-dir", type=Path, default=SAMPLE_RUN / "grok-raw")
     parser.add_argument("--expected-attempts", type=int, default=10)
     args = parser.parse_args()
 
+    INDEXES.mkdir(parents=True, exist_ok=True)
     rows: list[dict] = []
     seen: set[tuple[str, int]] = set()
     for job_dir in sorted(args.jobs_dir.resolve().glob("grok45-*-a??")):
@@ -219,7 +163,7 @@ def main() -> int:
         raise SystemExit(f"incomplete matrix: {missing}")
 
     task_summaries: list[dict] = []
-    matrix_path = SAMPLE_RUN / "passk_matrix.json"
+    matrix_path = INDEXES / "passk_matrix.json"
     matrix = json.loads(matrix_path.read_text())
     for task in TASKS:
         task_rows = grouped[task]
@@ -269,8 +213,8 @@ def main() -> int:
         "steps": sum(row["steps"] for row in rows),
     }
 
-    (SAMPLE_RUN / "grok_trials.json").write_text(json.dumps(rows, indent=2) + "\n")
-    (SAMPLE_RUN / "results.json").write_text(
+    (INDEXES / "grok_trials.json").write_text(json.dumps(rows, indent=2) + "\n")
+    (INDEXES / "results.json").write_text(
         json.dumps(
             {
                 "model": "openrouter/x-ai/grok-4.5",
@@ -286,7 +230,6 @@ def main() -> int:
         + "\n"
     )
     matrix_path.write_text(json.dumps(matrix, indent=1) + "\n")
-    (SAMPLE_RUN / "results.md").write_text(markdown_table(task_summaries, totals))
     print(json.dumps({"tasks": task_summaries, "totals": totals}, indent=2))
     return 0
 

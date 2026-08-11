@@ -31,6 +31,7 @@ from run_frontier_daytona import (
 
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLE_RUN = ROOT / "sample-run"
+INDEXES = SAMPLE_RUN / "indexes"
 TASKS = [
     "latent-credit-normalize",
     "latent-doc-extractors",
@@ -260,7 +261,7 @@ def main() -> int:
 
     rows_by_model: dict[str, list[dict]] = {}
     for alias in MODELS:
-        baseline_path = SAMPLE_RUN / f"{alias}_trials.json"
+        baseline_path = INDEXES / f"{alias}_trials.json"
         baseline = validate_baseline(alias, json.loads(baseline_path.read_text()))
         rows_by_model[alias] = baseline
 
@@ -361,7 +362,8 @@ def main() -> int:
                     )
                 )
 
-    matrix_path = SAMPLE_RUN / "passk_matrix.json"
+    INDEXES.mkdir(parents=True, exist_ok=True)
+    matrix_path = INDEXES / "passk_matrix.json"
     matrix = json.loads(matrix_path.read_text())
     all_results: dict[str, dict] = {}
     for alias, model in MODELS.items():
@@ -489,10 +491,10 @@ def main() -> int:
             "totals": totals,
             "per_attempt_data": f"{alias}_trials.json",
         }
-        (SAMPLE_RUN / f"{alias}_trials.json").write_text(
+        (INDEXES / f"{alias}_trials.json").write_text(
             json.dumps(rows, indent=2) + "\n"
         )
-        (SAMPLE_RUN / f"{alias}_results.json").write_text(
+        (INDEXES / f"{alias}_results.json").write_text(
             json.dumps(payload, indent=2) + "\n"
         )
         all_results[alias] = payload

@@ -206,7 +206,8 @@ def main() -> int:
                 )
 
     outcomes.sort(key=lambda item: item["job"])
-    summary_path = ROOT / "sample-run" / "grok-run-summary.json"
+    summary_path = ROOT / "sample-run" / "run-summaries" / "grok-run-summary.json"
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
     summary_path.write_text(json.dumps(outcomes, indent=2) + "\n")
     failures = [item for item in outcomes if item["reward"] is None]
     emit(f"SUMMARY valid={len(outcomes) - len(failures)} failed={len(failures)}")

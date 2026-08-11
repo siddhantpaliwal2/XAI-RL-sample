@@ -352,7 +352,7 @@ def main() -> int:
     parser.add_argument(
         "--ledger",
         type=Path,
-        default=ROOT / "sample-run" / "enterprise-budget-ledger.jsonl",
+        default=ROOT / "sample-run" / "ledgers" / "enterprise-budget-ledger.jsonl",
     )
     parser.add_argument("--reserve-per-trial", type=float, default=100.0)
     parser.add_argument("--target-budget", type=float, default=2000.0)
@@ -452,7 +452,13 @@ def main() -> int:
                 )
 
     outcomes.sort(key=lambda item: item["job"])
-    summary = ROOT / "sample-run" / f"enterprise-run-summary-{args.run_id}.json"
+    summary = (
+        ROOT
+        / "sample-run"
+        / "run-summaries"
+        / f"enterprise-run-summary-{args.run_id}.json"
+    )
+    summary.parent.mkdir(parents=True, exist_ok=True)
     summary.write_text(json.dumps(outcomes, indent=2) + "\n")
     valid = [item for item in outcomes if item.get("reward") is not None]
     cost = sum(float(item.get("cost_usd") or 0) for item in outcomes)

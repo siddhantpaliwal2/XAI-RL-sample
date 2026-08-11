@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "authoring" / "historical_tasks.json"
-CONTROL_SUMMARY = ROOT / "sample-run" / "enterprise-controls-summary.json"
+CONTROL_SUMMARY = ROOT / "sample-run" / "controls" / "enterprise-controls-summary.json"
 CONTROL_JOBS = {
     "enterprise-dimension-pricing-tiers": (
         "eng830-null-daytona-r10",
@@ -145,11 +145,8 @@ def audit_task(task: str, spec: dict, controls_dir: Path, summary: dict) -> dict
         if config.get(key) != template.get(key):
             errors.append(f"generated config differs from template for {key}")
 
-    instruction_copy = ROOT / "instructions" / f"{task}.md"
-    if not instruction_copy.is_file():
-        errors.append("missing readable instruction copy")
-    elif instruction_copy.read_bytes() != (task_dir / "instruction.md").read_bytes():
-        errors.append("readable instruction copy differs from canonical task prompt")
+    if not (task_dir / "instruction.md").is_file():
+        errors.append("missing canonical task prompt")
 
     if config.get("base_commit") != spec["base_commit"]:
         errors.append("base commit differs from manifest")
@@ -276,9 +273,9 @@ def secret_findings(task_names: list[str]) -> list[dict]:
         ROOT / "authoring",
         ROOT / "gold-tests",
         ROOT / "harness",
-        ROOT / "sample-run" / "enterprise-controls-summary.json",
-        ROOT / "sample-run" / "enterprise-email-fairness-checkpoint.json",
-        ROOT / "sample-run" / "enterprise-model-results.json",
+        ROOT / "sample-run" / "controls" / "enterprise-controls-summary.json",
+        ROOT / "sample-run" / "checkpoints" / "enterprise-email-fairness-checkpoint.json",
+        ROOT / "sample-run" / "indexes" / "enterprise-model-results.json",
         ROOT / "sample-run" / "enterprise-trials",
         *(ROOT / "tasks" / task for task in task_names),
     ]
