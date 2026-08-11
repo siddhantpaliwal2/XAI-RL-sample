@@ -31,9 +31,6 @@
     - [Txenrich4: complementary near misses and shared frontier difficulty](#txenrich4-complementary-near-misses-and-shared-frontier-difficulty)
 - [Native-table migration difficulty control](#native-table-migration-difficulty-control)
 - [Conclusion](#conclusion)
-  - [Capability gap](#capability-gap)
-  - [Evidence](#evidence)
-  - [Improvement target](#improvement-target)
 
 ## Setup
 
@@ -779,34 +776,21 @@ trial index, and the prompt-to-test audit is preserved under
 
 ## Conclusion
 
-### Capability gap
+The traces support several related but separable capability gaps. Grok usually
+finds the relevant subsystem and produces substantial, locally correct code;
+the failures concentrate in the final steps required to make the behavior
+complete and exact.
 
-The generalizable gap is **boundary-complete repository repair**. Grok usually
-finds the relevant subsystem and produces substantial, locally correct code,
-but it is less reliable at carrying every requirement through the final diff,
-preserving both sides of a boundary, selecting the runtime-owning
-implementation among similar modules, and keeping one invariant exact across
-every lifecycle or serialization path. The result is often a plausible and
-nearly complete implementation that stops one contract check short of a
-binary solve.
+| Capability gap | Evidence | Improvement target |
+|---|---|---|
+| Requirement-to-diff completeness | Customer billing-schedule migration<br>financial-tools | Maintain a requirement ledger and close each item only when it maps to a final-diff location and an observed behavioral check. |
+| Semantic-boundary preservation | doc-extractors<br>txenrich | Replay below-boundary, exact-boundary, and above-boundary cases for every relaxed or widened condition. |
+| Runtime-owner localization | txenrich3 | Trace the reported input through dispatch to the concrete handler before choosing among similar implementations. |
+| Shared lifecycle-invariant composition | Top-up billing lifecycle | Identify the lowest shared lifecycle boundary and make one validator, scheduler identity, or state transition authoritative across every entry point. |
+| Canonical representation fidelity | Customer billing-schedule migration<br>S3 datastore measurement | Construct identifiers and outbound objects through one canonical helper, then assert exact values after persistence, serialization, and return. |
+| Cross-file completion persistence | FIU<br>financial-tools<br>txenrich3 | Add a mandatory final search and diff audit so every ticket case is revisited after the locally obvious fixes are complete. |
 
-### Evidence
-
-- Customer billing-schedule migration
-- Top-up billing lifecycle
-- S3 datastore measurement
-- doc-extractors
-- financial-tools
-- FIU
-- txenrich
-- txenrich3
-
-### Improvement target
-
-The highest-value target is a mandatory final contract-closure loop. The model
-should maintain a requirement-to-diff ledger, trace each reported input to its
-runtime owner, prefer the smallest shared-boundary edit, replay positive and
-negative neighbors for every changed condition, and inspect exact outbound
-objects after persistence or serialization. Completion should require every
-ledger item to be backed by a final-diff location and an observed behavioral
-check, rather than by an intended change recorded in the model's summary.
+Together, these gaps define the broader training target: **boundary-complete
+repository repair**. Completion should depend on verified final behavior, not
+on a plausible implementation or an intended change recorded in the model's
+summary.
