@@ -743,17 +743,17 @@ pass@k uses `1 − C(n−c, k) / C(n, k)`. Every row has `n=3`, `c=0`:
 | Grok 4.5 | 0/3 | 0.000 | 0.000 | 0.000 | 110 | 116 (108–134) | 11m 41.9s / 11m 09.2s (10m 11.9s–13m 44.7s) |
 | GPT-5.6 Sol | 0/3 | 0.000 | 0.000 | 0.000 | 113 | 90 (80–90) | 8m 24.9s / 8m 41.1s (7m 35.9s–8m 57.8s) |
 
-| Model | Attempt | Reward | f2p | p2p | Model turns | Tool calls | Full trial wall time | Input (cached) / output tokens | Grading |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| Opus 5 | 1 | 0 | 0/4 | 1/2 | 150 | 169 | 50m 07.4s | 34.89M (34.89M) / 143.9k | regraded final verifier |
-| Opus 5 | 2 | 0 | 1/4 | 1/2 | 154 | 168 | 78m 44.2s | 38.24M (38.24M) / 150.7k | regraded final verifier |
-| Opus 5 | 3 | 0 | 0/4 | 1/2 | 133 | 148 | 41m 46.6s | 26.20M (26.20M) / 125.0k | regraded final verifier |
-| Grok 4.5 | 1 | 0 | 1/4 | 2/2 | 39 | 134 | 11m 09.2s | 2.80M (2.67M) / 32.7k | original Harbor verifier |
-| Grok 4.5 | 2 | 0 | 1/4 | 1/2 | 36 | 116 | 13m 44.7s† | 2.72M (2.52M) / 31.4k | recovered + regraded final verifier |
-| Grok 4.5 | 3 | 0 | 1/4 | 2/2 | 35 | 108 | 10m 11.9s | 2.71M (2.50M) / 28.2k | original Harbor verifier |
-| GPT-5.6 Sol | 1 | 0 | 1/4 | 1/2 | 37 | 80 | 7m 35.9s | 2.24M (2.24M) / 13.4k | original Harbor verifier |
-| GPT-5.6 Sol | 2 | 0 | 1/4 | 1/2 | 40 | 90 | 8m 41.1s | 2.73M (2.73M) / 14.1k | original Harbor verifier |
-| GPT-5.6 Sol | 3 | 0 | 1/4 | 1/2 | 36 | 90 | 8m 57.8s | 2.73M (2.73M) / 15.1k | original Harbor verifier |
+| Model | Attempt | Reward | f2p | p2p | Model turns | Tool calls | Full trial wall time | Input tokens (cached) | Output tokens |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Opus 5 | 1 | 0 | 0/4 | 1/2 | 150 | 169 | 50m 07.4s | 34.89M (34.89M) | 143.9k |
+| Opus 5 | 2 | 0 | 1/4 | 1/2 | 154 | 168 | 78m 44.2s | 38.24M (38.24M) | 150.7k |
+| Opus 5 | 3 | 0 | 0/4 | 1/2 | 133 | 148 | 41m 46.6s | 26.20M (26.20M) | 125.0k |
+| Grok 4.5 | 1 | 0 | 1/4 | 2/2 | 39 | 134 | 11m 09.2s | 2.80M (2.67M) | 32.7k |
+| Grok 4.5 | 2 | 0 | 1/4 | 1/2 | 36 | 116 | 13m 44.7s† | 2.72M (2.52M) | 31.4k |
+| Grok 4.5 | 3 | 0 | 1/4 | 2/2 | 35 | 108 | 10m 11.9s | 2.71M (2.50M) | 28.2k |
+| GPT-5.6 Sol | 1 | 0 | 1/4 | 1/2 | 37 | 80 | 7m 35.9s | 2.24M (2.24M) | 13.4k |
+| GPT-5.6 Sol | 2 | 0 | 1/4 | 1/2 | 40 | 90 | 8m 41.1s | 2.73M (2.73M) | 14.1k |
+| GPT-5.6 Sol | 3 | 0 | 1/4 | 1/2 | 36 | 90 | 8m 57.8s | 2.73M (2.73M) | 15.1k |
 
 The comparison used **660 model turns**, **1,103 tool calls**, **115.26M input
 tokens** (114.72M cached), and **554.3k output tokens**. Independently running
