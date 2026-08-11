@@ -776,21 +776,19 @@ trial index, and the prompt-to-test audit is preserved under
 
 ## Conclusion
 
-The traces support several related but separable capability gaps. Grok usually
-finds the relevant subsystem and produces substantial, locally correct code;
-the failures concentrate in the final steps required to make the behavior
-complete and exact.
+Grok usually finds the right part of the codebase and writes much of the
+correct code. Its main problems appear in the last steps needed to finish the
+whole task and avoid breaking nearby behavior.
 
 | Capability gap | Evidence | Improvement target |
 |---|---|---|
-| Requirement-to-diff completeness | Customer billing-schedule migration<br>financial-tools | Maintain a requirement ledger and close each item only when it maps to a final-diff location and an observed behavioral check. |
-| Semantic-boundary preservation | doc-extractors<br>txenrich | Replay below-boundary, exact-boundary, and above-boundary cases for every relaxed or widened condition. |
-| Runtime-owner localization | txenrich3 | Trace the reported input through dispatch to the concrete handler before choosing among similar implementations. |
-| Shared lifecycle-invariant composition | Top-up billing lifecycle | Identify the lowest shared lifecycle boundary and make one validator, scheduler identity, or state transition authoritative across every entry point. |
-| Canonical representation fidelity | Customer billing-schedule migration<br>S3 datastore measurement | Construct identifiers and outbound objects through one canonical helper, then assert exact values after persistence, serialization, and return. |
-| Cross-file completion persistence | FIU<br>financial-tools<br>txenrich3 | Add a mandatory final search and diff audit so every ticket case is revisited after the locally obvious fixes are complete. |
+| Missing one requirement | Customer billing-schedule migration<br>financial-tools | Keep a checklist of every requirement. Mark an item complete only after the final code and a behavior check both confirm it. |
+| Breaking nearby cases | doc-extractors<br>txenrich | For every changed limit, test a value below it, exactly on it, and above it. |
+| Fixing the wrong code path | txenrich3 | Follow the reported input through the running code before choosing which similar file or function to edit. |
+| Copying logic instead of sharing it | Top-up billing lifecycle | Put the rule in one shared place and make every create, update, and scheduled path use it. |
+| Returning the right data in the wrong shape | Customer billing-schedule migration<br>S3 datastore measurement | Use one helper to build the final value or object, then compare the exact saved and returned result. |
+| Stopping before checking every file | FIU<br>financial-tools<br>txenrich3 | Before finishing, search the codebase and review the final diff against every case in the task. |
 
-Together, these gaps define the broader training target: **boundary-complete
-repository repair**. Completion should depend on verified final behavior, not
-on a plausible implementation or an intended change recorded in the model's
-summary.
+The overall improvement target is simple: finish the full repair and check it.
+The model should not stop when the code looks plausible. It should stop only
+after every requested behavior has been checked in the final code.
