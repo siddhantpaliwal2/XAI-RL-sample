@@ -176,11 +176,13 @@ await this.invoicesService.create({
 });
 ```
 
-That attempt passes the charging, credit-storage, threshold, persistence, and
-hourly wallet checks. Billing is even more repeatable: every Grok attempt passes
-7/8. S3 shows breadth across AWS and application code, with the closest attempt
-passing 8/10. Grok comes closest when each requirement can be closed with a
-named local edit and a direct replay. It falls short when the same invariant
+The paired [Opus attempt 1 trace](enterprise-long-horizon-trials/opus5/enterprise-top-up-billing-lifecycle/attempt-01/trajectory.json)
+passes all 11 checks and provides the complete comparison for the same task.
+The Grok attempt passes the charging, credit-storage, threshold, persistence,
+and hourly wallet checks. Billing is even more repeatable: every Grok attempt
+passes 7/8. S3 shows breadth across AWS and application code, with the closest
+attempt passing 8/10. Grok comes closest when each requirement can be closed
+with a named local edit and a direct replay. It falls short when the same invariant
 must remain exact across several constructors, lifecycle paths, or serialized
 representations.
 
@@ -295,8 +297,8 @@ at enrollment, deducts usage, reads the wallet, and tops it up.
 
 #### S3: built the pieces but did not verify the full data path
 
-[Grok attempt 5](enterprise-long-horizon-trials/grok45/enterprise-s3-datastore-measurement/attempt-05/trajectory.json)
-passes 5/10, while [Opus attempt 1](enterprise-long-horizon-trials/opus5/enterprise-s3-datastore-measurement/attempt-01/trajectory.json)
+[Grok attempt 5](enterprise-long-horizon-trials/grok45/enterprise-s3-datastore-measurement/attempt-05/trajectory.json?raw=1)
+passes 5/10, while [Opus attempt 1](enterprise-long-horizon-trials/opus5/enterprise-s3-datastore-measurement/attempt-01/trajectory.json?raw=1)
 passes 10/10. Grok added the IAM setup, persistence fields, connector endpoint,
 and dead-letter path, but two public methods only changed their input object and
 silently returned `undefined`:
@@ -458,8 +460,10 @@ wins. Those wins are highly concentrated rather than uniformly distributed:
 
 The positive pattern is fast closure when the symptom maps to one named local
 operation. For example, [Grok phone attempt 1](bug-injection-trials/grok45/latent-phone-invites/attempt-01/trajectory.json)
-fixes the international prefix by consuming both zeroes, then preserves the
-configured region by taking the first plausible fallback:
+and [Opus phone attempt 1](frontier-trials/opus5/latent-phone-invites/attempt-01/trajectory.json)
+both solve the task. The Grok trace fixes the international prefix by consuming
+both zeroes, then preserves the configured region by taking the first plausible
+fallback:
 
 ```python
 if value.startswith("00"):
@@ -752,10 +756,12 @@ below show why compilation was not enough.
 
 #### Grok: compile success masked an unusable native result
 
-[Grok attempt 1](long-horizon-trials/grok45/attempt-01/trajectory.json) added
-separate geometry-based builders and hybrid routing. It ended by reporting a
-successful offline package build. The builder, however, initialized every new
-table as non-transactional and depended on later analysis to change that state:
+[Grok attempt 1](long-horizon-trials/grok45/attempt-01/trajectory.json) is paired
+with [Opus attempt 2](long-horizon-trials/opus5/attempt-02/trajectory.json), the
+closest Opus run by required checks. The Grok run added separate geometry-based
+builders and hybrid routing. It ended by reporting a successful offline package
+build. The builder, however, initialized every new table as non-transactional
+and depended on later analysis to change that state:
 
 ```java
 table.setBankTransactions(false);
