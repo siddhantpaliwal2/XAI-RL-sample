@@ -1,10 +1,10 @@
-package com.finbit.fiuadapter.webservice;
+package com.enterprise.fiuadapter.webservice;
 
-import com.finbit.fiuadapter.webservice.service.consentinit.ConsentInitServiceImpl;
-import com.finbit.fiuadapter.webservice.utils.Base64Decoder;
-import com.finbit.fiuadapter.webservice.utils.DateTimeUtil;
-import com.finbit.fiuadapter.webservice.utils.NullEmptyUtils;
-import com.finbit.fiuadapter.webservice.utils.UUIDGenerator;
+import com.enterprise.fiuadapter.webservice.service.consentinit.ConsentInitServiceImpl;
+import com.enterprise.fiuadapter.webservice.utils.Base64Decoder;
+import com.enterprise.fiuadapter.webservice.utils.DateTimeUtil;
+import com.enterprise.fiuadapter.webservice.utils.NullEmptyUtils;
+import com.enterprise.fiuadapter.webservice.utils.UUIDGenerator;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

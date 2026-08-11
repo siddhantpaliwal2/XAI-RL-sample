@@ -26,13 +26,13 @@ LEDGER = ROOT / "sample-run" / "enterprise-budget-ledger.jsonl"
 AGENT_VERSION = "1.18.13"
 
 TASKS = (
-    "paigo-customer-billing-schedule-migration",
-    "paigo-top-up-billing-lifecycle",
-    "paigo-s3-datastore-measurement",
+    "enterprise-customer-billing-schedule-migration",
+    "enterprise-top-up-billing-lifecycle",
+    "enterprise-s3-datastore-measurement",
 )
 
 TASK_METADATA = {
-    "paigo-customer-billing-schedule-migration": {
+    "enterprise-customer-billing-schedule-migration": {
         "label": "Billing-schedule migration",
         "change_family": "billing and identity migration",
         "oracle_files": 23,
@@ -41,7 +41,7 @@ TASK_METADATA = {
         "ticket_activity_days": None,
         "estimated_human_solve_days": 3,
     },
-    "paigo-top-up-billing-lifecycle": {
+    "enterprise-top-up-billing-lifecycle": {
         "label": "Top-up billing lifecycle",
         "change_family": "wallet and billing lifecycle",
         "oracle_files": 28,
@@ -50,7 +50,7 @@ TASK_METADATA = {
         "ticket_activity_days": 18.5,
         "estimated_human_solve_days": 3,
     },
-    "paigo-s3-datastore-measurement": {
+    "enterprise-s3-datastore-measurement": {
         "label": "S3 datastore measurement",
         "change_family": "AWS usage-ingestion feature",
         "oracle_files": 17,
@@ -69,16 +69,16 @@ def numbered_jobs(prefix: str, task: str, start: int, end: int) -> list[str]:
 
 SUPERSEDED_BILLING_OPUS_JOBS = [
     "enterprise-opus-final-taxonomy-r1-opus5-bedrock-"
-    "paigo-customer-billing-schedule-migration-a01",
+    "enterprise-customer-billing-schedule-migration-a01",
     *numbered_jobs(
         "enterprise-opus-final-a23-r1-opus5-bedrock",
-        "paigo-customer-billing-schedule-migration",
+        "enterprise-customer-billing-schedule-migration",
         2,
         3,
     ),
     *numbered_jobs(
         "enterprise-opus-final-a48-r1-opus5-bedrock",
-        "paigo-customer-billing-schedule-migration",
+        "enterprise-customer-billing-schedule-migration",
         4,
         8,
     ),
@@ -87,13 +87,13 @@ SUPERSEDED_BILLING_OPUS_JOBS = [
 SUPERSEDED_BILLING_GROK_JOBS = [
     *numbered_jobs(
         "enterprise-corrected-grok4-r1-grok45",
-        "paigo-customer-billing-schedule-migration",
+        "enterprise-customer-billing-schedule-migration",
         1,
         4,
     ),
     *numbered_jobs(
         "enterprise-final8-grok-r1-grok45",
-        "paigo-customer-billing-schedule-migration",
+        "enterprise-customer-billing-schedule-migration",
         5,
         8,
     ),
@@ -111,7 +111,7 @@ MODEL_SPECS = {
                     1,
                     8,
                 )
-                if task == "paigo-customer-billing-schedule-migration"
+                if task == "enterprise-customer-billing-schedule-migration"
                 else [
                     *numbered_jobs("enterprise-corrected-grok4-r1-grok45", task, 1, 4),
                     *numbered_jobs("enterprise-final8-grok-r1-grok45", task, 5, 8),
@@ -124,36 +124,36 @@ MODEL_SPECS = {
         "model": "Claude Opus 5",
         "route": "amazon-bedrock/global.anthropic.claude-opus-5",
         "jobs": {
-            "paigo-customer-billing-schedule-migration": numbered_jobs(
+            "enterprise-customer-billing-schedule-migration": numbered_jobs(
                 "enterprise-billing-fair-final8-opus-r1-opus5-bedrock",
-                "paigo-customer-billing-schedule-migration",
+                "enterprise-customer-billing-schedule-migration",
                 1,
                 8,
             ),
-            "paigo-top-up-billing-lifecycle": [
+            "enterprise-top-up-billing-lifecycle": [
                 *numbered_jobs(
                     "enterprise-fairness-v3-r1-opus5-bedrock",
-                    "paigo-top-up-billing-lifecycle",
+                    "enterprise-top-up-billing-lifecycle",
                     1,
                     4,
                 ),
                 *numbered_jobs(
                     "enterprise-final8-opus-r1-opus5-bedrock",
-                    "paigo-top-up-billing-lifecycle",
+                    "enterprise-top-up-billing-lifecycle",
                     5,
                     8,
                 ),
             ],
-            "paigo-s3-datastore-measurement": [
+            "enterprise-s3-datastore-measurement": [
                 *numbered_jobs(
                     "enterprise-fairness-v4-s3-r1-opus5-bedrock",
-                    "paigo-s3-datastore-measurement",
+                    "enterprise-s3-datastore-measurement",
                     1,
                     4,
                 ),
                 *numbered_jobs(
                     "enterprise-final8-opus-r1-opus5-bedrock",
-                    "paigo-s3-datastore-measurement",
+                    "enterprise-s3-datastore-measurement",
                     5,
                     8,
                 ),
@@ -238,15 +238,20 @@ def package_artifacts(alias: str, task: str, attempt: int, trial_dir: Path) -> d
 def collect_attempt(
     alias: str, route: str, task: str, attempt: int, job: str
 ) -> dict:
-    checksum = directory_sha256(ROOT / "tasks" / task)
+    published_checksum = directory_sha256(ROOT / "tasks" / task)
     job_dir = RAW / job
+    metadata_path = job_dir / "matrix-metadata.json"
+    metadata = json.loads(metadata_path.read_text())
+    execution_checksum = metadata.get("task_sha256")
+    if not execution_checksum:
+        raise ValueError(f"missing execution task checksum: {job}")
     result = complete_existing(
         job_dir,
         task,
         route=route,
         snapshot=TASK_SNAPSHOTS[task],
         agent_version=AGENT_VERSION,
-        checksum=checksum,
+        checksum=execution_checksum,
         disable_task_tool=True,
     )
     if result is None:
@@ -272,7 +277,8 @@ def collect_attempt(
         "task": task,
         "job": job,
         "trial_id": result.get("id"),
-        "task_sha256": checksum,
+        "task_sha256": execution_checksum,
+        "published_task_sha256": published_checksum,
         "started_at": result["started_at"],
         "finished_at": result["finished_at"],
         "reward": int(reward),
@@ -325,6 +331,10 @@ def task_result(alias: str, spec: dict, task: str) -> dict:
     ]
     if len(attempts) != 8:
         raise ValueError(f"{alias}/{task} has {len(attempts)} attempts instead of eight")
+    execution_checksums = {attempt["task_sha256"] for attempt in attempts}
+    published_checksums = {attempt["published_task_sha256"] for attempt in attempts}
+    if len(execution_checksums) != 1 or len(published_checksums) != 1:
+        raise ValueError(f"{alias}/{task} mixes task checksums")
     solves = sum(attempt["reward"] for attempt in attempts)
     failures = Counter(
         failure for attempt in attempts for failure in attempt["failed_tests"]
@@ -340,7 +350,8 @@ def task_result(alias: str, spec: dict, task: str) -> dict:
     return {
         "task": task,
         **TASK_METADATA[task],
-        "task_sha256": attempts[0]["task_sha256"],
+        "task_sha256": execution_checksums.pop(),
+        "published_task_sha256": published_checksums.pop(),
         "solves": solves,
         "attempts": len(attempts),
         "solve_rate": round(solves / len(attempts), 4),
@@ -451,7 +462,7 @@ def main() -> int:
     finalization_attempts = [
         attempt
         for attempt in every_attempt
-        if attempt["task"] == "paigo-customer-billing-schedule-migration"
+        if attempt["task"] == "enterprise-customer-billing-schedule-migration"
         or attempt["attempt"] >= 5
     ]
     finalization_start = min(
@@ -463,9 +474,14 @@ def main() -> int:
     output = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "cohort": "long-horizon enterprise capability-gap study",
+        "anonymization_note": (
+            "Task IDs, source identifiers, and packaged trace paths were changed "
+            "after execution. Scores and verifier verdicts are unchanged; per-attempt "
+            "task_sha256 values preserve the task checksums recorded at execution."
+        ),
         "acceptance_policy": (
             "Eight independent attempts per task and model. Only trials matching the "
-            "current task checksum, exact route, OpenCode version, Daytona snapshot, "
+            "task checksum frozen for execution, exact route, OpenCode version, Daytona snapshot, "
             "single-agent policy, and complete verifier output enter the denominator."
         ),
         "binary_win_condition": (
@@ -558,6 +574,10 @@ def main() -> int:
     manifest_paths = [OUTPUT, *sorted(path for path in PACKAGED.rglob("*") if path.is_file())]
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "anonymization_note": (
+            "Hashes cover the published anonymized artifact paths and contents. "
+            "Scores and verifier verdicts are unchanged from execution."
+        ),
         "artifacts": [
             {
                 "path": str(path.relative_to(ROOT)),

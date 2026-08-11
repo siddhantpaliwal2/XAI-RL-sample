@@ -14,37 +14,37 @@ ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "authoring" / "historical_tasks.json"
 CONTROL_SUMMARY = ROOT / "sample-run" / "enterprise-controls-summary.json"
 CONTROL_JOBS = {
-    "paigo-dimension-pricing-tiers": (
+    "enterprise-dimension-pricing-tiers": (
         "eng830-null-daytona-r10",
         "eng830-oracle-daytona-r10",
     ),
-    "paigo-top-up-billing-lifecycle": (
+    "enterprise-top-up-billing-lifecycle": (
         "eng1167-null-daytona-r6",
         "eng1167-oracle-daytona-r6",
     ),
-    "paigo-s3-datastore-measurement": (
+    "enterprise-s3-datastore-measurement": (
         "eng411-null-daytona-r5",
         "eng411-oracle-daytona-r5",
     ),
-    "paigo-customer-identity-migration": (
+    "enterprise-customer-identity-migration": (
         "eng504a-null-daytona-r3",
         "eng504a-oracle-daytona-r3",
     ),
-    "paigo-customer-billing-schedule-migration": (
+    "enterprise-customer-billing-schedule-migration": (
         "eng504b-null-daytona-r6",
         "eng504b-oracle-daytona-r6",
     ),
-    "champ-email-inbox-infrastructure": (
-        "champ2197-null-daytona-r10",
-        "champ2197-oracle-daytona-r10",
+    "enterprise-email-inbox-infrastructure": (
+        "email2197-null-daytona-r10",
+        "email2197-oracle-daytona-r10",
     ),
-    "finbit-bank-parser-consolidation": (
-        "finbit-parser-null-daytona-r2",
-        "finbit-parser-oracle-daytona-r2",
+    "enterprise-bank-parser-consolidation": (
+        "enterprise-parser-null-daytona-r2",
+        "enterprise-parser-oracle-daytona-r2",
     ),
-    "finbit-google-cloud-storage-migration": (
-        "finbit-cloud-null-daytona-r3",
-        "finbit-cloud-oracle-daytona-r3",
+    "enterprise-google-cloud-storage-migration": (
+        "enterprise-cloud-null-daytona-r3",
+        "enterprise-cloud-oracle-daytona-r3",
     ),
 }
 SECRET_PATTERNS = {
@@ -277,7 +277,7 @@ def secret_findings(task_names: list[str]) -> list[dict]:
         ROOT / "gold-tests",
         ROOT / "harness",
         ROOT / "sample-run" / "enterprise-controls-summary.json",
-        ROOT / "sample-run" / "enterprise-champ-fairness-checkpoint.json",
+        ROOT / "sample-run" / "enterprise-email-fairness-checkpoint.json",
         ROOT / "sample-run" / "enterprise-model-results.json",
         ROOT / "sample-run" / "enterprise-trials",
         *(ROOT / "tasks" / task for task in task_names),

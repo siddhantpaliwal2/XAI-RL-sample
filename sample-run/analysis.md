@@ -266,7 +266,7 @@ solve:
 
 The positive pattern is competent repository mapping plus correct local
 implementation when the prompt names a boundary and gives an exact data-flow
-rule. For example, the [best Grok top-up trace](long-horizon-enterprise-trials/grok45/paigo-top-up-billing-lifecycle/attempt-08/trajectory.json)
+rule. For example, the [best Grok top-up trace](long-horizon-enterprise-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-08/trajectory.json)
 implements the core refill calculation and payment mode directly:
 
 ```ts
@@ -300,8 +300,8 @@ the oracle.
 
 #### Billing: declared invariant, omitted nested field
 
-[Grok attempt 1](long-horizon-enterprise-trials/grok45/paigo-customer-billing-schedule-migration/attempt-01/trajectory.json)
-passes 7/8, while [Opus attempt 2](long-horizon-enterprise-trials/opus5/paigo-customer-billing-schedule-migration/attempt-02/trajectory.json)
+[Grok attempt 1](long-horizon-enterprise-trials/grok45/enterprise-customer-billing-schedule-migration/attempt-01/trajectory.json)
+passes 7/8, while [Opus attempt 2](long-horizon-enterprise-trials/opus5/enterprise-customer-billing-schedule-migration/attempt-02/trajectory.json)
 passes 8/8. In step 13, Grok correctly preserves `subject` and `businessID` at
 the scheduler's top level but omits `businessID` from the nested parameters:
 
@@ -317,7 +317,7 @@ subject,
 businessID,
 ```
 
-The [verifier output](long-horizon-enterprise-trials/grok45/paigo-customer-billing-schedule-migration/attempt-01/verifier-test-stdout.txt)
+The [verifier output](long-horizon-enterprise-trials/grok45/enterprise-customer-billing-schedule-migration/attempt-01/verifier-test-stdout.txt)
 shows that exact object mismatch. Grok's final step nevertheless says
 "`subject` + `businessID` preserved," so the failure is not missing task
 comprehension. It is a final-diff verification failure: the summary tracks the
@@ -331,8 +331,8 @@ its nested `scheduleParameters` would have converted all eight Grok near misses.
 
 #### Top-up: parallel implementations instead of one lifecycle invariant
 
-[Grok attempt 8](long-horizon-enterprise-trials/grok45/paigo-top-up-billing-lifecycle/attempt-08/trajectory.json)
-passes 9/11, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/paigo-top-up-billing-lifecycle/attempt-01/trajectory.json)
+[Grok attempt 8](long-horizon-enterprise-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-08/trajectory.json)
+passes 9/11, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/enterprise-top-up-billing-lifecycle/attempt-01/trajectory.json)
 passes 11/11. Grok implements most of the wallet state machine, but its top-up
 enrollment returns before the shared schedule-registration path:
 
@@ -346,7 +346,7 @@ await this.registerBillingSchedule(subject);
 ```
 
 It creates a second scheduler path in `OfferingService`, leaving the domain
-registration path customer-specific. The [verifier output](long-horizon-enterprise-trials/grok45/paigo-top-up-billing-lifecycle/attempt-08/verifier-test-stdout.txt)
+registration path customer-specific. The [verifier output](long-horizon-enterprise-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-08/verifier-test-stdout.txt)
 therefore observes `customer-1` and `customer-2` as different scheduler IDs.
 Opus instead changes the shared lifecycle boundary:
 
@@ -380,8 +380,8 @@ validation tests would expose both residual failures before grading.
 
 #### S3: correct architecture, non-canonical output string
 
-[Grok attempt 1](long-horizon-enterprise-trials/grok45/paigo-s3-datastore-measurement/attempt-01/trajectory.json)
-passes 8/10, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/paigo-s3-datastore-measurement/attempt-01/trajectory.json)
+[Grok attempt 1](long-horizon-enterprise-trials/grok45/enterprise-s3-datastore-measurement/attempt-01/trajectory.json)
+passes 8/10, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/enterprise-s3-datastore-measurement/attempt-01/trajectory.json)
 passes 10/10. Grok provisions the IAM role, preserves trust identity, persists
 the generated fields, ingests valid records, and mirrors malformed records. Its
 two failures share one string-format decision:
@@ -400,7 +400,7 @@ public static dlqLocation(businessID: string) {
 }
 ```
 
-The [verifier output](long-horizon-enterprise-trials/grok45/paigo-s3-datastore-measurement/attempt-01/verifier-test-stdout.txt)
+The [verifier output](long-horizon-enterprise-trials/grok45/enterprise-s3-datastore-measurement/attempt-01/verifier-test-stdout.txt)
 shows the received trailing slash against the required no-slash location in
 both `setupAccess` and create-persist-return checks. One non-canonical value
 therefore closes two otherwise correct cross-boundary paths. Opus defines one

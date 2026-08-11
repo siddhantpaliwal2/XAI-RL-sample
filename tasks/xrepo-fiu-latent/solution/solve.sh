@@ -10,10 +10,10 @@ set -eu
 cd /app
 
 cat > /tmp/defects.patch <<'DEFECT_PATCH_EOF'
-diff --git a/webservice/src/main/java/com/finbit/fiuadapter/webservice/constants/GeneralConstants.java b/webservice/src/main/java/com/finbit/fiuadapter/webservice/constants/GeneralConstants.java
+diff --git a/webservice/src/main/java/com/enterprise/fiuadapter/webservice/constants/GeneralConstants.java b/webservice/src/main/java/com/enterprise/fiuadapter/webservice/constants/GeneralConstants.java
 index 41a3098..6925b08 100644
---- a/webservice/src/main/java/com/finbit/fiuadapter/webservice/constants/GeneralConstants.java
-+++ b/webservice/src/main/java/com/finbit/fiuadapter/webservice/constants/GeneralConstants.java
+--- a/webservice/src/main/java/com/enterprise/fiuadapter/webservice/constants/GeneralConstants.java
++++ b/webservice/src/main/java/com/enterprise/fiuadapter/webservice/constants/GeneralConstants.java
 @@ -40,7 +40,7 @@ public class GeneralConstants {
      public static final String INVALID_CONSENT_STATUS_MSG = "Consent status value should be as given [ACTIVE, PAUSED, REVOKED, EXPIRED, PENDING, REJECTED]";
      public static final String INVALID_CONSENT_STATUS = "InvalidConsentStatus";
@@ -23,10 +23,10 @@ index 41a3098..6925b08 100644
      public static final String FI_DATA_READY = "FI_DATA_READY";
      public static final String NOTIFIER_AA = "AA";
      public static final String INVALID_NOTIFIER = "InvalidNotifier";
-diff --git a/webservice/src/main/java/com/finbit/fiuadapter/webservice/service/consentinit/ConsentInitServiceImpl.java b/webservice/src/main/java/com/finbit/fiuadapter/webservice/service/consentinit/ConsentInitServiceImpl.java
+diff --git a/webservice/src/main/java/com/enterprise/fiuadapter/webservice/service/consentinit/ConsentInitServiceImpl.java b/webservice/src/main/java/com/enterprise/fiuadapter/webservice/service/consentinit/ConsentInitServiceImpl.java
 index e6e340f..961a7e8 100644
---- a/webservice/src/main/java/com/finbit/fiuadapter/webservice/service/consentinit/ConsentInitServiceImpl.java
-+++ b/webservice/src/main/java/com/finbit/fiuadapter/webservice/service/consentinit/ConsentInitServiceImpl.java
+--- a/webservice/src/main/java/com/enterprise/fiuadapter/webservice/service/consentinit/ConsentInitServiceImpl.java
++++ b/webservice/src/main/java/com/enterprise/fiuadapter/webservice/service/consentinit/ConsentInitServiceImpl.java
 @@ -94,7 +94,7 @@ public class ConsentInitServiceImpl implements ConsentInitService {
              {
                  List<String> customerIdSplit = Arrays.asList(customerId.trim().split("@"));
@@ -36,10 +36,10 @@ index e6e340f..961a7e8 100644
                  }else{
                      log.error("Invalid Customer ID : " + customerId);
                      throw new DataException(HttpStatus.BAD_REQUEST.getReasonPhrase(), "Invalid Customer ID",
-diff --git a/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/Base64Decoder.java b/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/Base64Decoder.java
+diff --git a/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/Base64Decoder.java b/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/Base64Decoder.java
 index 7b4c171..7458c4a 100644
---- a/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/Base64Decoder.java
-+++ b/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/Base64Decoder.java
+--- a/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/Base64Decoder.java
++++ b/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/Base64Decoder.java
 @@ -16,7 +16,7 @@ public class Base64Decoder {
 
      public static Object getDecodedObject( String body, Class<?> type ) throws JWSSignatureException
@@ -49,10 +49,10 @@ index 7b4c171..7458c4a 100644
                  type);
 
      }
-diff --git a/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/DateTimeUtil.java b/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/DateTimeUtil.java
+diff --git a/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/DateTimeUtil.java b/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/DateTimeUtil.java
 index b0dd085..97b6a24 100644
---- a/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/DateTimeUtil.java
-+++ b/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/DateTimeUtil.java
+--- a/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/DateTimeUtil.java
++++ b/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/DateTimeUtil.java
 @@ -45,7 +45,7 @@ public class DateTimeUtil {
 
      public static String getISOTimeStamp( Long milliSecond )
@@ -62,10 +62,10 @@ index b0dd085..97b6a24 100644
          DateTime currentDate = new DateTime(milliSecond, DateTimeZone.UTC);
          return currentDate.toString(formatter);
      }
-diff --git a/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/NullEmptyUtils.java b/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/NullEmptyUtils.java
+diff --git a/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/NullEmptyUtils.java b/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/NullEmptyUtils.java
 index f95410c..6f94322 100644
---- a/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/NullEmptyUtils.java
-+++ b/webservice/src/main/java/com/finbit/fiuadapter/webservice/utils/NullEmptyUtils.java
+--- a/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/NullEmptyUtils.java
++++ b/webservice/src/main/java/com/enterprise/fiuadapter/webservice/utils/NullEmptyUtils.java
 @@ -11,7 +11,7 @@ public class NullEmptyUtils {
 
      public static boolean isNullorEmpty( String val )

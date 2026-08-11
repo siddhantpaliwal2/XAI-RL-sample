@@ -100,7 +100,7 @@ Enterprise hidden tests are collision-safe: verifier patches only add reserved
 `*.gold.spec.ts` or `xai-tests/` files. They never modify a candidate-visible
 test file, so an agent remains free to add or update its own conventional tests.
 
-The Finbit snapshots are deliberately source-minimized. The parser task carries
+The Enterprise snapshots are deliberately source-minimized. The parser task carries
 only the production parser/service subset needed by the task. The cloud task
 contains 23 allowlisted files. Service-account JSON, statement fixtures,
 customer data, unrelated configuration, and the historical credential-bearing

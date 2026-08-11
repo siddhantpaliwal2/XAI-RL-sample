@@ -42,37 +42,37 @@ SENSITIVE_TOKEN_PATTERNS = (
     ),
 )
 OPUS_A01 = {
-    "paigo-dimension-pricing-tiers": (
+    "enterprise-dimension-pricing-tiers": (
         "enterprise-opus-pricing-final-r1-opus5-bedrock-"
-        "paigo-dimension-pricing-tiers-a01"
+        "enterprise-dimension-pricing-tiers-a01"
     ),
-    "paigo-top-up-billing-lifecycle": (
+    "enterprise-top-up-billing-lifecycle": (
         "enterprise-opus-final-a01-r1-opus5-bedrock-"
-        "paigo-top-up-billing-lifecycle-a01"
+        "enterprise-top-up-billing-lifecycle-a01"
     ),
-    "paigo-s3-datastore-measurement": (
+    "enterprise-s3-datastore-measurement": (
         "enterprise-opus-final-a01-r1-opus5-bedrock-"
-        "paigo-s3-datastore-measurement-a01"
+        "enterprise-s3-datastore-measurement-a01"
     ),
-    "paigo-customer-identity-migration": (
+    "enterprise-customer-identity-migration": (
         "enterprise-opus-reserved-tests-r1-opus5-bedrock-"
-        "paigo-customer-identity-migration-a01"
+        "enterprise-customer-identity-migration-a01"
     ),
-    "paigo-customer-billing-schedule-migration": (
+    "enterprise-customer-billing-schedule-migration": (
         "enterprise-opus-final-taxonomy-r1-opus5-bedrock-"
-        "paigo-customer-billing-schedule-migration-a01"
+        "enterprise-customer-billing-schedule-migration-a01"
     ),
-    "champ-email-inbox-infrastructure": (
+    "enterprise-email-inbox-infrastructure": (
         "enterprise-opus-fair-complete-r1-opus5-bedrock-"
-        "champ-email-inbox-infrastructure-a01"
+        "enterprise-email-inbox-infrastructure-a01"
     ),
-    "finbit-bank-parser-consolidation": (
+    "enterprise-bank-parser-consolidation": (
         "enterprise-opus-final-a01-r1-opus5-bedrock-"
-        "finbit-bank-parser-consolidation-a01"
+        "enterprise-bank-parser-consolidation-a01"
     ),
-    "finbit-google-cloud-storage-migration": (
+    "enterprise-google-cloud-storage-migration": (
         "enterprise-opus-cloud-fair-r1-opus5-bedrock-"
-        "finbit-google-cloud-storage-migration-a01"
+        "enterprise-google-cloud-storage-migration-a01"
     ),
 }
 OPUS_JOBS = {
@@ -81,7 +81,7 @@ OPUS_JOBS = {
         *(
             (
                 f"enterprise-opus-pricing-final-r1-opus5-bedrock-{task}-a{attempt:02d}"
-                if task == "paigo-dimension-pricing-tiers"
+                if task == "enterprise-dimension-pricing-tiers"
                 else f"enterprise-opus-final-a23-r1-opus5-bedrock-{task}-a{attempt:02d}"
             )
             for attempt in (2, 3)
@@ -94,12 +94,12 @@ OPUS_JOBS = {
     for task, first_job in OPUS_A01.items()
 }
 RECALIBRATED_TASKS = {
-    "paigo-dimension-pricing-tiers",
-    "paigo-top-up-billing-lifecycle",
-    "paigo-s3-datastore-measurement",
-    "paigo-customer-identity-migration",
-    "finbit-bank-parser-consolidation",
-    "finbit-google-cloud-storage-migration",
+    "enterprise-dimension-pricing-tiers",
+    "enterprise-top-up-billing-lifecycle",
+    "enterprise-s3-datastore-measurement",
+    "enterprise-customer-identity-migration",
+    "enterprise-bank-parser-consolidation",
+    "enterprise-google-cloud-storage-migration",
 }
 
 

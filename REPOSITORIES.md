@@ -112,7 +112,7 @@ systems.
 - **Environment notes:** external providers are mocked at their existing
   repository/service boundaries; no live email or Smartlead calls occur.
 
-## Finbit fin360 - two source-minimized historical snapshots
+## Enterprise banking-platform - two source-minimized historical snapshots
 
 - **Language / stack:** Groovy, Grails 2.3.11, Java 8.
 - **Domain:** heterogeneous bank-statement parsing and multi-backend document

@@ -32,8 +32,8 @@ RUN mvn -B -DskipTests install
 # Warm the Surefire junit-platform provider by running one throwaway JUnit-5
 # test online, so verify-time `mvn -o test` needs no network. Then clear the
 # compiled test artefacts so the base image ships no stray test class.
-RUN printf 'package com.finbit.fiuadapter.webservice;\nimport org.junit.jupiter.api.Test;\nimport static org.junit.jupiter.api.Assertions.assertEquals;\npublic class WarmProviderTest { @Test void ok(){ assertEquals(2,1+1); } }\n' \
-      > webservice/src/test/java/com/finbit/fiuadapter/webservice/WarmProviderTest.java \
+RUN printf 'package com.enterprise.fiuadapter.webservice;\nimport org.junit.jupiter.api.Test;\nimport static org.junit.jupiter.api.Assertions.assertEquals;\npublic class WarmProviderTest { @Test void ok(){ assertEquals(2,1+1); } }\n' \
+      > webservice/src/test/java/com/enterprise/fiuadapter/webservice/WarmProviderTest.java \
  && mvn -B -pl webservice -Dtest=WarmProviderTest -DfailIfNoTests=false test \
- && rm -f webservice/src/test/java/com/finbit/fiuadapter/webservice/WarmProviderTest.java \
+ && rm -f webservice/src/test/java/com/enterprise/fiuadapter/webservice/WarmProviderTest.java \
  && rm -rf webservice/target/surefire-reports webservice/target/test-classes

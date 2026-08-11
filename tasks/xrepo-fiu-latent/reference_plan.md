@@ -1,6 +1,6 @@
 # Reference plan — fiu-xrepo-fiu-latent-bugs
 
-Second JAVA LATENT-BUG task. Source repo: `fiu_adapter` (FinBit FIU adapter —
+Second JAVA LATENT-BUG task. Source repo: `fiu_adapter` (Enterprise FIU adapter —
 Spring Boot 2.3.0 / Java 8 / **multi-module** Maven: `jws-signature`,
 `diffie-hellman-services`, `webservice`, `kms`; 264 Java files). The five
 planted defects live in the deterministic, side-effect-free helper layer of the

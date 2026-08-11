@@ -29,14 +29,14 @@ from run_frontier_daytona import (
 
 ROOT = Path(__file__).resolve().parent.parent
 TASK_SNAPSHOTS = {
-    "paigo-dimension-pricing-tiers": "harbor-probe-paigo-dimension-pricing-tiers-8g",
-    "paigo-top-up-billing-lifecycle": "harbor-probe-paigo-top-up-billing-lifecycle-8g",
-    "paigo-s3-datastore-measurement": "harbor-probe-paigo-s3-datastore-measurement-8g",
-    "paigo-customer-identity-migration": "harbor-probe-paigo-customer-identity-migration-8g",
-    "paigo-customer-billing-schedule-migration": "harbor-probe-paigo-customer-billing-schedule-migration-8g",
-    "finbit-bank-parser-consolidation": "harbor-probe-finbit-bank-parser-consolidation-8g",
-    "finbit-google-cloud-storage-migration": "harbor-probe-finbit-google-cloud-storage-migration-8g",
-    "champ-email-inbox-infrastructure": "harbor-probe-champ-email-inbox-infrastructure-8g",
+    "enterprise-dimension-pricing-tiers": "harbor-probe-enterprise-dimension-pricing-tiers-8g",
+    "enterprise-top-up-billing-lifecycle": "harbor-probe-enterprise-top-up-billing-lifecycle-8g",
+    "enterprise-s3-datastore-measurement": "harbor-probe-enterprise-s3-datastore-measurement-8g",
+    "enterprise-customer-identity-migration": "harbor-probe-enterprise-customer-identity-migration-8g",
+    "enterprise-customer-billing-schedule-migration": "harbor-probe-enterprise-customer-billing-schedule-migration-8g",
+    "enterprise-bank-parser-consolidation": "harbor-probe-enterprise-bank-parser-consolidation-8g",
+    "enterprise-google-cloud-storage-migration": "harbor-probe-enterprise-google-cloud-storage-migration-8g",
+    "enterprise-email-inbox-infrastructure": "harbor-probe-enterprise-email-inbox-infrastructure-8g",
 }
 DEFAULT_MODELS = {
     "opus5-bedrock": "amazon-bedrock/global.anthropic.claude-opus-5",
