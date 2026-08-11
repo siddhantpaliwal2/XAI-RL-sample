@@ -11,9 +11,10 @@
   - [Measured effort](#measured-effort)
   - [Grok win conditions on enterprise long-horizon tasks](#grok-win-conditions-on-enterprise-long-horizon-tasks)
   - [Failure modes and model contrast](#failure-modes-and-model-contrast)
-    - [Billing: declared invariant, omitted nested field](#billing-declared-invariant-omitted-nested-field)
-    - [Top-up: parallel implementations instead of one lifecycle invariant](#top-up-parallel-implementations-instead-of-one-lifecycle-invariant)
-    - [S3: correct architecture, non-canonical output string](#s3-correct-architecture-non-canonical-output-string)
+    - [What was different in the reasoning](#what-was-different-in-the-reasoning)
+    - [Billing: said the field was preserved without checking the final object](#billing-said-the-field-was-preserved-without-checking-the-final-object)
+    - [Top-up: connected the wallet through the wrong service](#top-up-connected-the-wallet-through-the-wrong-service)
+    - [S3: built the pieces but did not verify the full data path](#s3-built-the-pieces-but-did-not-verify-the-full-data-path)
   - [Fairness and validity](#fairness-and-validity)
 - [Bug-injection debugging analysis](#bug-injection-debugging-analysis)
   - [Bug-task pass@k results](#bug-task-passk-results)
@@ -185,12 +186,40 @@ representations.
 
 ### Failure modes and model contrast
 
-The selected pairs below compare Grok's closest graded attempt with a complete
-Opus 5 solve. Each example links the full trajectory and the Grok verifier
-output; the code is copied from the recorded tool calls, not reconstructed from
-the oracle.
+The examples below were selected because their verifier output makes the root
+cause visible. They are not isolated score differences. All eight Grok billing
+runs missed the same check, four of eight Grok top-up runs passed only 3/11
+checks, and every Grok S3 run missed at least two checks. The code is copied
+from recorded tool calls, not reconstructed from the oracle.
 
-#### Billing: declared invariant, omitted nested field
+#### What was different in the reasoning
+
+The traces show a simple difference. Grok often asked whether it had added all
+the requested pieces. Opus more often asked whether the pieces were connected
+correctly and the final system obeyed every rule.
+
+| Reasoning step | Grok 4.5 pattern | Claude Opus 5 pattern |
+|---|---|---|
+| Choose where a rule belongs | Reuse the nearest object or service that already has related data | Find the object that owns the rule and trace every way it is constructed or called |
+| Make the change | Batch many related edits into a small number of turns | Make smaller changes and reason between them |
+| Check the result | Rely heavily on build success and existing tests | Add or run boundary-focused tests, then compare the final diff with the task |
+| Decide it is done | Summarize intended behavior | Reconcile the request, implementation, tests, and final repository state |
+
+This is visible in the run shape. Across the 24 enterprise attempts, Opus used
+2,569 model turns and 2,626 tool calls; Grok used 752 turns and 2,398 tool
+calls. Opus therefore used about 3.4 times as many reasoning turns with only
+about 9% more tool calls. It paused to interpret results more often instead of
+packing several actions into each turn. Opus inspected `git diff` or
+`git status` after editing in 24/24 attempts; Grok did so in 2/24. That final
+review is evidence of the broader habit, not the whole explanation.
+
+There is no trace evidence that Opus changed its context-window size. It simply
+used more of the available run: the mean final-call prompt was about 195k tokens
+for Opus and 102k for Grok. That let Opus carry more code, test output, and prior
+decisions into its final checks. These counts do not prove that longer traces
+cause better results, but they match the task-level failures below.
+
+#### Billing: said the field was preserved without checking the final object
 
 [Grok attempt 1](long-horizon-enterprise-trials/grok45/enterprise-customer-billing-schedule-migration/attempt-01/trajectory.json)
 passes 7/8, while [Opus attempt 2](long-horizon-enterprise-trials/opus5/enterprise-customer-billing-schedule-migration/attempt-02/trajectory.json)
@@ -212,104 +241,106 @@ businessID,
 The [verifier output](long-horizon-enterprise-trials/grok45/enterprise-customer-billing-schedule-migration/attempt-01/verifier-test-stdout.txt)
 shows that exact object mismatch. Grok's final step nevertheless says
 "`subject` + `businessID` preserved," so the failure is not missing task
-comprehension. It is a final-diff verification failure: the summary tracks the
-intended invariant rather than the object actually written. Opus reduces the
-surface by routing create and replacement through one billing-schedule helper.
+comprehension. Grok remembered the rule but checked its intention, not the final
+object. Opus reduced the number of places that could drift by routing create and
+replacement through one billing-schedule helper, then inspecting the completed
+change. The same one-field miss appeared in all eight Grok attempts.
 
-**Where to improve:** maintain a field-level contract ledger for every outbound
-object, then inspect or test the final object at each creation site before
-declaring completion. A targeted assertion on both the top-level scheduler and
-its nested `scheduleParameters` would have converted all eight Grok near misses.
+**Where to improve:** keep a short list of every required field, then compare
+that list with the actual final object before declaring completion. A test that
+checks both the top-level scheduler and `scheduleParameters` would have caught
+all eight Grok near misses.
 
-#### Top-up: parallel implementations instead of one lifecycle invariant
+#### Top-up: connected the wallet through the wrong service
 
-[Grok attempt 8](long-horizon-enterprise-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-08/trajectory.json)
-passes 9/11, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/enterprise-top-up-billing-lifecycle/attempt-01/trajectory.json)
-passes 11/11. Grok implements most of the wallet state machine, but its top-up
-enrollment returns before the shared schedule-registration path:
-
-```ts
-// Grok
-if (this.billingCycle === ValidBillingCycles.topUp) {
-    if (customer) await this.topUp({ customer });
-    return;
-}
-await this.registerBillingSchedule(subject);
-```
-
-It creates a second scheduler path in `OfferingService`, leaving the domain
-registration path customer-specific. The [verifier output](long-horizon-enterprise-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-08/verifier-test-stdout.txt)
-therefore observes `customer-1` and `customer-2` as different scheduler IDs.
-Opus instead changes the shared lifecycle boundary:
-
-```ts
-// Opus
-if (this.isTopUp()) {
-    await this.registerTopUpSchedule(subject);
-    return;
-}
-```
-
-Its schedule helper then fixes identity at offering scope:
-
-```ts
-static getTopUpSchedulerID(offeringId: string): string {
-    return offeringId;
-}
-```
-
-The other failed check has the same shape. Grok places non-top-up field
-rejection inline in one service path; the verifier finds no reusable
-`validateTopUpFields` boundary. Opus extracts that validator and calls it from
-both create and update. The gap is state-machine composition, not the refill
-math: Grok implements correct pieces in parallel paths, while Opus makes the
-invariant authoritative at the shared boundary.
-
-**Where to improve:** identify the lowest shared lifecycle boundary before
-editing, centralize each invariant there, and test it through at least two
-entry points. For this task, a two-customer scheduler test plus create/update
-validation tests would expose both residual failures before grading.
-
-#### S3: correct architecture, non-canonical output string
-
-[Grok attempt 1](long-horizon-enterprise-trials/grok45/enterprise-s3-datastore-measurement/attempt-01/trajectory.json)
-passes 8/10, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/enterprise-s3-datastore-measurement/attempt-01/trajectory.json)
-passes 10/10. Grok provisions the IAM role, preserves trust identity, persists
-the generated fields, ingests valid records, and mirrors malformed records. Its
-two failures share one string-format decision:
+[Grok attempt 1](long-horizon-enterprise-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-01/trajectory.json)
+passes 3/11, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/enterprise-top-up-billing-lifecycle/attempt-01/trajectory.json)
+passes 11/11. The largest failure starts with one shortcut:
 
 ```ts
 // Grok
-dbAccessInformation.ingestion = `s3://${ingestionBucket}/${businessID}/`;
-dbAccessInformation.dlq = `s3://${dlqBucket}/${businessID}/`;
+const creditService = this.invoicesService.creditService;
+const { balance } = await creditService.findCreditBalance({
+    businessID: this.businessID,
+    customerId: this.customerId,
+});
 
 // Opus
-public static ingestionLocation(businessID: string) {
-    return `s3://${process.env.DB_MEASUREMENT_BUCKET_NAME}/${businessID}`;
-}
-public static dlqLocation(businessID: string) {
-    return `s3://${process.env.DB_MEASUREMENT_DLQ_BUCKET_NAME}/${businessID}`;
-}
+const { balance } = await this.creditService.findCreditBalance({
+    businessID: this.businessID,
+    customerId: customer?.customerId ?? this.customerId,
+});
 ```
 
-The [verifier output](long-horizon-enterprise-trials/grok45/enterprise-s3-datastore-measurement/attempt-01/verifier-test-stdout.txt)
-shows the received trailing slash against the required no-slash location in
-both `setupAccess` and create-persist-return checks. One non-canonical value
-therefore closes two otherwise correct cross-boundary paths. Opus defines one
-location helper and reuses its exact result through provisioning, persistence,
-and response construction.
+Grok had already found that `InvoicesService` contains a `CreditService`, so it
+used that convenient route. But an offering is also built in places where the
+invoice-service test double does not contain that hidden nested property. The
+[verifier output](long-horizon-enterprise-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-01/verifier-test-stdout.txt)
+shows five wallet checks crashing on `findCreditBalance`. One bad connection
+disabled balance checks, charging, hourly deduction, overdraft handling, and
+the zero-usage path.
 
-**Where to improve:** treat returned identifiers and locations as exact API
-types, not presentation strings. Build one canonical constructor and add strict
-equality checks at setup, persistence round-trip, and API return boundaries.
+The same run also used a customer-specific scheduler ID and duplicated
+create/update validation instead of exposing one shared validator. That caused
+three more failures. Opus traced who owns each dependency: the offering gets
+direct access to the wallet service, the offering ID owns the hourly schedule,
+and one validator is called by both create and update. It then added tests for
+the wallet, scheduler, and payment paths. This is why the comparison is 3/11
+versus 11/11, not a small edge-case difference.
+
+**Where to improve:** before reusing a nearby service, trace every constructor,
+factory, and test double that builds the object. Give a dependency directly to
+the object that owns the behavior. Then run one full workflow test that starts
+at enrollment, deducts usage, reads the wallet, and tops it up.
+
+#### S3: built the pieces but did not verify the full data path
+
+[Grok attempt 5](long-horizon-enterprise-trials/grok45/enterprise-s3-datastore-measurement/attempt-05/trajectory.json)
+passes 5/10, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/enterprise-s3-datastore-measurement/attempt-01/trajectory.json)
+passes 10/10. Grok added the IAM setup, persistence fields, connector endpoint,
+and dead-letter path, but two public methods only changed their input object and
+silently returned `undefined`:
+
+```ts
+// Grok
+dbAccessInformation.iamRoleArn = createRoleResponse.Role?.Arn;
+dbAccessInformation.externalId = externalId;
+dbAccessInformation.ingestion = ingestion;
+dbAccessInformation.dlq = dlq;
+// method ends without returning dbAccessInformation
+
+// Opus
+dbAccessInformation.dlq = dlq;
+return dbAccessInformation;
+```
+
+The [verifier output for attempt 5](long-horizon-enterprise-trials/grok45/enterprise-s3-datastore-measurement/attempt-05/verifier-test-stdout.txt)
+shows `Received: undefined` for setup and trust update. The create path also
+returned non-canonical ingestion and dead-letter locations. In the failed-record
+path, Grok reused a storage helper without testing it through the connector
+boundary; the hidden test then reached an unconfigured AWS client and crashed
+before the dead-letter record was written. Together, these mistakes broke
+provisioning, update, persistence, and both malformed-record checks.
+
+Opus followed each generated value through four stages: create it, return it,
+persist it, and return it again from the service. It also tested the malformed
+record path through a controllable S3 boundary and returned a clear dead-letter
+result. Grok's existing tests all passed, but they did not cover those end-to-end
+contracts, and the run ended without reviewing the final diff.
+
+**Where to improve:** for every public method, test both its side effects and
+its return value. For external integrations, run one success path and one
+failure path with the client mocked at the same boundary the production code
+uses. Do not stop after the build passes when the task spans setup, storage,
+API return, and error handling.
 
 Across the three pairs, the separating capability is final contract closure.
-Grok's closest attempts are substantial and usually build, but their final
-summaries stop at plausible feature completeness. The successful Opus traces
-more often centralize the invariant, retain an explicit task checklist, and
-exercise the final boundary object. The most direct training target is therefore
-not more repository exploration; it is repeated prompt-to-diff reconciliation,
-shared-boundary selection, and exact final-state verification.
+Grok can find the right files and write substantial local code, but it often
+accepts the first plausible connection and stops when the pieces exist. Opus is
+better at tracing ownership, checking every construction path, testing the
+boundaries between services, and comparing the final repository with the
+original request. In simple terms: Grok builds the parts; Opus more reliably
+makes the whole system work.
 
 ### Fairness and validity
 
