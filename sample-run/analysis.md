@@ -3,9 +3,6 @@
 ## Table of contents
 
 - [Setup](#setup)
-  - [Bug-injection debugging track: eight tasks](#bug-injection-debugging-track-eight-tasks)
-  - [Enterprise long-horizon track: three tasks](#enterprise-long-horizon-track-three-tasks)
-  - [Separate native-table difficulty control](#separate-native-table-difficulty-control)
 - [Headline result](#headline-result)
   - [Enterprise long-horizon tasks](#enterprise-long-horizon-tasks)
   - [Bug-injection debugging tasks](#bug-injection-debugging-tasks)
@@ -35,76 +32,35 @@
     - [GPT-5.6 Sol: policy labels without policy-specific behavior](#gpt-56-sol-policy-labels-without-policy-specific-behavior)
     - [Opus 5: broad implementation, broken integration seam](#opus-5-broad-implementation-broken-integration-seam)
   - [General takeaway from the control](#general-takeaway-from-the-control)
+- [Nature of the source codebases](#nature-of-the-source-codebases)
 - [Conclusion](#conclusion)
 
 ## Setup
 
-This analysis contains two primary evaluation tracks with different task
-construction methods, plus one separate difficulty control. Their denominators
-and conclusions are reported separately rather than pooled.
-
-### Bug-injection debugging track: eight tasks
-
-These eight tasks begin with working production code into which narrow latent
-boundary defects were deliberately introduced. Agents receive symptom-style
-engineering tickets and must repair the planted behavior without breaking
-existing functionality. This track measures defect localization, boundary
-reasoning, and regression-safe repair; it does not ask agents to implement a
-historical feature from scratch.
-
-Grok 4.5 received ten independent OpenCode attempts per task in isolated
-2-CPU/4-GB AMD64 Daytona sandboxes. The route was
-`openrouter/x-ai/grok-4.5`; Harbor injected the hidden tests only after the
-agent stopped. All 80 attempts produced complete verifier verdicts. No
-exception or vacuous trial is included in the scores.
-
-The run used a global 12-sandbox worker pool. Valid attempts are packaged under
-`grok-trials/`, including their full trajectory, Harbor result, parsed verifier
-output, and raw verifier stdout. `grok_trials.json` is the compact per-attempt
-index. A solving trajectory is selected when one exists; otherwise the closest
-graded attempt is copied into `trajectories-matrix/` and `trajectories/`.
-
-The comparison cohort contains ten verifier-valid Claude Opus 5 OpenCode
-attempts per task in the same Daytona snapshots. Each cell combines the
-original OpenRouter attempt with independently graded Bedrock global-route
-attempts; only runs with complete hidden-verifier verdicts enter n. The 80
-attempts are indexed in `opus5_trials.json` and packaged under
-`frontier-trials/opus5/`.
-
-### Enterprise long-horizon track: three tasks
-
-These three anonymized tasks do not plant synthetic defects. Each starts from a
-pre-feature production revision and asks the agent to implement a real feature
-or migration across multiple coupled subsystems. Independently authored hidden
-tests grade the behavioral contract; the authorized production change serves
-only as a solvability oracle. This track measures requirement retention,
-state-machine composition, and cross-boundary implementation over a longer
-dependency chain.
-
-Each task received eight independent Grok 4.5 attempts and eight independent
-Claude Opus 5 attempts through OpenCode 1.18.13. Only runs matching the frozen
-task checksum, exact route, isolated Daytona environment, single-agent policy,
-and complete hidden-verifier output enter the denominator. The 48 accepted
-attempts are indexed in `long-horizon-enterprise-results.json` and packaged
-under `long-horizon-enterprise-trials/`.
-
-### Separate native-table difficulty control
-
-`long-native-table-migration` is also a production-derived feature migration,
-but it remains separate from the three-task capability-gap cohort. Opus 5,
-Grok 4.5, and GPT-5.6 Sol each scored 0/3, so it establishes shared frontier
-difficulty rather than a Grok-specific gap.
+This report keeps two evaluation tracks and one difficulty control separate.
+The bug-injection track evaluates eight production-derived tasks with ten valid
+OpenCode attempts per task for both Grok 4.5 and Claude Opus 5; the enterprise
+track evaluates three authentic historical features or migrations with eight
+valid attempts per model. Only runs matching the required route, snapshot,
+checksum, single-agent policy, and complete hidden-verifier output enter the
+denominators. The native-table migration remains a separate three-attempt
+control because Opus 5, Grok 4.5, and GPT-5.6 Sol all scored zero, so it cannot
+support a model-specific capability claim.
 
 ## Headline result
 
+Across three production-derived enterprise tasks, Grok 4.5 solved **0/24**
+attempts while Claude Opus 5 solved **19/24**. Grok's closest attempts reached
+**7/8**, **9/11**, and **8/10** required checks, but repeatedly failed to close
+exact contracts across shared lifecycle, persistence, and output boundaries.
+On the eight bug-injection tasks, the same broader pattern appears in Grok's
+**21/80** solves compared with Opus's **55/80**.
+
 ### Enterprise long-horizon tasks
 
-The strongest capability separation appears on the three new long-horizon
-tasks. Across 29 required behavioral checks, Grok solves **0/24** attempts while
-Opus solves **19/24**.
-
-Using the unbiased estimator `1 − C(n−c, k) / C(n, k)`, the largest supported
-`k` is 8 because each task/model cell has eight valid attempts:
+The task-level result uses the unbiased estimator
+`1 − C(n−c, k) / C(n, k)`. The largest supported `k` is 8 because each
+task/model cell has eight valid attempts:
 
 | Task | Required checks | Model | c/n | pass@1 | pass@3 | pass@8 |
 |---|---:|---|---:|---:|---:|---:|
@@ -893,6 +849,33 @@ The most useful improvement target is a fixture-first vertical slice. Complete
 and verify one policy through all six boundaries, then add the other policy
 families without changing the shared routing contract. This same environment
 can provide stepwise feedback at each boundary without adding a new task.
+
+## Nature of the source codebases
+
+The evaluated snapshots come from authorized private production repositories
+selected for established engineering history, not recent demo applications,
+benchmark forks, or code generated for this study. They contain existing domain
+models, persistence layers, integrations, tests, and operational conventions,
+which give each task a real regression surface beyond the requested change.
+
+| Source system | Languages | Production characteristics | Tasks represented |
+|---|---|---|---|
+| Financial workflow backend | Python | Normalization, document ingestion, financial calculations, invitation flows, and existing regression tests | credit-normalize, doc-extractors, financial-tools, phone-invites |
+| Financial integration service | Java | Message decoding, identifiers, fixed-width records, and adapter boundaries | FIU |
+| Transaction-enrichment service | Python | Format-specific parsing, classification, normalization, and overlapping rule families | txenrich, txenrich3, txenrich4 |
+| Billing and measurement platform | TypeScript with NestJS | Customer enrollment, schedules, invoices, queues, wallet state, persistence, IAM, and S3 ingestion | Customer billing-schedule migration, Top-up billing lifecycle, S3 datastore measurement |
+| Document-processing platform | Java and Groovy | PDF geometry, structured tables, policy routing, remote extraction fallback, API status, and persisted logs | Native-table migration difficulty control |
+
+The long-horizon tasks start from pre-feature production revisions and use
+multi-file historical changes only as solvability oracles; independently
+written hidden tests grade observable behavior rather than source similarity.
+The bug-injection tasks instead alter narrow boundaries in already working
+systems, preserving the surrounding code and regression surface. Company
+names, ticket identifiers, commit messages, credentials, customer records, and
+unrelated configuration are removed, while the architecture and task-relevant
+dependencies remain intact. The evaluation therefore rests on inspectable code
+history, behavior, controls, and traces rather than the reputation of any
+source company.
 
 ## Conclusion
 
