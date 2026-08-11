@@ -30,6 +30,11 @@
     - [Txenrich3: correct symptom family, wrong bank implementation](#txenrich3-correct-symptom-family-wrong-bank-implementation)
     - [Txenrich4: complementary near misses and shared frontier difficulty](#txenrich4-complementary-near-misses-and-shared-frontier-difficulty)
 - [Native-table migration difficulty control](#native-table-migration-difficulty-control)
+  - [Native-table trace analysis](#native-table-trace-analysis)
+    - [Grok: compile success masked an unusable native result](#grok-compile-success-masked-an-unusable-native-result)
+    - [GPT-5.6 Sol: policy labels without policy-specific behavior](#gpt-56-sol-policy-labels-without-policy-specific-behavior)
+    - [Opus 5: broad implementation, broken integration seam](#opus-5-broad-implementation-broken-integration-seam)
+  - [General takeaway from the control](#general-takeaway-from-the-control)
 - [Conclusion](#conclusion)
 
 ## Setup
@@ -773,6 +778,121 @@ suite and remained reward 0; the Grok and Sol trials ran only after
 that verifier was frozen. Regrade provenance is explicit in every packaged
 trial index, and the prompt-to-test audit is preserved under
 `long-horizon-controls/fairness-audit.md`.
+
+### Native-table trace analysis
+
+The nine traces reach the same zero score through different implementation
+paths. This is evidence of a shared end-to-end difficulty, not a Grok-specific
+capability gap. Every model produced code that compiled and looked plausible,
+but none completed the full contract across native extraction, policy choice,
+remote fallback, downstream acceptance, and diagnostics.
+
+| Model | Trace pattern | Best f2p | Best p2p | Main missing behavior |
+|---|---|---:|---:|---|
+| Claude Opus 5 | Large refactor with separate readers, geometry helpers, extractors, policies, and validation | 1/4 | 1/2 | The final service could not be exercised through the established dependency boundary, and native fixture outputs remained empty |
+| Grok 4.5 | Broad heuristic implementation followed mainly by package-build checks | 1/4 | 2/2 | Native tables were never accepted as structured output, even when nearby fallback behavior stayed intact |
+| GPT-5.6 Sol | Compact generic extractor exposed through three policy names | 1/4 | 1/2 | Policy selection did not become three meaningfully different extraction behaviors, and unsupported fallback regressed |
+
+Across all nine attempts, the hidden verifier accepted no native structured
+result. Where extraction reached the core fixtures, the verifier observed
+empty structured cells. The best regression preservation came from Grok
+attempts 1 and 3, which passed both preservation checks, but they still failed
+all three native extraction, policy, and remote-skip checks. The linked traces
+below show why compilation was not enough.
+
+#### Grok: compile success masked an unusable native result
+
+[Grok attempt 1](long-horizon-trials/grok45/attempt-01/trajectory.json) added
+separate geometry-based builders and hybrid routing. It ended by reporting a
+successful offline package build. The builder, however, initialized every new
+table as non-transactional and depended on later analysis to change that state:
+
+```java
+table.setBankTransactions(false);
+```
+
+That is not proof of the failure by itself, but it is consistent with the
+integration result: the verifier never received an accepted native table and
+reported empty structured cells for every required fixture. Late in the trace,
+the model also narrowed one helper flow to a single hard-coded format family:
+
+```java
+bankStatementVO.setBank("HDFC");
+documentExtractionRequest.setBankName("HDFC");
+```
+
+It then reran the package build rather than replaying the supported-format
+matrix. This explains the gap between the final report and the measured
+behavior. The implementation had many of the right pieces, but it did not
+prove that one real fixture became a non-empty transaction table, flowed
+through the existing consumer, and skipped the remote extractor. A better
+completion loop would verify that vertical slice first, then repeat it across
+every policy family and the unsupported fallback case.
+
+#### GPT-5.6 Sol: policy labels without policy-specific behavior
+
+[GPT-5.6 Sol attempt 1](long-horizon-trials/gpt56sol/attempt-01/trajectory.json)
+introduced three policy names, but routed them through one main table-building
+algorithm. The clearest policy-specific branch only filtered rows for the
+text-aligned case:
+
+```java
+if (policy == NativeTablePolicy.TEXT_ALIGNED_ROW_SELECTED
+        && !foundTransaction && !dateRow) {
+    continue;
+}
+```
+
+The bordered-grid and box-guided policies did not receive equivalent,
+layout-specific extraction logic in that path. The model's own tests checked
+policy selection and broad table shape, while the hidden verifier checked
+exact structured results on the real fixture families. All three Sol attempts
+therefore passed the diagnostics check but produced empty native results and
+failed the unsupported-format fallback check. The improvement target is to
+test a different observable behavior for each policy, using one exact fixture
+per family before expanding the mapping table.
+
+#### Opus 5: broad implementation, broken integration seam
+
+[Opus attempt 2](long-horizon-trials/opus5/attempt-02/trajectory.json) was the
+closest Opus run by required checks. The Opus traces spent far more turns on a
+large architecture with page readers, word extraction, vector geometry,
+multiple native extractors, a policy registry, validation, and a shared
+analysis pipeline. That breadth still did not close the application boundary.
+The final behavioral harness could not configure the refactored service:
+
+```text
+AzureDocumentExtractionServiceImpl has no dependency slot for AnalyzeDocuments
+```
+
+The verifier had already been repaired to find compatible dependencies by type
+through fields or setters, so this was not the old setter-name assumption. The
+refactor no longer exposed a compatible service path that the application-level
+test could instantiate. Opus attempt 3 reached the fixtures but still returned
+empty structured cells. Together, these traces show that more code and more
+turns did not replace an end-to-end check through the original service
+boundary. The improvement target is to preserve that boundary during the
+refactor and run one fixture through the same construction and injection path
+used by production before adding more components.
+
+### General takeaway from the control
+
+The shared weakness is executable contract closure. All three models could
+explore the repository, propose a reasonable design, compile a large patch,
+and describe the intended behavior. None verified the complete chain on the
+real fixture corpus:
+
+1. A supported PDF produces the exact non-empty structured rows.
+2. The selected policy changes how extraction works, not only its label.
+3. A successful native result is accepted downstream and skips the remote call.
+4. An unsupported format still calls the remote extractor.
+5. The chosen path appears in the API response and persisted diagnostics.
+6. Legacy date parsing remains unchanged.
+
+The most useful improvement target is a fixture-first vertical slice. Complete
+and verify one policy through all six boundaries, then add the other policy
+families without changing the shared routing contract. This same environment
+can provide stepwise feedback at each boundary without adding a new task.
 
 ## Conclusion
 
