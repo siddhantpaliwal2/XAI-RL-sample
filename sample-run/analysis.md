@@ -1,4 +1,4 @@
-# Analyzing Grok 4.5 Behaviour on Long Horizon and Enterprise COding Tasks
+# Analyzing Grok 4.5 Behaviour on Long Horizon and Enterprise Coding Tasks
 
 ## Table of contents
 
