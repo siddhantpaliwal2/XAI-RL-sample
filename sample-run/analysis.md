@@ -20,7 +20,15 @@
     - [S3: correct architecture, non-canonical output string](#s3-correct-architecture-non-canonical-output-string)
   - [Fairness and validity](#fairness-and-validity)
 - [Bug-injection debugging analysis](#bug-injection-debugging-analysis)
-  - [Turn, tool, and wall-clock profile](#turn-tool-and-wall-clock-profile)
+  - [Bug-task pass@k results](#bug-task-passk-results)
+  - [Bug-task measured effort](#bug-task-measured-effort)
+  - [Grok win conditions on bug-injection tasks](#grok-win-conditions-on-bug-injection-tasks)
+  - [Bug-task failure modes and model contrast](#bug-task-failure-modes-and-model-contrast)
+    - [Doc extraction: boundary repair without the negative pin](#doc-extraction-boundary-repair-without-the-negative-pin)
+    - [Financial tools: one ticket condition never reaches the diff](#financial-tools-one-ticket-condition-never-reaches-the-diff)
+    - [Txenrich: broad regex expansion instead of one exact width](#txenrich-broad-regex-expansion-instead-of-one-exact-width)
+    - [Txenrich3: correct symptom family, wrong bank implementation](#txenrich3-correct-symptom-family-wrong-bank-implementation)
+    - [Txenrich4: complementary near misses and shared frontier difficulty](#txenrich4-complementary-near-misses-and-shared-frontier-difficulty)
 - [Native-table migration difficulty control](#native-table-migration-difficulty-control)
 - [Caveats](#caveats)
 
@@ -50,6 +58,13 @@ The run used a global 12-sandbox worker pool. Valid attempts are packaged under
 output, and raw verifier stdout. `grok_trials.json` is the compact per-attempt
 index. A solving trajectory is selected when one exists; otherwise the closest
 graded attempt is copied into `trajectories-matrix/` and `trajectories/`.
+
+The comparison cohort contains ten verifier-valid Claude Opus 5 OpenCode
+attempts per task in the same Daytona snapshots. Each cell combines the
+original OpenRouter attempt with independently graded Bedrock global-route
+attempts; only runs with complete hidden-verifier verdicts enter n. The 80
+attempts are indexed in `opus5_trials.json` and packaged under
+`frontier-trials/opus5/`.
 
 ### Enterprise long-horizon track: three tasks
 
@@ -426,49 +441,277 @@ The complete evidence is available in
 
 ## Bug-injection debugging analysis
 
-### Turn, tool, and wall-clock profile
+### Bug-task pass@k results
 
-The packaged artifacts retain enough timing and trajectory metadata to measure
-the run directly. A **model turn** here is an agent-sourced OpenCode trajectory
-step; every such step records exactly one LLM call. Each attempt also has one
-initial user instruction step, so the 80 trajectories contain **967 model
-turns** and **1,047 total trajectory steps**. They contain **2,521 tool calls**.
+Each model/task cell has ten verifier-valid attempts. Using the unbiased
+estimator `1 − C(n−c, k) / C(n, k)`, the task-level comparison is:
 
-The per-trial `duration_seconds` value is full trial wall time from Harbor's
-`started_at` to `finished_at`, including environment setup, agent setup, agent
-execution, and verification. The mean trial took **4m 27.9s**, the median **3m
-52.0s**, and the 90th percentile **8m 33.5s**; the range was **1m 28.5s to 15m
-14.5s**.
+| Task | Required checks | Model | c/n | pass@1 | pass@3 | pass@10 |
+|---|---:|---|---:|---:|---:|---:|
+| credit-normalize | 19 | Grok 4.5 | 8/10 | 0.8000 | 1.0000 | 1.0000 |
+| credit-normalize | 19 | Claude Opus 5 | 8/10 | 0.8000 | 1.0000 | 1.0000 |
+| doc-extractors | 19 | Grok 4.5 | 0/10 | 0.0000 | 0.0000 | 0.0000 |
+| doc-extractors | 19 | Claude Opus 5 | 6/10 | 0.6000 | 0.9667 | 1.0000 |
+| financial-tools | 23 | Grok 4.5 | 0/10 | 0.0000 | 0.0000 | 0.0000 |
+| financial-tools | 23 | Claude Opus 5 | 3/10 | 0.3000 | 0.7083 | 1.0000 |
+| phone-invites | 17 | Grok 4.5 | 9/10 | 0.9000 | 1.0000 | 1.0000 |
+| phone-invites | 17 | Claude Opus 5 | 9/10 | 0.9000 | 1.0000 | 1.0000 |
+| FIU | 19 | Grok 4.5 | 2/10 | 0.2000 | 0.5333 | 1.0000 |
+| FIU | 19 | Claude Opus 5 | 10/10 | 1.0000 | 1.0000 | 1.0000 |
+| txenrich | 17 | Grok 4.5 | 2/10 | 0.2000 | 0.5333 | 1.0000 |
+| txenrich | 17 | Claude Opus 5 | 9/10 | 0.9000 | 1.0000 | 1.0000 |
+| txenrich3 | 19 | Grok 4.5 | 0/10 | 0.0000 | 0.0000 | 0.0000 |
+| txenrich3 | 19 | Claude Opus 5 | 10/10 | 1.0000 | 1.0000 | 1.0000 |
+| txenrich4 | 19 | Grok 4.5 | 0/10 | 0.0000 | 0.0000 | 0.0000 |
+| txenrich4 | 19 | Claude Opus 5 | 0/10 | 0.0000 | 0.0000 | 0.0000 |
+| **Macro mean** | N/A | **Grok 4.5** | **21/80** | **0.2625** | **0.3833** | **0.5000** |
+| **Macro mean** | N/A | **Claude Opus 5** | **55/80** | **0.6875** | **0.8344** | **0.8750** |
 
-Because the trials ran concurrently, end-to-end elapsed time is measured from
-the first valid trial start at `2026-08-05T01:55:54.926Z` to the last finish at
-`2026-08-05T03:04:23.728Z`. That observed valid-trial wall-clock envelope was
-**1h 08m 28.8s**. Peak observed concurrency was **12**, matching the
-worker-pool limit. This envelope does not include
-infrastructure/auth failures excluded from the valid set or any operator time
-before the first valid trial and after the last.
+The summary c/n values are sums across task cells; pass@k is the unweighted
+macro mean of the eight task-level estimators. At n=10, pass@10 is task
+coverage. The comparison therefore shows both a repeatability gap, 21/80
+versus 55/80, and a breadth gap, four of eight tasks with a Grok solve versus
+seven of eight with an Opus solve.
 
-| Task | Model turns | Mean turns / attempt | Mean trial time | Trial-time range |
-|---|---:|---:|---:|---:|
-| credit-normalize | 109 | 10.9 | 3.12m | 2.48-3.95m |
-| doc-extractors | 91 | 9.1 | 1.89m | 1.59-2.39m |
-| financial-tools | 82 | 8.2 | 1.70m | 1.48-1.85m |
-| phone-invites | 80 | 8.0 | 2.09m | 1.80-2.32m |
-| fiu | 154 | 15.4 | 5.44m | 4.14-7.49m |
-| txenrich | 142 | 14.2 | 6.77m | 5.51-10.20m |
-| txenrich3 | 143 | 14.3 | 4.89m | 3.78-5.82m |
-| txenrich4 | 166 | 16.6 | 9.81m | 7.53-15.24m |
-| **All trials** | **967** | **12.1** | **4.47m** | **1.48-15.24m** |
+### Bug-task measured effort
 
-The phase timestamps put the mean trial at 2.2s of environment setup, 20.5s
-of agent setup, 234.6s of agent execution, and 6.6s of verification, with the
-small remainder in handoffs between phases. Solved attempts were shorter on
-average than unsolved attempts (**10.6 vs. 12.6 model turns** and **3.07m vs.
-4.96m**), though that comparison is confounded by task difficulty rather than
-being a causal measure of solution efficiency.
+A model turn is an agent-sourced OpenCode trajectory step and records one LLM
+call. Full trial wall time is Harbor `started_at` to `finished_at`, including
+environment setup, agent setup, execution, and verification.
 
-The same valid trajectories report **46,841,681 input tokens**, including
-**39,586,944 cached tokens** and **467,658 output tokens**.
+| Model | Valid trials | Model turns | Tool calls | Mean trial wall time | Median | p90 | Range |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Grok 4.5 | 80 | 967 | 2,521 | 4m 27.9s | 3m 52.0s | 8m 33.5s | 1m 28.5s-15m 14.5s |
+| Claude Opus 5 | 80 | 3,061 | 3,316 | 12m 46.1s | 10m 14.5s | 23m 28.3s | 5m 04.3s-30m 28.0s |
+
+| Model | Task | Turns, mean | Tool calls, mean | Trial wall time, mean | Trial wall time, range |
+|---|---|---:|---:|---:|---:|
+| Grok | credit-normalize | 10.9 | 22.3 | 3.12m | 2.48-3.95m |
+| Opus | credit-normalize | 33.0 | 37.5 | 7.48m | 5.18-10.71m |
+| Grok | doc-extractors | 9.1 | 19.1 | 1.89m | 1.59-2.39m |
+| Opus | doc-extractors | 25.9 | 30.9 | 9.73m | 5.65-23.47m |
+| Grok | financial-tools | 8.2 | 21.9 | 1.70m | 1.48-1.85m |
+| Opus | financial-tools | 43.9 | 47.4 | 10.30m | 5.07-17.00m |
+| Grok | phone-invites | 8.0 | 15.8 | 2.09m | 1.80-2.32m |
+| Opus | phone-invites | 17.1 | 18.6 | 8.13m | 7.08-12.71m |
+| Grok | FIU | 15.4 | 46.8 | 5.44m | 4.14-7.49m |
+| Opus | FIU | 36.2 | 42.9 | 15.26m | 7.44-30.47m |
+| Grok | txenrich | 14.2 | 36.4 | 6.77m | 5.51-10.20m |
+| Opus | txenrich | 41.7 | 43.2 | 13.23m | 7.03-22.97m |
+| Grok | txenrich3 | 14.3 | 43.5 | 4.89m | 3.78-5.82m |
+| Opus | txenrich3 | 54.5 | 55.8 | 16.90m | 9.72-27.17m |
+| Grok | txenrich4 | 16.6 | 46.3 | 9.81m | 7.53-15.24m |
+| Opus | txenrich4 | 53.8 | 55.3 | 21.13m | 10.24-30.21m |
+
+Grok's 80 valid trials ran in a global 12-sandbox pool. The first valid start
+to last valid finish was **1h 08m 28.8s**, with peak observed concurrency 12.
+The Opus attempts combine the original exact-route OpenRouter screen with
+later exact Bedrock-route attempts, so they do not form one comparable
+single-wave envelope. Independently running trial durations are not summed.
+
+The Grok phase timestamps put the mean trial at 2.2s of environment setup,
+20.5s of agent setup, 234.6s of agent execution, and 6.6s of verification,
+with the small remainder in handoffs. Solved Grok attempts were shorter than
+unsolved attempts on average, 10.6 versus 12.6 model turns and 3.07m versus
+4.96m, but task difficulty confounds that comparison. The same Grok
+trajectories report **46,841,681 input tokens**, including **39,586,944 cached
+tokens**, and **467,658 output tokens**.
+
+### Grok win conditions on bug-injection tasks
+
+Unlike the enterprise long-horizon cohort, this track contains 21 binary Grok
+wins. Those wins are highly concentrated rather than uniformly distributed:
+
+| Task | Grok c/n | Opus c/n | Observed Grok win condition |
+|---|---:|---:|---|
+| credit-normalize | 8/10 | 8/10 | named normalization helpers, exact string cases, and a local regression surface |
+| phone-invites | 9/10 | 9/10 | direct prefix and fallback-order defects in one integration path |
+| FIU | 2/10 | 10/10 | every small utility invariant is found across files in the same attempt |
+| txenrich | 2/10 | 9/10 | the exact target boundary is changed without widening adjacent bank rules |
+| doc-extractors | 0/10 | 6/10 | no Grok attempt preserves both the newly valid boundary and the negative pin |
+| financial-tools | 0/10 | 3/10 | no Grok attempt carries the single-late delinquency condition into the final diff |
+| txenrich3 | 0/10 | 10/10 | no Grok attempt fixes the mandate sentinel in the bank implementation that owns the failing row |
+| txenrich4 | 0/10 | 0/10 | neither model closes all five parser cases in one regression-safe patch |
+
+The positive pattern is fast closure when the symptom maps to one named local
+operation. For example, [Grok phone attempt 1](grok-trials/latent-phone-invites/attempt-01/trajectory.json)
+fixes the international prefix by consuming both zeroes, then preserves the
+configured region by taking the first plausible fallback:
+
+```python
+if value.startswith("00"):
+    value = "+" + value[2:]
+
+if possible_matches:
+    return possible_matches[0]
+```
+
+That attempt passes all 17 required checks. The failure pattern begins when a
+ticket describes several similar boundaries and success requires selecting
+the exact implementation locus plus retaining neighboring negative examples.
+In those cases, Grok often makes a semantically plausible edit and stops after
+positive-case replay, while Opus more often enumerates the boundary triplet or
+executes a wider regression matrix.
+
+### Bug-task failure modes and model contrast
+
+The pairs below compare a closest Grok attempt with a complete Opus solve when
+one exists. Each verifier link exposes the exact remaining assertion. The code
+comes from recorded edit calls in the linked trajectories.
+
+#### Doc extraction: boundary repair without the negative pin
+
+[Grok attempt 5](grok-trials/latent-doc-extractors/attempt-05/trajectory.json)
+passes 18/19 checks, while [Opus attempt 1](frontier-trials/opus5/latent-doc-extractors/attempt-01/trajectory.json)
+passes 19/19. Both models recognize that the fallback rent-roll minimum of
+three lines is too strict. Grok lowers it to one; Opus lowers it to two and
+names the retained invariant:
+
+```python
+# Grok
+return total if count >= 1 else None
+
+# Opus
+_MIN_RENT_ROLL_LINES = 2
+return total if count >= _MIN_RENT_ROLL_LINES else None
+```
+
+The [Grok verifier output](grok-trials/latent-doc-extractors/attempt-05/verifier-output.json)
+shows the consequence: the two-line rent roll now works, but a single stray
+rent line is incorrectly accepted. All ten Grok attempts fail that negative
+pin. Six Opus attempts solve the task; the other four make the same one-line
+over-generalization, so the separation is repeatability at preserving both
+sides of a semantic boundary rather than exclusive access to the solution.
+
+**Where to improve:** for every relaxed threshold, generate and replay the
+below-boundary, exact-boundary, and above-boundary cases before stopping. A
+three-row local table for counts 1, 2, and 3 would have exposed the regression.
+
+#### Financial tools: one ticket condition never reaches the diff
+
+[Grok attempt 1](grok-trials/latent-financial-tools/attempt-01/trajectory.json)
+passes 22/23 checks, while [Opus attempt 6](frontier-trials/opus5/latent-financial-tools/attempt-06/trajectory.json)
+passes 23/23. Grok repairs five other threshold or sentinel defects but leaves
+the severe-delinquency condition unchanged. Opus searches for `late_90` and
+makes the required one-character boundary edit:
+
+```python
+# Grok final state
+if (int(t.get("late_90") or 0) > 1) or bool(t.get("is_chargeoff"))
+
+# Opus
+if (int(t.get("late_90") or 0) > 0) or bool(t.get("is_chargeoff"))
+```
+
+The [Grok verifier output](grok-trials/latent-financial-tools/attempt-01/verifier-output.json)
+shows that zero and two severe lates behave correctly but exactly one does not.
+Every Grok attempt leaves this same check failing. Opus solves three of ten;
+the remaining seven also miss it, so this is another repeatability gap around
+complete ticket-to-diff reconciliation.
+
+**Where to improve:** maintain a case-level checklist whose entries close only
+when the corresponding symbol appears in the final diff or a test proves that
+no edit is needed. For this case, searching each ticket noun and replaying
+`late_90` values 0, 1, and 2 would prevent the silent omission.
+
+#### Txenrich: broad regex expansion instead of one exact width
+
+[Grok attempt 2](grok-trials/xrepo-txenrich-latent/attempt-02/trajectory.json)
+passes all five fail-to-pass checks but breaks two pass-to-pass checks. [Opus
+attempt 1](frontier-trials/opus5/xrepo-txenrich-latent/attempt-01/trajectory.json)
+passes all 17. The planted HDFC defect is a single incorrect length check:
+
+```python
+# Opus: exact repair
+transactions.remark.str.len().eq(16)
+```
+
+Grok instead adds broad rules across HDFC and several sibling banks:
+
+```python
+# Grok: accepts any numeric remark from 5 through 16 characters
+transactions.remark.str.contains("^[0-9]{5,16}$", na=False, case=False)
+```
+
+The [Grok verifier output](grok-trials/xrepo-txenrich-latent/attempt-02/verifier-output.json)
+shows both regressions: a 15-character remark becomes a cheque deposit and a
+non-zero-prefixed 16-character remark is also accepted. Eight of ten Grok
+attempts break the 15-character pin, while Opus solves nine of ten by changing
+the one exact width rather than generalizing the parser family.
+
+**Where to improve:** prefer the smallest predicate change consistent with the
+symptom, then diff outputs on the target row and its nearest negative siblings.
+Do not propagate a regex widening across bank modules without evidence that
+each module shares the same contract.
+
+#### Txenrich3: correct symptom family, wrong bank implementation
+
+[Grok attempt 5](grok-trials/xrepo-txenrich3-latent/attempt-05/trajectory.json)
+passes 18/19 checks, while [Opus attempt 1](frontier-trials/opus5/xrepo-txenrich3-latent/attempt-01/trajectory.json)
+passes 19/19. Grok recognizes the one-rupee mandate pattern, but implements it
+in `BankOfMaharashtra.py`. The failing row is dispatched through
+`Indusind.py`, where the planted value remains 2. Opus edits that owning rule:
+
+```python
+# Grok adds a plausible sibling-bank rule
+transactions.amount.eq(1) & transactions.description.str.contains("MANDATE|Mandate")
+
+# Opus fixes the rule reached by the failing row
+transactions.amount.eq(2)  # before
+transactions.amount.eq(1)  # after
+```
+
+The [Grok verifier output](grok-trials/xrepo-txenrich3-latent/attempt-05/verifier-output.json)
+still reports the rupee-one mandate failure. All ten Grok attempts miss this
+check; Opus solves all ten. Eight Grok attempts also miss the adjacent
+six-digit cheque width, which reinforces that the issue is not parser syntax
+but exact row-to-handler localization across many near-duplicate bank scripts.
+
+**Where to improve:** replay the reported row through the repository's bank
+dispatcher and record the concrete handler before editing. A repository-wide
+search should enumerate candidate rules, but runtime ownership should decide
+which one receives the patch.
+
+#### Txenrich4: complementary near misses and shared frontier difficulty
+
+Both models score 0/10, so txenrich4 is not evidence of a Grok-specific
+capability gap. [Grok attempt 1](grok-trials/xrepo-txenrich4-latent/attempt-01/trajectory.json)
+and [Opus attempt 2](frontier-trials/opus5/xrepo-txenrich4-latent/attempt-02/trajectory.json)
+each pass 18/19 checks, but they miss different parser cases. Grok closes the
+UPI case and leaves the PNB NEFT capture index unchanged; Opus fixes NEFT but
+still misses UPI:
+
+```python
+# Grok leaves the one-group regex at an out-of-range capture index
+py_extract(transactions.description, pat="NEFT (.*)", index=1)
+
+# Opus fixes NEFT extraction
+py_extract(transactions.description, pat="NEFT (.*)", index=0)
+```
+
+The [Grok verifier output](grok-trials/xrepo-txenrich4-latent/attempt-01/verifier-output.json)
+fails only `test_neft_credit_payee_name`; the [Opus verifier output](frontier-trials/opus5/xrepo-txenrich4-latent/attempt-02/verifier-output.json)
+fails only `test_upi_credit_payee_name`. Across all ten attempts, Grok misses
+NEFT ten times and UPI seven times; Opus misses UPI nine times and NEFT five
+times. Both models can repair individual symptoms, but neither reliably keeps
+the full five-case parser contract closed in one patch.
+
+**Where to improve:** keep the five reported parser cases as an executable
+matrix of final category and payee outputs. Re-run the whole matrix after each
+regex-priority or segment-index edit instead of validating only the most recent
+case.
+
+Together, the bug tasks isolate a narrower capability gap than the enterprise
+cohort. Grok is fast and often reaches 18 of 19 or 22 of 23 checks, but it is
+less reliable at preserving negative pins, reconciling every ticket item with
+the final diff, and selecting the exact owner among repeated implementations.
+The relevant training target is boundary-complete verification: explicit
+case ledgers, minimal edits, runtime-path localization, and positive plus
+negative replay before completion.
+
+The aggregate indexes and per-attempt evidence are in
+[`grok_trials.json`](grok_trials.json), [`opus5_trials.json`](opus5_trials.json),
+[`grok-trials/`](grok-trials/), and [`frontier-trials/opus5/`](frontier-trials/opus5/).
 
 ## Native-table migration difficulty control
 
@@ -533,10 +776,12 @@ trial index, and the prompt-to-test audit is preserved under
 
 ## Caveats
 
-- The bug-injection runtime, turn, and token totals cover 80 valid graded
-  trajectories. The enterprise effort table covers its separate 48-attempt
-  Grok/Opus cohort. Infrastructure/auth failures are excluded from both scores
-  and valid-trial totals.
+- The bug-injection pass and effort comparison covers 80 valid Grok attempts
+  and 80 valid Opus attempts. Its phase, token, concurrency, and single-wave
+  envelope measurements are explicitly limited to Grok's 80 attempts. The
+  enterprise effort table covers its separate 48-attempt Grok/Opus cohort.
+  Infrastructure/auth failures are excluded from all scores and valid-trial
+  totals.
 - Ten attempts per bug-injection task and eight per enterprise task expose
   systematic zero rows and strong concentration, but each individual solve
   rate still has binomial uncertainty.
