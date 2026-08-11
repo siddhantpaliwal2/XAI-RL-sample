@@ -69,7 +69,9 @@ the score files, so partial or exception trials cannot enter the matrix.
 - `sample-run/checkpoints/` — interim calibration and fairness checkpoints
 - `sample-run/manifests/` — packaged-artifact manifests
 - `sample-run/run-summaries/` and `sample-run/ledgers/` — resumable run state
-- `sample-run/grok-trials/` — per-attempt result, verifier output, and trajectory
+- `sample-run/bug-injection-trials/grok45/` — per-attempt result, verifier output, and trajectory
+- `sample-run/enterprise-long-horizon-trials/{grok45,opus5}/` — the three
+  long-horizon task cohorts, separated by model
 - `sample-run/trajectories*/` — full agent trajectories per cell
 - `tasks/*/instruction.md` — canonical agent-facing prompts
 - `gold-tests/` — readable copies of the hidden test suites

@@ -19,7 +19,7 @@ from run_frontier_daytona import directory_sha256
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "sample-run" / "enterprise-raw"
-PACKAGED = ROOT / "sample-run" / "long-horizon-enterprise-trials"
+PACKAGED = ROOT / "sample-run" / "enterprise-long-horizon-trials"
 OUTPUT = ROOT / "sample-run" / "indexes" / "long-horizon-enterprise-results.json"
 MANIFEST = (
     ROOT

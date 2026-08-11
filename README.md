@@ -14,6 +14,13 @@ valid trial runs in an isolated Daytona sandbox and includes its result,
 verifier verdicts, turn/tool counts, wall time, and full trajectory under
 `sample-run/`.
 
+The two primary trace trees are separated by task type:
+
+- `sample-run/bug-injection-trials/grok45/` contains Grok's 80 attempts on the
+  eight bug-injection tasks.
+- `sample-run/enterprise-long-horizon-trials/` contains the 24 Grok and 24 Opus
+  attempts on the three enterprise long-horizon tasks, split by model.
+
 ## Table of contents
 
 - [Task format](#task-format)
@@ -131,7 +138,7 @@ agent/trial wall time, trace-backed failure modes, and verifier fairness:
 
 - [`sample-run/analysis.md`](sample-run/analysis.md#long-horizon-capability-gap-results)
 - [`sample-run/indexes/long-horizon-enterprise-results.json`](sample-run/indexes/long-horizon-enterprise-results.json)
-- [`sample-run/long-horizon-enterprise-trials/`](sample-run/long-horizon-enterprise-trials/)
+- [`sample-run/enterprise-long-horizon-trials/`](sample-run/enterprise-long-horizon-trials/)
 - [`sample-run/manifests/long-horizon-enterprise-artifacts-manifest.json`](sample-run/manifests/long-horizon-enterprise-artifacts-manifest.json)
 
 One billing verifier assertion was found to grade positional Nest constructor

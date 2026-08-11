@@ -159,7 +159,7 @@ solve:
 
 The positive pattern is competent repository mapping plus correct local
 implementation when the prompt names a boundary and gives an exact data-flow
-rule. For example, the [best Grok top-up trace](long-horizon-enterprise-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-08/trajectory.json)
+rule. For example, the [best Grok top-up trace](enterprise-long-horizon-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-08/trajectory.json)
 implements the core refill calculation and payment mode directly:
 
 ```ts
@@ -221,8 +221,8 @@ cause better results, but they match the task-level failures below.
 
 #### Billing: said the field was preserved without checking the final object
 
-[Grok attempt 1](long-horizon-enterprise-trials/grok45/enterprise-customer-billing-schedule-migration/attempt-01/trajectory.json)
-passes 7/8, while [Opus attempt 2](long-horizon-enterprise-trials/opus5/enterprise-customer-billing-schedule-migration/attempt-02/trajectory.json)
+[Grok attempt 1](enterprise-long-horizon-trials/grok45/enterprise-customer-billing-schedule-migration/attempt-01/trajectory.json)
+passes 7/8, while [Opus attempt 2](enterprise-long-horizon-trials/opus5/enterprise-customer-billing-schedule-migration/attempt-02/trajectory.json)
 passes 8/8. In step 13, Grok correctly preserves `subject` and `businessID` at
 the scheduler's top level but omits `businessID` from the nested parameters:
 
@@ -238,7 +238,7 @@ subject,
 businessID,
 ```
 
-The [verifier output](long-horizon-enterprise-trials/grok45/enterprise-customer-billing-schedule-migration/attempt-01/verifier-test-stdout.txt)
+The [verifier output](enterprise-long-horizon-trials/grok45/enterprise-customer-billing-schedule-migration/attempt-01/verifier-test-stdout.txt)
 shows that exact object mismatch. Grok's final step nevertheless says
 "`subject` + `businessID` preserved," so the failure is not missing task
 comprehension. Grok remembered the rule but checked its intention, not the final
@@ -253,8 +253,8 @@ all eight Grok near misses.
 
 #### Top-up: connected the wallet through the wrong service
 
-[Grok attempt 1](long-horizon-enterprise-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-01/trajectory.json)
-passes 3/11, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/enterprise-top-up-billing-lifecycle/attempt-01/trajectory.json)
+[Grok attempt 1](enterprise-long-horizon-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-01/trajectory.json)
+passes 3/11, while [Opus attempt 1](enterprise-long-horizon-trials/opus5/enterprise-top-up-billing-lifecycle/attempt-01/trajectory.json)
 passes 11/11. The largest failure starts with one shortcut:
 
 ```ts
@@ -275,7 +275,7 @@ const { balance } = await this.creditService.findCreditBalance({
 Grok had already found that `InvoicesService` contains a `CreditService`, so it
 used that convenient route. But an offering is also built in places where the
 invoice-service test double does not contain that hidden nested property. The
-[verifier output](long-horizon-enterprise-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-01/verifier-test-stdout.txt)
+[verifier output](enterprise-long-horizon-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-01/verifier-test-stdout.txt)
 shows five wallet checks crashing on `findCreditBalance`. One bad connection
 disabled balance checks, charging, hourly deduction, overdraft handling, and
 the zero-usage path.
@@ -295,8 +295,8 @@ at enrollment, deducts usage, reads the wallet, and tops it up.
 
 #### S3: built the pieces but did not verify the full data path
 
-[Grok attempt 5](long-horizon-enterprise-trials/grok45/enterprise-s3-datastore-measurement/attempt-05/trajectory.json)
-passes 5/10, while [Opus attempt 1](long-horizon-enterprise-trials/opus5/enterprise-s3-datastore-measurement/attempt-01/trajectory.json)
+[Grok attempt 5](enterprise-long-horizon-trials/grok45/enterprise-s3-datastore-measurement/attempt-05/trajectory.json)
+passes 5/10, while [Opus attempt 1](enterprise-long-horizon-trials/opus5/enterprise-s3-datastore-measurement/attempt-01/trajectory.json)
 passes 10/10. Grok added the IAM setup, persistence fields, connector endpoint,
 and dead-letter path, but two public methods only changed their input object and
 silently returned `undefined`:
@@ -314,7 +314,7 @@ dbAccessInformation.dlq = dlq;
 return dbAccessInformation;
 ```
 
-The [verifier output for attempt 5](long-horizon-enterprise-trials/grok45/enterprise-s3-datastore-measurement/attempt-05/verifier-test-stdout.txt)
+The [verifier output for attempt 5](enterprise-long-horizon-trials/grok45/enterprise-s3-datastore-measurement/attempt-05/verifier-test-stdout.txt)
 shows `Received: undefined` for setup and trust update. The create path also
 returned non-canonical ingestion and dead-letter locations. In the failed-record
 path, Grok reused a storage helper without testing it through the connector
@@ -359,7 +359,7 @@ makes the whole system work.
 
 The complete evidence is available in
 [`long-horizon-enterprise-results.json`](indexes/long-horizon-enterprise-results.json),
-[`long-horizon-enterprise-trials/`](long-horizon-enterprise-trials/), and
+[`enterprise-long-horizon-trials/`](enterprise-long-horizon-trials/), and
 [`long-horizon-enterprise-artifacts-manifest.json`](manifests/long-horizon-enterprise-artifacts-manifest.json).
 
 ## Bug-injection debugging analysis
@@ -457,7 +457,7 @@ wins. Those wins are highly concentrated rather than uniformly distributed:
 | txenrich4 | 0/10 | 0/10 | neither model closes all five parser cases in one regression-safe patch |
 
 The positive pattern is fast closure when the symptom maps to one named local
-operation. For example, [Grok phone attempt 1](grok-trials/latent-phone-invites/attempt-01/trajectory.json)
+operation. For example, [Grok phone attempt 1](bug-injection-trials/grok45/latent-phone-invites/attempt-01/trajectory.json)
 fixes the international prefix by consuming both zeroes, then preserves the
 configured region by taking the first plausible fallback:
 
@@ -484,7 +484,7 @@ comes from recorded edit calls in the linked trajectories.
 
 #### Doc extraction: boundary repair without the negative pin
 
-[Grok attempt 5](grok-trials/latent-doc-extractors/attempt-05/trajectory.json)
+[Grok attempt 5](bug-injection-trials/grok45/latent-doc-extractors/attempt-05/trajectory.json)
 passes 18/19 checks, while [Opus attempt 1](frontier-trials/opus5/latent-doc-extractors/attempt-01/trajectory.json)
 passes 19/19. Both models recognize that the fallback rent-roll minimum of
 three lines is too strict. Grok lowers it to one; Opus lowers it to two and
@@ -499,7 +499,7 @@ _MIN_RENT_ROLL_LINES = 2
 return total if count >= _MIN_RENT_ROLL_LINES else None
 ```
 
-The [Grok verifier output](grok-trials/latent-doc-extractors/attempt-05/verifier-output.json)
+The [Grok verifier output](bug-injection-trials/grok45/latent-doc-extractors/attempt-05/verifier-output.json)
 shows the consequence: the two-line rent roll now works, but a single stray
 rent line is incorrectly accepted. All ten Grok attempts fail that negative
 pin. Six Opus attempts solve the task; the other four make the same one-line
@@ -512,7 +512,7 @@ three-row local table for counts 1, 2, and 3 would have exposed the regression.
 
 #### Financial tools: one ticket condition never reaches the diff
 
-[Grok attempt 1](grok-trials/latent-financial-tools/attempt-01/trajectory.json)
+[Grok attempt 1](bug-injection-trials/grok45/latent-financial-tools/attempt-01/trajectory.json)
 passes 22/23 checks, while [Opus attempt 6](frontier-trials/opus5/latent-financial-tools/attempt-06/trajectory.json)
 passes 23/23. Grok repairs five other threshold or sentinel defects but leaves
 the severe-delinquency condition unchanged. Opus searches for `late_90` and
@@ -526,7 +526,7 @@ if (int(t.get("late_90") or 0) > 1) or bool(t.get("is_chargeoff"))
 if (int(t.get("late_90") or 0) > 0) or bool(t.get("is_chargeoff"))
 ```
 
-The [Grok verifier output](grok-trials/latent-financial-tools/attempt-01/verifier-output.json)
+The [Grok verifier output](bug-injection-trials/grok45/latent-financial-tools/attempt-01/verifier-output.json)
 shows that zero and two severe lates behave correctly but exactly one does not.
 Every Grok attempt leaves this same check failing. Opus solves three of ten;
 the remaining seven also miss it, so this is another repeatability gap around
@@ -539,7 +539,7 @@ no edit is needed. For this case, searching each ticket noun and replaying
 
 #### Txenrich: broad regex expansion instead of one exact width
 
-[Grok attempt 2](grok-trials/xrepo-txenrich-latent/attempt-02/trajectory.json)
+[Grok attempt 2](bug-injection-trials/grok45/xrepo-txenrich-latent/attempt-02/trajectory.json)
 passes all five fail-to-pass checks but breaks two pass-to-pass checks. [Opus
 attempt 1](frontier-trials/opus5/xrepo-txenrich-latent/attempt-01/trajectory.json)
 passes all 17. The planted HDFC defect is a single incorrect length check:
@@ -556,7 +556,7 @@ Grok instead adds broad rules across HDFC and several sibling banks:
 transactions.remark.str.contains("^[0-9]{5,16}$", na=False, case=False)
 ```
 
-The [Grok verifier output](grok-trials/xrepo-txenrich-latent/attempt-02/verifier-output.json)
+The [Grok verifier output](bug-injection-trials/grok45/xrepo-txenrich-latent/attempt-02/verifier-output.json)
 shows both regressions: a 15-character remark becomes a cheque deposit and a
 non-zero-prefixed 16-character remark is also accepted. Eight of ten Grok
 attempts break the 15-character pin, while Opus solves nine of ten by changing
@@ -569,7 +569,7 @@ each module shares the same contract.
 
 #### Txenrich3: correct symptom family, wrong bank implementation
 
-[Grok attempt 5](grok-trials/xrepo-txenrich3-latent/attempt-05/trajectory.json)
+[Grok attempt 5](bug-injection-trials/grok45/xrepo-txenrich3-latent/attempt-05/trajectory.json)
 passes 18/19 checks, while [Opus attempt 1](frontier-trials/opus5/xrepo-txenrich3-latent/attempt-01/trajectory.json)
 passes 19/19. Grok recognizes the one-rupee mandate pattern, but implements it
 in `BankOfMaharashtra.py`. The failing row is dispatched through
@@ -584,7 +584,7 @@ transactions.amount.eq(2)  # before
 transactions.amount.eq(1)  # after
 ```
 
-The [Grok verifier output](grok-trials/xrepo-txenrich3-latent/attempt-05/verifier-output.json)
+The [Grok verifier output](bug-injection-trials/grok45/xrepo-txenrich3-latent/attempt-05/verifier-output.json)
 still reports the rupee-one mandate failure. All ten Grok attempts miss this
 check; Opus solves all ten. Eight Grok attempts also miss the adjacent
 six-digit cheque width, which reinforces that the issue is not parser syntax
@@ -598,7 +598,7 @@ which one receives the patch.
 #### Txenrich4: complementary near misses and shared frontier difficulty
 
 Both models score 0/10, so txenrich4 is not evidence of a Grok-specific
-capability gap. [Grok attempt 1](grok-trials/xrepo-txenrich4-latent/attempt-01/trajectory.json)
+capability gap. [Grok attempt 1](bug-injection-trials/grok45/xrepo-txenrich4-latent/attempt-01/trajectory.json)
 and [Opus attempt 2](frontier-trials/opus5/xrepo-txenrich4-latent/attempt-02/trajectory.json)
 each pass 18/19 checks, but they miss different parser cases. Grok closes the
 UPI case and leaves the PNB NEFT capture index unchanged; Opus fixes NEFT but
@@ -612,7 +612,7 @@ py_extract(transactions.description, pat="NEFT (.*)", index=1)
 py_extract(transactions.description, pat="NEFT (.*)", index=0)
 ```
 
-The [Grok verifier output](grok-trials/xrepo-txenrich4-latent/attempt-01/verifier-output.json)
+The [Grok verifier output](bug-injection-trials/grok45/xrepo-txenrich4-latent/attempt-01/verifier-output.json)
 fails only `test_neft_credit_payee_name`; the [Opus verifier output](frontier-trials/opus5/xrepo-txenrich4-latent/attempt-02/verifier-output.json)
 fails only `test_upi_credit_payee_name`. Across all ten attempts, Grok misses
 NEFT ten times and UPI seven times; Opus misses UPI nine times and NEFT five
@@ -634,7 +634,7 @@ negative replay before completion.
 
 The aggregate indexes and per-attempt evidence are in
 [`grok_trials.json`](indexes/grok_trials.json), [`opus5_trials.json`](indexes/opus5_trials.json),
-[`grok-trials/`](grok-trials/), and [`frontier-trials/opus5/`](frontier-trials/opus5/).
+[`bug-injection-trials/grok45/`](bug-injection-trials/grok45/), and [`frontier-trials/opus5/`](frontier-trials/opus5/).
 
 ## Native-table migration difficulty control
 

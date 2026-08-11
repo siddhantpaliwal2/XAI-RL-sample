@@ -71,7 +71,13 @@ def package_trial(task: str, attempt: int, trial_dir: Path, result: dict) -> dic
     agent_result = result.get("agent_result") or {}
     reward = float(result["verifier_result"]["rewards"]["reward"])
 
-    packaged = SAMPLE_RUN / "grok-trials" / task / f"attempt-{attempt:02d}"
+    packaged = (
+        SAMPLE_RUN
+        / "bug-injection-trials"
+        / "grok45"
+        / task
+        / f"attempt-{attempt:02d}"
+    )
     packaged.mkdir(parents=True, exist_ok=True)
     copies = {
         trial_dir / "result.json": packaged / "result.json",
