@@ -6,7 +6,6 @@
 - [Headline result](#headline-result)
   - [Enterprise long-horizon tasks](#enterprise-long-horizon-tasks)
   - [Bug-injection debugging tasks](#bug-injection-debugging-tasks)
-- [Long-horizon definition and evaluation bar](#long-horizon-definition-and-evaluation-bar)
 - [Long-horizon capability-gap results](#long-horizon-capability-gap-results)
   - [Pass@k results](#passk-results)
   - [Measured effort](#measured-effort)
@@ -34,6 +33,8 @@
   - [General takeaway from the control](#general-takeaway-from-the-control)
 - [Nature of the source codebases](#nature-of-the-source-codebases)
 - [Conclusion](#conclusion)
+- [Appendix](#appendix)
+  - [Long-horizon definition and evaluation bar](#long-horizon-definition-and-evaluation-bar)
 
 ## Setup
 
@@ -107,53 +108,6 @@ leader: Opus 5 is both more repeatable and more broadly capable than either.
 | GPT-5.6 Sol | 16/80 | 0.200 | **0.435** | **0.750** | **6/8** |
 | Claude Opus 4.8 | 8/79 | 0.100 | 0.244 | 0.375 | 3/8 |
 | Nova Premier | 0/80 | 0.000 | 0.000 | 0.000 | 0/8 |
-
-## Long-horizon definition and evaluation bar
-
-There is no standard 70-turn or raw-token threshold for a long-horizon task.
-The term is used along at least two independent axes:
-
-- [DeepSWE](https://arxiv.org/abs/2607.07946) treats long horizon as a structural
-  property: short, natural prompts whose solutions require substantial codebase
-  exploration and large, multi-file implementations. It reports tokens and
-  trial time as efficiency measurements, not as the definition.
-- [SWE-Bench Pro](https://arxiv.org/abs/2509.16941) uses an estimated professional
-  engineering horizon of hours to days together with multi-file, substantial
-  code modifications.
-- [SWE-EVO](https://arxiv.org/abs/2512.18470) tests release-level evolution rather
-  than a single issue; its reference patch edits 20.9 files and 610.5 lines on
-  average, with an average 874-test evaluation surface.
-- [METR](https://metr.org/time-horizons/) defines a model time horizon using the
-  human-expert completion time at which the model has a target success
-  probability. It explicitly does not mean agent elapsed time or action count.
-
-That variation is important. Recent non-coding suites labeled long horizon range
-from [over 20 tool calls per task in WildClawBench](https://arxiv.org/abs/2605.10912)
-to [318 on average in OSWorld 2.0](https://arxiv.org/abs/2606.29537), while
-[TRIP-Bench](https://arxiv.org/abs/2602.01675) reports trajectories reaching
-150+ tool calls and 200k+ context tokens. Turn, tool, and token counts are
-harness- and domain-dependent diagnostics, not portable cutoffs.
-
-The primary bar for this package is therefore repository-scale structure. The
-three capability-gap tasks cross persistence, validation, scheduling, billing,
-queueing, IAM, connector, and failure-recovery boundaries. Their packaged
-oracles span 17–28 files, and their source evidence covers multi-day production
-changes. The separate native-table task condenses 62 production commits across
-70 files and several dependent subsystems into a six-requirement prompt.
-
-Turn, tool, token, and wall-time measurements describe the resulting agent
-behavior; they are not substituted for structural scope or verifier outcome.
-No controlled human completion-time baseline was collected, so the tasks are
-not assigned METR-style hour values. Commit count and calendar span establish
-provenance and dependency depth, not human labor time.
-
-The capability-gap cohort uses eight valid attempts per model and task. A task
-is learnable when Grok solves one to six attempts, or when Grok solves zero and
-a comparable model completes the task. The native-table control instead asks
-whether Opus 5 fails at least half of its independent valid attempts.
-In both cohorts, only trials whose hidden verifier returns complete per-test
-verdicts enter the denominator; provider, verifier, network, and operator
-failures without verdicts are excluded.
 
 ## Long-horizon capability-gap results
 
@@ -895,3 +849,52 @@ whole task and avoid breaking nearby behavior.
 The overall improvement target is simple: finish the full repair and check it.
 The model should not stop when the code looks plausible. It should stop only
 after every requested behavior has been checked in the final code.
+
+## Appendix
+
+### Long-horizon definition and evaluation bar
+
+There is no standard 70-turn or raw-token threshold for a long-horizon task.
+The term is used along at least two independent axes:
+
+- [DeepSWE](https://arxiv.org/abs/2607.07946) treats long horizon as a structural
+  property: short, natural prompts whose solutions require substantial codebase
+  exploration and large, multi-file implementations. It reports tokens and
+  trial time as efficiency measurements, not as the definition.
+- [SWE-Bench Pro](https://arxiv.org/abs/2509.16941) uses an estimated professional
+  engineering horizon of hours to days together with multi-file, substantial
+  code modifications.
+- [SWE-EVO](https://arxiv.org/abs/2512.18470) tests release-level evolution rather
+  than a single issue; its reference patch edits 20.9 files and 610.5 lines on
+  average, with an average 874-test evaluation surface.
+- [METR](https://metr.org/time-horizons/) defines a model time horizon using the
+  human-expert completion time at which the model has a target success
+  probability. It explicitly does not mean agent elapsed time or action count.
+
+That variation is important. Recent non-coding suites labeled long horizon range
+from [over 20 tool calls per task in WildClawBench](https://arxiv.org/abs/2605.10912)
+to [318 on average in OSWorld 2.0](https://arxiv.org/abs/2606.29537), while
+[TRIP-Bench](https://arxiv.org/abs/2602.01675) reports trajectories reaching
+150+ tool calls and 200k+ context tokens. Turn, tool, and token counts are
+harness- and domain-dependent diagnostics, not portable cutoffs.
+
+The primary bar for this package is therefore repository-scale structure. The
+three capability-gap tasks cross persistence, validation, scheduling, billing,
+queueing, IAM, connector, and failure-recovery boundaries. Their packaged
+oracles span 17–28 files, and their source evidence covers multi-day production
+changes. The separate native-table task condenses 62 production commits across
+70 files and several dependent subsystems into a six-requirement prompt.
+
+Turn, tool, token, and wall-time measurements describe the resulting agent
+behavior; they are not substituted for structural scope or verifier outcome.
+No controlled human completion-time baseline was collected, so the tasks are
+not assigned METR-style hour values. Commit count and calendar span establish
+provenance and dependency depth, not human labor time.
+
+The capability-gap cohort uses eight valid attempts per model and task. A task
+is learnable when Grok solves one to six attempts, or when Grok solves zero and
+a comparable model completes the task. The native-table control instead asks
+whether Opus 5 fails at least half of its independent valid attempts.
+In both cohorts, only trials whose hidden verifier returns complete per-test
+verdicts enter the denominator; provider, verifier, network, and operator
+failures without verdicts are excluded.
