@@ -60,7 +60,9 @@ def main() -> int:
     (ROOT / "instructions" / "long-native-table-migration.md").write_text(
         (TASK / "instruction.md").read_text()
     )
-    (ROOT / "gold-tests" / "long-native-table-migration.java").write_text(source)
+    gold_dir = ROOT / "gold-tests" / "long-native-table-migration"
+    gold_dir.mkdir(parents=True, exist_ok=True)
+    (gold_dir / "long-native-table-migration.java").write_text(source)
     return 0
 
 
