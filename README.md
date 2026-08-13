@@ -21,8 +21,50 @@ The two primary trace trees are separated by task type:
 - `sample-run/enterprise-long-horizon-trials/` contains the 24 Grok and 24 Opus
   attempts on the three enterprise long-horizon tasks, split by model.
 
+The formatted evaluation report is available as
+[`reports/xai-rl-evaluation-report.pdf`](reports/xai-rl-evaluation-report.pdf).
+
+## What the traces show
+
+Across all three enterprise tasks, Grok 4.5 solved **0/24** attempts and Claude
+Opus 5 solved **19/24**. The clearest behavior comparison comes from the top-up
+and S3 tasks, where the requirements are explicit and the verifier checks what
+the finished workflow does. On those two tasks, Grok solved **0/16** attempts
+and Opus solved **12/16**.
+
+Grok usually found the right files and built much of the requested feature. It
+was less reliable when one rule or generated value had to remain correct across
+every step of the workflow:
+
+- **Apply the rule everywhere.** On top-up billing, Grok's best run passed 9/11
+  checks and the matching Opus run passed 11/11. Grok applied validation in
+  some entry points but missed others, and the offering-level hourly-job check
+  failed in all eight Grok runs.
+- **Carry generated values through the full workflow.** On S3 measurement,
+  Grok attempt 5 passed 5/10 checks and the matching Opus run passed 10/10.
+  Every Grok run failed to return the generated access details and carry them
+  through creation and storage; six of eight also failed the bad-record path.
+- **Prove the whole behavior before reporting completion.** After the final
+  source change, Grok ran a build or test in 9/16 top-up and S3 attempts and
+  reviewed the final repository changes in 2/16. Opus did so in 16/16 and
+  14/16 respectively. These habits are not the score by themselves, but the
+  paired traces show that the missing checks would have exposed the defects.
+
+The training target is practical: list every allowed and rejected case, trace
+each generated value through creation, return, storage, and final response, and
+tie every completion claim to a passing end-to-end check or an inspected final
+object. The full evidence and paired traces are in
+[`sample-run/analysis.md`](sample-run/analysis.md#what-the-traces-show).
+
+The billing score remains in the results table, but it is not used to explain
+Grok's behavior because one check expects a field placement that the prompt
+does not require. The bug-injection scores are also reported as outcomes rather
+than used for the main capability claim because some prompts intentionally hid
+exact boundary values during calibration.
+
 ## Table of contents
 
+- [What the traces show](#what-the-traces-show)
 - [Task format](#task-format)
 - [Enterprise long-horizon tasks](#enterprise-long-horizon-tasks)
 - [Gates and measured results for other enterprise tasks](#gates-and-measured-results-for-other-enterprise-tasks)

@@ -6,6 +6,7 @@
 - [Headline result](#headline-result)
   - [Enterprise long-horizon tasks](#enterprise-long-horizon-tasks)
   - [Bug-injection debugging tasks](#bug-injection-debugging-tasks)
+- [What the traces show](#what-the-traces-show)
 - [Long-horizon capability-gap results](#long-horizon-capability-gap-results)
   - [Pass@k results](#passk-results)
   - [Measured effort](#measured-effort)
@@ -54,11 +55,17 @@ support a model-specific capability claim.
 ## Headline result
 
 Across three production-derived enterprise tasks, Grok 4.5 solved **0/24**
-attempts while Claude Opus 5 solved **19/24**. Grok's closest attempts reached
-**7/8**, **9/11**, and **8/10** required checks, but repeatedly failed to close
-exact contracts across shared lifecycle, persistence, and output boundaries.
-On the eight bug-injection tasks, the same broader pattern appears in Grok's
-**21/80** solves compared with Opus's **55/80**.
+attempts while Claude Opus 5 solved **19/24**. The clearest behavior comparison
+comes from the top-up and S3 tasks, where Grok solved **0/16** attempts and Opus
+solved **12/16**. Grok often built most of the feature but missed one or two
+connections needed to carry a rule or generated value through the full
+workflow.
+
+The billing result remains in the score table, but it is not used to explain
+Grok's behavior because one check expects a field placement that the prompt
+does not require. The bug-injection results, Grok **21/80** and Opus **55/80**,
+are also reported as outcomes rather than used for the main capability claim
+because some tasks intentionally hid exact boundary values during calibration.
 
 ### Enterprise long-horizon tasks
 
@@ -86,6 +93,84 @@ table. Each model has ten valid attempts on each of eight tasks:
 
 The solves column sums the eight task cells. pass@10 is the task-coverage
 measure because each cell has ten attempts.
+
+## What the traces show
+
+**Main finding.** On the top-up and S3 tasks, Grok usually found the right files
+and built much of the requested feature. It failed when one rule or value had
+to survive every step of the workflow. Opus completed that handoff more
+reliably, solving **12/16** attempts while Grok solved **0/16**.
+
+We compared the final code, tests, commands, and checker results from all 16
+Grok runs on these two tasks with the matching Opus runs. Model comments are
+used only to compare what the model claimed with what the finished code did.
+
+### 1. Grok applied the top-up rules in some places, but not all
+
+The [best Grok run](enterprise-long-horizon-trials/grok45/enterprise-top-up-billing-lifecycle/attempt-08/trajectory.json)
+passed 9/11 checks. The
+[matching Opus run](enterprise-long-horizon-trials/opus5/enterprise-top-up-billing-lifecycle/attempt-01/trajectory.json)
+passed 11/11. Grok still allowed top-up fields in invalid billing modes and did
+not create one stable hourly job for each offering.
+
+The task says top-up fields are valid only for top-up billing, subscriptions
+cannot use them, and each offering should own one hourly job. Grok added the
+rule to some request fields, but not every create and update path. Its final
+message still said the invalid fields were rejected and the hourly job was
+offering-level. The checker showed otherwise. The hourly-job check failed in
+8/8 Grok runs, rejection on other billing modes failed in 7/8, and the combined
+usage-based/subscription rule failed in 6/8.
+
+Opus put the same validation in the shared create and update paths and based the
+job identity on the offering. The important difference is not the exact helper
+name. The rule ran wherever data entered the system and was checked again
+through the scheduled path.
+
+**What to train:** for every rule written as “when,” “only if,” or “otherwise,”
+list each allowed and rejected case. Test the list through create, update, and
+scheduled execution before marking the requirement complete.
+
+### 2. Grok created the S3 values, but lost them before they could be used
+
+[Grok attempt 5](enterprise-long-horizon-trials/grok45/enterprise-s3-datastore-measurement/attempt-05/trajectory.json)
+passed 5/10 checks. The
+[matching Opus run](enterprise-long-horizon-trials/opus5/enterprise-s3-datastore-measurement/attempt-01/trajectory.json)
+passed 10/10. Every Grok run failed to return the generated access details and
+failed to carry them through creation and storage. Six of eight also failed the
+bad-record path.
+
+The task says the generated IAM role, external ID, ingestion location,
+dead-letter location, and region must be returned and saved. In attempt 5,
+Grok's helper filled in a local object but ended without returning it. The
+values existed briefly inside the helper, but the rest of the system could not
+save or use them. Opus returned the configured object, saved it, and returned
+the created entity from the service.
+
+**What to train:** follow each generated value through four questions. Was it
+created? Was it returned? Was it saved? Did the final service return the same
+value? Run this check for both the normal path and the bad-record path.
+
+### 3. Grok tested pieces of the feature, then reported the whole job complete
+
+In the top-up run, Grok's final message said validation and hourly-job identity
+were complete. Its tests showed that a service could be constructed, but did
+not create invalid offerings or inspect the scheduled job. In the S3 run, Grok
+said setup, storage, and dead-letter delivery worked after running tests that
+never checked the object returned by the setup helper.
+
+Across these 16 runs, Grok ran a build or test after its final source change in
+9 cases; Opus did so in all 16. Grok reviewed its final repository changes in
+2 cases; Opus did so in 14. These habits do not cause success by themselves,
+but the paired examples show what the missing final check would have caught.
+
+**What to train:** before reporting completion, run one test through the same
+entry point a real caller uses. Match every sentence in the final summary to a
+passing test or an inspected final object. If either is missing, report the open
+item instead of calling the task complete.
+
+Taken together, the traces show a narrow and practical weakness. Grok can build
+the individual pieces, but it is less reliable at connecting those pieces
+across the whole workflow and proving that the final result matches the request.
 
 ## Long-horizon capability-gap results
 
@@ -187,6 +272,12 @@ must remain exact across several constructors, lifecycle paths, or serialized
 representations.
 
 ### Failure modes and model contrast
+
+This section preserves the detailed trace record for all three enterprise
+tasks. Only the top-up and S3 examples support the model-specific finding above.
+The billing example is kept as a score and verification case, not as evidence
+of a Grok capability gap, because one checker expectation was not stated in the
+prompt.
 
 The examples below were selected because their verifier output makes the root
 cause visible. They are not isolated score differences. All eight Grok billing
@@ -336,11 +427,11 @@ failure path with the client mocked at the same boundary the production code
 uses. Do not stop after the build passes when the task spans setup, storage,
 API return, and error handling.
 
-Across the three pairs, the separating capability is final contract closure.
-Grok can find the right files and write substantial local code, but it often
-accepts the first plausible connection and stops when the pieces exist. Opus is
-better at tracing ownership, checking every construction path, testing the
-boundaries between services, and comparing the final repository with the
+Across the top-up and S3 pairs, the clearest difference is final contract
+closure. Grok can find the right files and write substantial local code, but it
+often accepts the first plausible connection and stops when the pieces exist.
+Opus more reliably traces ownership, checks every construction path, tests the
+boundaries between services, and compares the final repository with the
 original request. In simple terms: Grok builds the parts; Opus more reliably
 makes the whole system work.
 
@@ -891,22 +982,21 @@ the reputation of any source company.
 
 ## Conclusion
 
-Grok usually finds the right part of the codebase and writes much of the
-correct code. Its main problems appear in the last steps needed to finish the
-whole task and avoid breaking nearby behavior.
+On the two enterprise tasks with clear end-to-end requirements, Grok usually
+found the right part of the codebase and wrote much of the requested feature.
+Its remaining failures came from rules applied in one path but not another,
+values created but not returned or saved, and tests that checked individual
+pieces rather than the full workflow.
 
-| Capability gap | Evidence | Improvement target |
+| What Grok can improve | Evidence | What to train |
 |---|---|---|
-| Missing one requirement | Customer billing-schedule migration<br>financial-tools | Keep a checklist of every requirement. Mark an item complete only after the final code and a behavior check both confirm it. |
-| Breaking nearby cases | doc-extractors<br>txenrich | For every changed limit, test a value below it, exactly on it, and above it. |
-| Fixing the wrong code path | txenrich3 | Follow the reported input through the running code before choosing which similar file or function to edit. |
-| Copying logic instead of sharing it | Top-up billing lifecycle | Put the rule in one shared place and make every create, update, and scheduled path use it. |
-| Returning the right data in the wrong shape | Customer billing-schedule migration<br>S3 datastore measurement | Use one helper to build the final value or object, then compare the exact saved and returned result. |
-| Stopping before checking every file | FIU<br>financial-tools<br>txenrich3 | Before finishing, search the codebase and review the final diff against every case in the task. |
+| Apply each rule everywhere it matters | Top-up billing lifecycle | List each allowed and rejected case, then test it during create, update, and scheduled execution. |
+| Carry generated values through the full workflow | S3 datastore measurement | Check that each value is created, returned, saved, and returned again by the service, including the bad-record path. |
+| Prove the complete behavior before stopping | Top-up billing lifecycle<br>S3 datastore measurement | Run one test through the real entry point and tie every completion claim to a passing check or inspected final object. |
 
-The overall improvement target is simple: finish the full repair and check it.
-The model should not stop when the code looks plausible. It should stop only
-after every requested behavior has been checked in the final code.
+The practical target is straightforward: keep every requirement active until
+the final code and an end-to-end test show that it works across the complete
+workflow.
 
 ## Appendix
 
