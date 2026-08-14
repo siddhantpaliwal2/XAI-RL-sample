@@ -284,12 +284,9 @@ Wilson 95% intervals for the scored cohort:
 | **Pooled** | **0/24** | **[0.0000, 0.1380]** | **19/24** | **[0.5953, 0.9076]** |
 
 The pooled contrast is strong: 0/24 against 19/24 is Fisher exact
-p = 7.4e-9, and the intervals do not overlap. Individual task cells are
-weaker. The single strongest task-level contrast, S3 at 0/8 against 5/8, is
-Fisher exact p = 0.026, which does not survive Bonferroni correction across
-three tasks. Per-task rates should therefore be read as directional evidence
-about which contracts each model closes, and the pooled result as the
-measured claim.
+p = 7.4e-9, and the intervals do not overlap. Per-task rates are best read as
+directional evidence about which contracts each model closes, with the pooled
+result as the measured claim.
 
 ### Measured effort
 
