@@ -104,6 +104,7 @@ reliably, solving **12/16** attempts while Grok solved **0/16**.
 We compared the final code, tests, commands, and checker results from all 16
 Grok runs on these two tasks with the matching Opus runs. Model comments are
 used only to compare what the model claimed with what the finished code did.
+The code below comes directly from edits recorded in the paired trajectories.
 
 ### 1. Grok applied the top-up rules in some places, but not all
 
@@ -121,10 +122,40 @@ offering-level. The checker showed otherwise. The hourly-job check failed in
 8/8 Grok runs, rejection on other billing modes failed in 7/8, and the combined
 usage-based/subscription rule failed in 6/8.
 
+The recorded Grok edit attached the rule to one optional request field:
+
+```ts
+@IsEnum(ValidBillingCycles)
+@IsOptional()
+@Validate(TopUpBillingCycleRule)
+@ApiProperty({ enum: ValidBillingCycles, default: ValidBillingCycles.monthly })
+public billingCycle?: ValidBillingCycles;
+```
+
 Opus put the same validation in the shared create and update paths and based the
 job identity on the offering. The important difference is not the exact helper
 name. The rule ran wherever data entered the system and was checked again
 through the scheduled path.
+
+The paired Opus edit validates creation and the merged update state, then gives
+the hourly job an offering-level identity:
+
+```ts
+OfferingService.validateTopUpFields(createOfferingDTO);
+
+OfferingService.validateTopUpFields({
+    billingCycle: updatedFields?.billingCycle ? updatedFields?.billingCycle : rest?.billingCycle,
+    offeringType: updatedFields?.offeringType ? updatedFields?.offeringType : rest?.offeringType,
+    topUpAmount: updatedFields?.topUpAmount ? updatedFields?.topUpAmount : rest?.topUpAmount,
+    topUpThreshold: updatedFields?.topUpThreshold ? updatedFields?.topUpThreshold : rest?.topUpThreshold,
+});
+
+schedulerID: Offering.getTopUpSchedulerID(this.offeringId),
+scheduleParameters: {
+    businessID: this.businessID,
+    offeringId: this.offeringId,
+},
+```
 
 **What to train:** for every rule written as “when,” “only if,” or “otherwise,”
 list each allowed and rejected case. Test the list through create, update, and
@@ -145,6 +176,36 @@ Grok's helper filled in a local object but ended without returning it. The
 values existed briefly inside the helper, but the rest of the system could not
 save or use them. Opus returned the configured object, saved it, and returned
 the created entity from the service.
+
+The recorded Grok edit creates the values but reaches the end of the `try`
+block without returning the object:
+
+```ts
+dbAccessInformation.platform = SupportedDatastores.s3;
+dbAccessInformation.region = region;
+dbAccessInformation.externalId = externalId;
+dbAccessInformation.iamRoleArn = createRoleResponse.Role?.Arn;
+dbAccessInformation.ingestion = ingestion;
+dbAccessInformation.dlq = dlq;
+} catch (e) {
+```
+
+The paired Opus edit returns the same object after filling every generated
+field:
+
+```ts
+dbAccessInformation.iamRoleArn = Role?.Arn
+    ? Role.Arn
+    : DatastoreAccessInformation.fallbackRoleArn(roleName);
+dbAccessInformation.externalId = externalId;
+dbAccessInformation.ingestion = DatastoreAccessInformation.ingestionLocation(businessID);
+dbAccessInformation.dlq = DatastoreAccessInformation.dlqLocation(businessID);
+dbAccessInformation.region = dbAccessInformation.region
+    ? dbAccessInformation.region
+    : DatastoreAccessInformation.defaultRegion();
+
+return dbAccessInformation;
+```
 
 **What to train:** follow each generated value through four questions. Was it
 created? Was it returned? Was it saved? Did the final service return the same
