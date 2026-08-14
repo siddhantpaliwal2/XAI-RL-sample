@@ -102,6 +102,11 @@ tasks/<name>/
 A task rewards 1 only when **every** `fail_to_pass` and `pass_to_pass` test
 passes - partial fixes score 0.
 
+That binary rule is the right way to report task resolution, but it is thin as a
+learning signal. [TRAINING-SIGNAL.md](TRAINING-SIGNAL.md) proposes a
+requirement-weighted `soft_score` to sit beside it, and lists the per-task
+verifier gaps to close before these tasks are used for training.
+
 The canonical prompt for each task is `tasks/<name>/instruction.md`.
 `gold-tests/` holds the extracted source of every task's hidden gold test suite
 (the exact code the verifier runs). The gold tests never exist anywhere the
