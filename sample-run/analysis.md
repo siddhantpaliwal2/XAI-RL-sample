@@ -271,6 +271,23 @@ unweighted macro mean of the three task-level estimators, not a pooled
 24-attempt estimator. pass@8 is 1 for any task cell with at least one solve and
 0 for a zero-solve cell.
 
+#### Interval estimates
+
+Each cell holds eight attempts, so the per-task rates carry wide intervals.
+Wilson 95% intervals for the scored cohort:
+
+| Task | Grok 4.5 | Grok 95% CI | Claude Opus 5 | Opus 95% CI |
+|---|---:|---|---:|---|
+| Customer billing-schedule migration | 0/8 | [0.000, 0.324] | 7/8 | [0.529, 0.978] |
+| Top-up billing lifecycle | 0/8 | [0.000, 0.324] | 7/8 | [0.529, 0.978] |
+| S3 datastore measurement | 0/8 | [0.000, 0.324] | 5/8 | [0.306, 0.863] |
+| **Pooled** | **0/24** | **[0.0000, 0.1380]** | **19/24** | **[0.5953, 0.9076]** |
+
+The pooled contrast is strong: 0/24 against 19/24 is Fisher exact
+p = 7.4e-9, and the intervals do not overlap. Per-task rates are best read as
+directional evidence about which contracts each model closes, with the pooled
+result as the measured claim.
+
 ### Measured effort
 
 Agent wall time excludes sandbox setup and grading. Trial wall time includes
@@ -500,6 +517,7 @@ makes the whole system work.
 
 - Untouched bases score 0 and authorized solvability oracles score 1 for all
   three tasks.
+
 - Every selected attempt matches the exact model route, OpenCode version,
   Daytona snapshot, single-agent policy, frozen checksum, and complete verifier
   output.

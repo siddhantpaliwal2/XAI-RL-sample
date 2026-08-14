@@ -161,19 +161,6 @@ attempt used the exact route, OpenCode 1.18.13, a denied task/subagent tool, the
 frozen checksum, one isolated Daytona sandbox, and complete hidden-verifier
 output.
 
-| Task | Grok 4.5 | Claude Opus 5 | XAI learnability gate |
-|---|---:|---:|---|
-| Customer billing-schedule migration | 0/8 | 7/8 | qualifies |
-| Top-up billing lifecycle | 0/8 | 7/8 | qualifies |
-| S3 datastore measurement | 0/8 | 5/8 | qualifies |
-| **Total** | **0/24** | **19/24** | **3/3 qualify** |
-
-The learnability criterion accepts tasks where Grok solves one to six of eight
-attempts, or where Grok solves zero and a comparable model completes the task.
-All three qualify through the comparator-completion path: Claude Opus 5 solves
-19 of 24 attempts while Grok solves 0 of 24, demonstrating that the tasks are
-solvable while preserving a clear capability gap.
-
 The complete evidence package covers structural and measured horizon, binary
 win conditions, pass rates and confidence intervals, turns, tool calls,
 agent/trial wall time, trace-backed failure modes, and verifier fairness:
@@ -448,9 +435,9 @@ analyzed in `sample-run/analysis.md`.
 | terminus-2 + claude-opus-4.8 | 0/3 | 0/3 | 0/3 | 0/2 | 0/1 | 1/3 | 1/3 | 0/3 | 0.083 | 0.250 |
 
 The mini-swe-agent gate table above is the third harness reference point:
-Opus 4.8 at n=10 per task scores mean pass@1 0.075 there, versus 0.100 on
-OpenCode, 0.271 on claude-code — the same model spans a 3.6× solve-rate range
-on harness choice alone. Two structural observations: (1) every task has at
+Opus 4.8 at n=10 per task scores mean pass@1 0.125 there (10 solves across 80
+attempts), versus 0.100 on OpenCode, 0.271 on claude-code — the same model
+spans a 2.17× solve-rate range across these harnesses. Two structural observations: (1) every task has at
 least one solve from some (model, harness) pair — including txenr4, cracked
 only by GLM-5.2 — so no task is unverifiable; (2) `fin-tools` and `txenr4`
 hold under 3% pass@1 across all 15 rows, while `doc-extract` is farmable by
@@ -504,18 +491,27 @@ Everything below assumes Docker is running and you are at the repo root.
 
 **0. Base images (read this first).** Every task Dockerfile starts from a
 sealed linux/amd64 image of the pre-task codebase with dependencies installed.
-The original source repositories are not needed. Request private ECR pull
-access from the maintainer, then install all seven digest-pinned bases:
+The original source repositories are not needed, and the images are not public
+because they contain licensed private source.
+
+**To get access, email [sid@withspecific.com](mailto:sid@withspecific.com)** with
+the AWS account ID you want granted. We add that account to the private ECR
+registry, usually same business day. Once granted:
 
 ```sh
+aws sso login            # or otherwise authenticate the granted account
 ./harness/bootstrap_base_images.sh
 ```
 
-The script verifies the image architecture and assigns the local names expected
-by all eight bug-injection tasks, the three enterprise long-horizon tasks, and
-the separate native-table difficulty control. See [HANDOFF.md](HANDOFF.md) for
-the image map, required access, exact model routes, snapshot names, and complete
-rerun commands.
+The script pulls 12 digest-pinned bases, verifies image architecture, and
+assigns the local names the task Dockerfiles expect. Together they cover all
+17 packaged tasks: the eight bug-injection tasks, all eight enterprise
+long-horizon cohorts, and the native-table difficulty control. The five
+non-headline enterprise bases are now published alongside the seven original
+bases, so every packaged task can be rebuilt from this repository.
+
+See [HANDOFF.md](HANDOFF.md) for the image map, required access, exact model
+routes, snapshot names, and complete rerun commands.
 
 **1. Get an Anthropic API key into your shell** (a probe attempt typically
 costs $0.40–1.60 and is hard-capped at $3):
