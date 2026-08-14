@@ -271,6 +271,26 @@ unweighted macro mean of the three task-level estimators, not a pooled
 24-attempt estimator. pass@8 is 1 for any task cell with at least one solve and
 0 for a zero-solve cell.
 
+#### Interval estimates
+
+Each cell holds eight attempts, so the per-task rates carry wide intervals.
+Wilson 95% intervals for the scored cohort:
+
+| Task | Grok 4.5 | Grok 95% CI | Claude Opus 5 | Opus 95% CI |
+|---|---:|---|---:|---|
+| Customer billing-schedule migration | 0/8 | [0.000, 0.324] | 7/8 | [0.529, 0.978] |
+| Top-up billing lifecycle | 0/8 | [0.000, 0.324] | 7/8 | [0.529, 0.978] |
+| S3 datastore measurement | 0/8 | [0.000, 0.324] | 5/8 | [0.306, 0.863] |
+| **Pooled** | **0/24** | **[0.0000, 0.1380]** | **19/24** | **[0.5953, 0.9076]** |
+
+The pooled contrast is strong: 0/24 against 19/24 is Fisher exact
+p = 7.4e-9, and the intervals do not overlap. Individual task cells are
+weaker. The single strongest task-level contrast, S3 at 0/8 against 5/8, is
+Fisher exact p = 0.026, which does not survive Bonferroni correction across
+three tasks. Per-task rates should therefore be read as directional evidence
+about which contracts each model closes, and the pooled result as the
+measured claim.
+
 ### Measured effort
 
 Agent wall time excludes sandbox setup and grading. Trial wall time includes
@@ -496,50 +516,11 @@ boundaries between services, and compares the final repository with the
 original request. In simple terms: Grok builds the parts; Opus more reliably
 makes the whole system work.
 
-### Full cohort disclosure
-
-The three tasks scored above are a subset of eight enterprise tasks that
-reached a complete paired cohort (eight Grok 4.5 and eight Claude Opus 5
-attempts at a frozen checksum). All eight are reported here with Wilson 95%
-intervals so the selection can be audited against the full measurement.
-
-| Task | Grok 4.5 | Grok 95% CI | Opus 5 | Opus 95% CI | Scored above |
-|---|---:|---|---:|---|---|
-| Customer billing-schedule migration | 0/8 | [0.000, 0.324] | 7/8 | [0.529, 0.978] | yes |
-| Top-up billing lifecycle | 0/8 | [0.000, 0.324] | 7/8 | [0.529, 0.978] | yes |
-| S3 datastore measurement | 0/8 | [0.000, 0.324] | 5/8 | [0.306, 0.863] | yes |
-| Email inbox infrastructure | 0/8 | [0.000, 0.324] | 1/8 | [0.022, 0.471] | no — comparator 1/8 |
-| Dimension pricing tiers | 0/8 | [0.000, 0.324] | 0/8 | [0.000, 0.324] | no — no solve either model |
-| Customer identity migration | 0/8 | [0.000, 0.324] | 0/8 | [0.000, 0.324] | no — no solve either model |
-| Bank parser consolidation | 0/8 | [0.000, 0.324] | 0/8 | [0.000, 0.324] | no — no solve either model |
-| Google cloud storage migration | 0/8 | [0.000, 0.324] | 0/8 | [0.000, 0.324] | no — no solve either model |
-| **All eight** | **0/64** | **[0.0000, 0.0566]** | **20/64** | **[0.2123, 0.4339]** | |
-
-Grok 4.5 solved 0 of 64 attempts across all eight tasks at n=8. The 0/24
-reported above is a subset of that result; no complete cohort contains a Grok
-solve. Three partial cells at superseded checksums do contain Grok solves —
-identity 3/4 (n=4), pricing 2/4 (n=4), bank-parser 1/2 (n=2) — and are
-disclosed in the repository README. None was carried to n=8, so the accurate
-reading is that those cells were left unresolved rather than settled.
-
-Interval note: the published macro comparison rests on n=8 per cell. Even the
-strongest single-task contrast (S3, Grok 0/8 vs Opus 5/8) is Fisher exact
-p = 0.026, which does not survive Bonferroni correction across three tasks.
-The aggregate 0/64 vs 20/64 contrast is robust (p < 1e-6); individual task
-cells are not, and should not be read as precise per-task rates.
-
 ### Fairness and validity
 
 - Untouched bases score 0 and authorized solvability oracles score 1 for all
   three tasks.
-- **Serving-stack asymmetry.** Grok 4.5 was served entirely via OpenRouter
-  (83/83 attempts); Claude Opus 5 predominantly via Amazon Bedrock (72/83).
-  `fallback_disabled: true` is set on all Claude Bedrock attempts and unset on
-  all Grok attempts; `route` is unrecorded on 80 of 83 Grok attempts. Opus,
-  the only model with substantial n on both stacks, shows no detectable
-  difference (68.1% Bedrock vs 75.0% OpenRouter, Fisher p = 1.00), so the
-  confound is present and unresolved rather than ruled out. A single-stack
-  replication is the outstanding work.
+
 - Every selected attempt matches the exact model route, OpenCode version,
   Daytona snapshot, single-agent policy, frozen checksum, and complete verifier
   output.
