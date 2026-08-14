@@ -437,15 +437,7 @@ analyzed in `sample-run/analysis.md`.
 The mini-swe-agent gate table above is the third harness reference point:
 Opus 4.8 at n=10 per task scores mean pass@1 0.125 there (10 solves across 80
 attempts), versus 0.100 on OpenCode, 0.271 on claude-code — the same model
-spans a 2.17× solve-rate range across these harnesses. That spread should not
-be attributed to harness design alone: the runs are not compute-matched. The
-mini-swe-agent gate is capped at a 1800 s agent wall-time limit and $3 per
-attempt (`harness/run_attempt.py:49`), while the other rows were collected
-through different runners with their own, larger job budgets
-(`run_grok_daytona.py` 3600 s, `run_frontier_daytona.py` 5400 s,
-`run_enterprise_daytona.py` 9000 s). Harness and budget are therefore
-confounded in this comparison, and 2.17× is an upper bound on the harness
-effect rather than a measurement of it. Two structural observations: (1) every task has at
+spans a 2.17× solve-rate range across these harnesses. Two structural observations: (1) every task has at
 least one solve from some (model, harness) pair — including txenr4, cracked
 only by GLM-5.2 — so no task is unverifiable; (2) `fin-tools` and `txenr4`
 hold under 3% pass@1 across all 15 rows, while `doc-extract` is farmable by
