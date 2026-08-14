@@ -28,8 +28,13 @@ images=(
     "txenrich-repo|rl-images/txenrich-repo|sha256:8c2983a115729f662626e804854ccaf7f7d06e59b0372c4bd721e7d63c4f3e01"
     "bank-statement-parser-repo|rl-images/bank-statement-parser-repo|sha256:f01f1a1ccb0e1e13f329c88bbb4045c9dc576b97a0871e14fbcf281cc8e07242"
     "enterprise-backend-eng504-billing-base|rl-images/enterprise-backend-eng504-billing-base|sha256:3ac4857029083506c3945264a9f5e877cec7b2d9833fca573e714b4b7c83db60"
+    "enterprise-backend-eng504-identity-base|rl-images/enterprise-backend-eng504-identity-base|sha256:9cba1b8f5f99f48fa43c56a8b7d058bbcea91a3b1c58808cb439c95817de4fb7"
+    "enterprise-backend-eng830-base|rl-images/enterprise-backend-eng830-base|sha256:a5c9c0cc3b13a68e2bfb4f35f31e9fe3ffea6e87ec9b7865b805ae1febf839ca"
     "enterprise-backend-eng1167-base|rl-images/enterprise-backend-eng1167-base|sha256:dfd162b2f78a8db2ebbe7b92ee430578a178a6c32c2277c40624880404288ca2"
     "enterprise-backend-eng411-base|rl-images/enterprise-backend-eng411-base|sha256:cc22566e17bc39efc310b7d3141633c81d61b1c6fcf8eed49ebaa87771f6a20d"
+    "enterprise-state-machine-email2197-base|rl-images/enterprise-state-machine-email2197-base|sha256:ce3cec478d144ff3750c5c8e69101f76f760d8e3face8af74c2a984d78f5f784"
+    "enterprise-bank-parser-base|rl-images/enterprise-bank-parser-base|sha256:c077a0bffbc77f41447ba66d14d79436b3fcd3bdf42d9a21cd8567ab5b23ac3c"
+    "enterprise-google-cloud-storage-base|rl-images/enterprise-google-cloud-storage-base|sha256:c08265e733f2d6490faf2700854c6c7951c47d6da8bad2afa67065cb0d358c34"
 )
 
 for item in "${images[@]}"; do
@@ -47,7 +52,7 @@ for item in "${images[@]}"; do
 done
 
 echo
-echo "Installed seven sealed linux/amd64 base images:"
+echo "Installed 12 sealed linux/amd64 base images:"
 for item in "${images[@]}"; do
     IFS='|' read -r local_name _ _ <<<"$item"
     architecture=$(docker image inspect "$local_name:v1" --format '{{.Architecture}}')

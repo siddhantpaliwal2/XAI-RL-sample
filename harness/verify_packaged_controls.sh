@@ -20,8 +20,13 @@ tasks=(
     xrepo-txenrich3-latent
     xrepo-txenrich4-latent
     enterprise-customer-billing-schedule-migration
+    enterprise-customer-identity-migration
+    enterprise-dimension-pricing-tiers
     enterprise-top-up-billing-lifecycle
     enterprise-s3-datastore-measurement
+    enterprise-email-inbox-infrastructure
+    enterprise-bank-parser-consolidation
+    enterprise-google-cloud-storage-migration
     long-native-table-migration
 )
 
@@ -70,4 +75,4 @@ if [ "$failures" -ne 0 ]; then
 fi
 
 echo
-echo "All 12 packaged task controls passed: untouched reward 0, oracle reward 1."
+echo "All 17 packaged task controls passed: untouched reward 0, oracle reward 1."

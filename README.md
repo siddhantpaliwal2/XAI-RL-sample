@@ -161,6 +161,27 @@ attempt used the exact route, OpenCode 1.18.13, a denied task/subagent tool, the
 frozen checksum, one isolated Daytona sandbox, and complete hidden-verifier
 output.
 
+**Serving-stack asymmetry (known limitation).** The two arms were not served
+from the same inference stack. Across the packaged run records, Grok 4.5 was
+served entirely via OpenRouter (83/83 attempts) while Claude Opus 5 was served
+predominantly via Amazon Bedrock (72 of 83). Two further asymmetries follow
+from that: `fallback_disabled: true` is set on all Claude Bedrock attempts but
+is unset on all Grok attempts, so Grok requests were permitted to fall back to
+an alternate OpenRouter backend; and the concrete `route` field is unrecorded
+on 80 of 83 Grok attempts, so per-attempt backend identity cannot be
+reconstructed for them.
+
+We do not believe this explains the observed gap, and the data available
+argues against it: Claude Opus 5, the only model with substantial n on both
+stacks, shows no detectable difference (Bedrock 49/72 = 68.1% vs OpenRouter
+6/8 = 75.0%; Fisher exact p = 1.00). The one apparent cross-stack difference
+in the record — Fable-5 at 17/56 on Bedrock vs 1/7 on OpenRouter — rests on
+n=7 and is not significant (Fisher exact p = 0.66). The correct statement is
+that a serving-stack confound is present and unresolved, not that it has been
+ruled out. A single-stack replication is the outstanding work needed to close
+it, and future runs record `provider`, `route`, and `fallback_disabled` on
+every attempt.
+
 | Task | Grok 4.5 | Claude Opus 5 | XAI learnability gate |
 |---|---:|---:|---|
 | Customer billing-schedule migration | 0/8 | 7/8 | qualifies |
@@ -173,6 +194,48 @@ attempts, or where Grok solves zero and a comparable model completes the task.
 All three qualify through the comparator-completion path: Claude Opus 5 solves
 19 of 24 attempts while Grok solves 0 of 24, demonstrating that the tasks are
 solvable while preserving a clear capability gap.
+
+#### Full cohort disclosure: all eight enterprise tasks
+
+The three tasks above are the subset that met the learnability gate. They are
+not the full set that was run. Eight tasks reached a complete paired cohort of
+eight Grok 4.5 and eight Claude Opus 5 attempts at a frozen checksum. All eight
+are reported here, with Wilson 95% intervals, so the published selection can be
+audited against the complete measurement rather than taken on trust.
+
+| Task (final checksum) | Grok 4.5 | Grok 95% CI | Opus 5 | Opus 95% CI | Included | Reason |
+|---|---:|---|---:|---|---|---|
+| Customer billing-schedule migration `2ab40b84` | 0/8 | [0.000, 0.324] | 7/8 | [0.529, 0.978] | yes | comparator solves reliably |
+| Top-up billing lifecycle `a1bb8a5f` | 0/8 | [0.000, 0.324] | 7/8 | [0.529, 0.978] | yes | comparator solves reliably |
+| S3 datastore measurement `8d056629` | 0/8 | [0.000, 0.324] | 5/8 | [0.306, 0.863] | yes | comparator solves reliably |
+| Email inbox infrastructure `edafd48e` | 0/8 | [0.000, 0.324] | 1/8 | [0.022, 0.471] | no | comparator solves 1/8; learnability not established |
+| Dimension pricing tiers `ab6464f2` | 0/8 | [0.000, 0.324] | 0/8 | [0.000, 0.324] | no | no solve by either model |
+| Customer identity migration `0c8c04d7` | 0/8 | [0.000, 0.324] | 0/8 | [0.000, 0.324] | no | no solve by either model |
+| Bank parser consolidation `fc4a38c9` | 0/8 | [0.000, 0.324] | 0/8 | [0.000, 0.324] | no | no solve by either model |
+| Google cloud storage migration `cc6d2f25` | 0/8 | [0.000, 0.324] | 0/8 | [0.000, 0.324] | no | no solve by either model |
+| **All eight tasks** | **0/64** | **[0.0000, 0.0566]** | **20/64** | **[0.2123, 0.4339]** | | |
+
+**Grok 4.5 solved 0 of 64 attempts across all eight enterprise tasks at n=8.**
+The published 0/24 is a subset of that result, not a more favorable framing of
+it: there is no complete cohort in which Grok records a solve.
+
+Three additional cells exist at earlier or partial checksums in which Grok did
+record solves, all at small n and none at a frozen final checksum:
+
+| Task | Checksum | Grok | Opus | Status |
+|---|---|---:|---:|---|
+| Customer identity migration | `7b020950` | 3/4 | 4/4 | partial cohort, n=4, superseded |
+| Dimension pricing tiers | `32397db1` | 2/4 | 7/8 | partial cohort, n=4, superseded |
+| Bank parser consolidation | `e0449bd6` | 1/2 | 0/8 | partial cohort, n=2, superseded |
+
+These are calibration checkpoints, not scored cohorts, and they are excluded
+from every reported rate. They are disclosed because they are the only cells in
+the study where Grok scores above zero, and a reader assessing the capability
+claim should see them. Note that none was carried to n=8; the honest reading is
+that the small-n Grok results were not resolved, not that they were
+outperformed. Raw per-attempt records for every cell above, including the
+excluded ones, are under [`sample-run/enterprise-raw/`](sample-run/enterprise-raw/)
+and can be re-aggregated independently by task checksum.
 
 The complete evidence package covers structural and measured horizon, binary
 win conditions, pass rates and confidence intervals, turns, tool calls,
@@ -448,9 +511,17 @@ analyzed in `sample-run/analysis.md`.
 | terminus-2 + claude-opus-4.8 | 0/3 | 0/3 | 0/3 | 0/2 | 0/1 | 1/3 | 1/3 | 0/3 | 0.083 | 0.250 |
 
 The mini-swe-agent gate table above is the third harness reference point:
-Opus 4.8 at n=10 per task scores mean pass@1 0.075 there, versus 0.100 on
-OpenCode, 0.271 on claude-code — the same model spans a 3.6× solve-rate range
-on harness choice alone. Two structural observations: (1) every task has at
+Opus 4.8 at n=10 per task scores mean pass@1 0.125 there (10 solves across 80
+attempts), versus 0.100 on OpenCode, 0.271 on claude-code — the same model
+spans a 2.17× solve-rate range across these harnesses. That spread should not
+be attributed to harness design alone: the runs are not compute-matched. The
+mini-swe-agent gate is capped at a 1800 s agent wall-time limit and $3 per
+attempt (`harness/run_attempt.py:49`), while the other rows were collected
+through different runners with their own, larger job budgets
+(`run_grok_daytona.py` 3600 s, `run_frontier_daytona.py` 5400 s,
+`run_enterprise_daytona.py` 9000 s). Harness and budget are therefore
+confounded in this comparison, and 2.17× is an upper bound on the harness
+effect rather than a measurement of it. Two structural observations: (1) every task has at
 least one solve from some (model, harness) pair — including txenr4, cracked
 only by GLM-5.2 — so no task is unverifiable; (2) `fin-tools` and `txenr4`
 hold under 3% pass@1 across all 15 rows, while `doc-extract` is farmable by
@@ -504,18 +575,27 @@ Everything below assumes Docker is running and you are at the repo root.
 
 **0. Base images (read this first).** Every task Dockerfile starts from a
 sealed linux/amd64 image of the pre-task codebase with dependencies installed.
-The original source repositories are not needed. Request private ECR pull
-access from the maintainer, then install all seven digest-pinned bases:
+The original source repositories are not needed, and the images are not public
+because they contain licensed private source.
+
+**To get access, email [sid@withspecific.com](mailto:sid@withspecific.com)** with
+the AWS account ID you want granted. We add that account to the private ECR
+registry, usually same business day. Once granted:
 
 ```sh
+aws sso login            # or otherwise authenticate the granted account
 ./harness/bootstrap_base_images.sh
 ```
 
-The script verifies the image architecture and assigns the local names expected
-by all eight bug-injection tasks, the three enterprise long-horizon tasks, and
-the separate native-table difficulty control. See [HANDOFF.md](HANDOFF.md) for
-the image map, required access, exact model routes, snapshot names, and complete
-rerun commands.
+The script pulls 12 digest-pinned bases, verifies image architecture, and
+assigns the local names the task Dockerfiles expect. Together they cover all
+17 packaged tasks: the eight bug-injection tasks, all eight enterprise
+long-horizon cohorts, and the native-table difficulty control. The five
+non-headline enterprise bases are now published alongside the seven original
+bases, so every packaged task can be rebuilt from this repository.
+
+See [HANDOFF.md](HANDOFF.md) for the image map, required access, exact model
+routes, snapshot names, and complete rerun commands.
 
 **1. Get an Anthropic API key into your shell** (a probe attempt typically
 costs $0.40–1.60 and is hard-capped at $3):

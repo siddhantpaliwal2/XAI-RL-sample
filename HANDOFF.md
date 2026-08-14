@@ -3,7 +3,7 @@
 This repository contains the complete task packages, hidden verifiers, oracle
 solutions, result indexes, and packaged trajectories for eight bug-injection
 debugging tasks and three enterprise long-horizon tasks. The original source
-repositories are not required. Seven sealed linux/amd64 base images provide
+repositories are not required. Twelve sealed linux/amd64 base images provide
 the exact pre-task code and installed dependencies without exposing Git
 history or private repository access.
 
@@ -56,8 +56,13 @@ XAI_AWS_PROFILE=my-profile ./harness/bootstrap_base_images.sh
 | `fiu-repo:v1` | FIU boundary debugging |
 | `txenrich-repo:v1` | transaction enrichment, transaction enrichment 3, transaction enrichment 4 |
 | `enterprise-backend-eng504-billing-base:v1` | customer billing-schedule migration |
+| `enterprise-backend-eng504-identity-base:v1` | customer identity migration |
+| `enterprise-backend-eng830-base:v1` | dimension pricing tiers |
 | `enterprise-backend-eng1167-base:v1` | top-up billing lifecycle |
 | `enterprise-backend-eng411-base:v1` | S3 datastore measurement |
+| `enterprise-state-machine-email2197-base:v1` | email inbox infrastructure |
+| `enterprise-bank-parser-base:v1` | bank parser consolidation |
+| `enterprise-google-cloud-storage-base:v1` | cloud-storage migration |
 | `bank-statement-parser-repo:v1` | native-table migration difficulty control |
 
 The digest pins are in `harness/bootstrap_base_images.sh`. They are the
@@ -65,7 +70,8 @@ reproducibility boundary; do not replace them with floating tags.
 
 ## 3. Verify every task without model calls
 
-Run all 11 headline task controls plus the native-table difficulty control:
+Run all 17 packaged task controls, including the 11 headline tasks, the five
+additional enterprise cohorts, and the native-table difficulty control:
 
 ```sh
 ./harness/verify_packaged_controls.sh
@@ -75,7 +81,7 @@ For every task, the untouched image must report `reward: 0`, and applying the
 packaged oracle must report `reward: 1`. The expected final line is:
 
 ```text
-All 12 packaged task controls passed: untouched reward 0, oracle reward 1.
+All 17 packaged task controls passed: untouched reward 0, oracle reward 1.
 ```
 
 These checks prove that the public task package, sealed base, hidden verifier,
