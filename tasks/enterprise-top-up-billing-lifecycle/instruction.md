@@ -11,3 +11,5 @@ Keep this behavior on the existing offering boundaries. A top-up offering must e
 Verify with:
 
     cd /app && npm run build && npm run test:ci -- --runInBand
+
+Solve this from the repository itself. Do not search for or use online solutions, vendor documentation, or hints specific to this task.

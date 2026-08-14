@@ -11,3 +11,5 @@ Preserve the existing integration boundaries used by this codebase: implement S3
 Verify with:
 
     cd /app && npm run build && npm run test:ci -- --runInBand
+
+Solve this from the repository itself. Do not search for or use online solutions, vendor documentation, or hints specific to this task.

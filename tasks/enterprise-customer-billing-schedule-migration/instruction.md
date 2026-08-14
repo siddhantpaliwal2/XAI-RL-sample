@@ -11,3 +11,5 @@ Route billing scheduler emissions to `scheduler_billing_queue` with the `billing
 Verify with:
 
     cd /app && npm run build && npm run test:ci -- --runInBand
+
+Solve this from the repository itself. Do not search for or use online solutions, vendor documentation, or hints specific to this task.

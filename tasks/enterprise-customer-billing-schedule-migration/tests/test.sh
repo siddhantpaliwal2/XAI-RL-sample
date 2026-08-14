@@ -27,6 +27,16 @@ print(json.load(open(sys.argv[1]))["test_patch"], end="")
 PYEOF
 
 cd "$REPO_ROOT"
+
+# The verifier owns its runner config. jest.unit.config.json is agent-writable
+# during the agent phase, and its transform, moduleNameMapper and setup hooks
+# would otherwise execute inside the gold suite's process. Restore it from the
+# sealed base commit so an agent-modified config cannot influence grading.
+if ! git diff --quiet -- jest.unit.config.json 2>/dev/null; then
+    echo "test.sh: jest.unit.config.json differed from the base commit; restoring pristine copy" >&2
+fi
+git checkout -- jest.unit.config.json 2>/dev/null || true
+
 git apply --reverse --check /tmp/gold_tests.patch 2>/dev/null && git apply --reverse /tmp/gold_tests.patch
 git apply /tmp/gold_tests.patch || { echo "test.sh: gold test patch failed" >&2; exit 1; }
 
